@@ -1,0 +1,22 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Secrets and personal data
+.env
+.env.*
+!.env.example
+*.local.ts
+
+# Cookie files, archives and leftovers (see BOUWPLAN.md, chapter 6)
+*cookies*.txt
+*.cookies
+cookies.json
+*.tar.gz
+attached_assets/
+
+# Logs and OS files
+*.log
+npm-debug.log*
+.DS_Store
