@@ -117,3 +117,14 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 ## Volgende stap
 
 1.1 WhatsApp in en uit (9.3–9.5). Vraagt eerst de voorbereiding bij Meta (9.1) en een VPS met domein en HTTPS. In de cloud-sessie bouw en test ik met opgenomen Meta-payloads en zonder productiesleutels.
+
+## Bouwplan v1.3 — Telegram en mail in plaats van WhatsApp
+
+- **Datum:** 2026-10-01
+- **Besluit (Elmer):** WhatsApp vervalt. Alle WhatsApp-accounts in de Meta-portfolio De GroeiFormule zijn door Meta uitgeschakeld en een nieuwe portfolio aanmaken lukt niet (limiet bereikt). Telegram wordt het dagelijkse kanaal, mail het tweede kanaal voor overzichten, concepten en invoer. Zie BOUWPLAN.md hoofdstuk 9 en beslissing 10.
+- **Gevolgen:**
+  - Branch `stap-1.1` (WhatsApp) vervalt. Stap 1.1 wordt opnieuw gebouwd als "Telegram en mail in en uit"; kanaalonafhankelijke delen uit die branch mogen worden overgenomen.
+  - Datamodel (hoofdstuk 8): `users` krijgt Telegram-velden en `preferred_channel`, `phone_e164` en `whatsapp_opt_in_at` vervallen; `messages` krijgt `external_id` (uniek met `channel`) in plaats van `wa_message_id`; `wa_usage` vervalt. Nog te migreren in stap 1.1.
+  - De huidige code op `main` bevat nog de WhatsApp-verify-webhook uit stap 0.3 en de `WHATSAPP_*`-variabelen in `env.ts`. Opruimen in stap 1.1.
+- **Infrastructuur (klaar):** Hostinger VPS KVM 2 (Duitsland), `hyper-focus.pro` met HTTPS, app draait onder PM2, `/health` geeft ok, nachtelijke `pg_dump`, snapshot gemaakt. Installatie via `setup-vps.sh`.
+- **Open:** Telegram-bot aanmaken bij @BotFather; SendGrid-domeinauthenticatie en Inbound Parse (MX `in.hyper-focus.pro`); SSH-sleutel op de VPS en daarna SSH-hardening; repo privé maken.
