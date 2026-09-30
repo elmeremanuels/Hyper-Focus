@@ -47,6 +47,6 @@ Details staan in BOUWPLAN.md.
 
 Aangemaakt in stap 0.2 en daarna actueel gehouden.
 
-- Nu beschikbaar: `npm run dev` · `npm test` · `npm run lint` · `npm run typecheck` · `npm run build` · `npm start` · `npm run db:generate` · `npm run db:migrate` · `npm run db:seed`
+- Nu beschikbaar: `npm run dev` · `npm test` · `npm run lint` · `npm run typecheck` · `npm run build` · `npm start` · `npm run db:generate` · `npm run db:migrate` · `npm run db:seed` · `npm run sim`
 - Databasetests draaien alleen met `TEST_DATABASE_URL` (rol met CREATEDB).
-- Volgen in latere stappen: `npm run sim` (0.5) · `npm run eval` (1.2) · `npm run sim:day` (1.5)
+- Volgen in latere stappen: `npm run eval` (1.2) · `npm run sim:day` (1.5)

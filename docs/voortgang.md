@@ -86,13 +86,34 @@ Geheugen tussen sessies. Werk dit bij aan het eind van elke bouwstap.
   - Voor de overige statuskolommen (gebruiker, klant, project, idee, bericht) zijn ook Postgres-enums gemaakt, met de waarden uit hoofdstuk 8.
 - **Open punten:**
   - `pg_trgm` volgt bij de stap die hem gebruikt (zie `docs/later.md`).
-  - Er is nog geen `main`, dus nog geen pull request.
-  - `Publicato-personal` is publiek en bevat nog secrets (zie stap 0.1).
 
-## Stap 0.1 — aanvulling
+## Stap 0.5 — Simulator
 
-- 2026-09-30: `Publicato-personal` staat op public. Een scan van de huidige bestanden vond een Meta-token in `attached_assets/`, 9 cookiebestanden, 4 `.tar.gz`-archieven, database-URL's met wachtwoord en Mollie-achtige sleutels. Status: niet klaar.
+- **Status:** klaar
+- **Datum:** 2026-09-30
+- **Gebouwd:**
+  - `src/conversation/types.ts`: kanaalonafhankelijke berichten (tekst, knop) en de interface `OutboundChannel`.
+  - `src/conversation/router.ts`: eenvoudige router. Herkent begroeting, "vandaag" en "help", toont maximaal drie open taken met Start-knoppen, en handelt de knoppen `f:show`, `help` en `t:{id}:start` af. Onbekende nummers krijgen één kort antwoord.
+  - `src/conversation/deps.ts`: gegevens uit de database, of uit het geheugen als er geen database is.
+  - `src/channels/console/channel.ts`: toont uitgaande berichten in de terminal, met genummerde knoppen.
+  - `scripts/sim.ts` en `npm run sim` (optie `--phone`). Werkt interactief en met invoer via een pipe.
+- **Controle Definition of Done:**
+  - `printf 'goedemorgen\n1\n1\nklant belde\n' | npm run sim` geeft op elk bericht een antwoord, met de taken uit de seed. Zonder `DATABASE_URL` werkt hij met voorbeeldtaken in het geheugen.
+  - `npm test`: 47 groen (9 databasetests overgeslagen). Met `TEST_DATABASE_URL`: 56 groen. De routertest controleert ook maximaal 300 tekens, 3 knoppen, 20 tekens per knop en de woorden die Hyper&Focus weglaat.
+- **Open punten:**
+  - De router slaat berichten nog niet op en legt nog geen taken vast. Dat komt in 1.1 (berichten) en 1.2 (Claude met tools).
+  - De Start-knop plant nog geen check-in; die komt in 1.4.
+
+## Stap 0.1 — Beveiliging bronrepo (update)
+
+- 2026-09-30: een scan van de huidige bestanden vond een Meta-token in `attached_assets/`, 9 cookiebestanden, 4 `.tar.gz`-archieven, database-URL's met wachtwoord en Mollie-achtige sleutels.
+- 2026-09-30: `Publicato-personal` staat weer op privé (bevestigd).
+- **Open:** sleutels intrekken en vernieuwen, cookiebestanden en `attached_assets` verwijderen (door Elmer).
+
+## Fase 0
+
+Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sinds 2026-09-30 en bevat 0.2 t/m 0.4.
 
 ## Volgende stap
 
-0.5 Simulator: `npm run sim` met een eenvoudige router.
+1.1 WhatsApp in en uit (9.3–9.5). Vraagt eerst de voorbereiding bij Meta (9.1) en een VPS met domein en HTTPS. In de cloud-sessie bouw en test ik met opgenomen Meta-payloads en zonder productiesleutels.

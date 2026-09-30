@@ -15,6 +15,7 @@ import {
 } from '../src/db/schema/index.js';
 import example from '../src/db/seed/example.js';
 import { loadSeed } from '../src/db/seed/load.js';
+import { createDbRouterDeps } from '../src/conversation/deps.js';
 
 // Runs against a throwaway database created from TEST_DATABASE_URL (a role with CREATEDB).
 const adminUrl = process.env.TEST_DATABASE_URL;
@@ -134,5 +135,41 @@ describe.skipIf(!adminUrl)('database (integration)', () => {
       .values({ userId, localDate: '2026-10-07', wrapupDoneAt: new Date('2026-10-07T08:00:00Z') })
       .returning();
     expect(row?.wrapupDoneAt?.toISOString()).toBe('2026-10-07T08:00:00.000Z');
+  });
+});
+
+describe.skipIf(!adminUrl)('router with database deps (integration)', () => {
+  const dbName = `hyperfocus_test_${randomBytes(4).toString('hex')}`;
+  let connection: DbConnection;
+
+  beforeAll(async () => {
+    const admin = new pg.Client({ connectionString: adminUrl });
+    await admin.connect();
+    await admin.query(`CREATE DATABASE ${dbName}`);
+    await admin.end();
+    const url = new URL(adminUrl!);
+    url.pathname = `/${dbName}`;
+    await runMigrations(url.toString());
+    connection = connect(url.toString());
+    await loadSeed(connection.db, example);
+  });
+
+  afterAll(async () => {
+    await connection?.close();
+    const admin = new pg.Client({ connectionString: adminUrl });
+    await admin.connect();
+    await admin.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+    await admin.end();
+  });
+
+  it('lists weekly-focus and high-priority tasks first, without micro-steps', async () => {
+    const deps = createDbRouterDeps(connection.db);
+    expect(await deps.findUserName(example.user.phoneE164)).toBe('Sam');
+    const open = await deps.listOpenTasks(example.user.phoneE164, 3);
+    expect(open.map((task) => task.title)).toEqual([
+      'Offerte bakkerij afmaken',
+      'Banner voor de feestdagen',
+      'Onderwerpregels nieuwsbrief kiezen',
+    ]);
   });
 });
