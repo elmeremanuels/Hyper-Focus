@@ -62,6 +62,37 @@ Geheugen tussen sessies. Werk dit bij aan het eind van elke bouwstap.
   - De geoogste bestanden bevatten twee instructieblokken voor AI-assistenten (`anthropic.ts` en `openai.ts`). Die zijn niet overgenomen.
   - `tokenEncryption.ts` in Publicato valt terug op een hardcoded geheim als de sleutel ontbreekt. Controleer of dat daar ergens in productie gebeurt.
 
+## Stap 0.4 — Database
+
+- **Status:** klaar
+- **Datum:** 2026-09-30
+- **Gebouwd:**
+  - `src/db/client.ts`: Drizzle met `drizzle-orm/node-postgres` en `pg`.
+  - `src/db/schema/`: alle 18 tabellen en de enums uit hoofdstuk 8. Elke tabel behalve `users` heeft `user_id` met `ON DELETE CASCADE`. Tijden in `timestamptz`.
+  - Afdwinging in de database: maximaal één focusbedrijf per gebruiker, maximaal drie focustaken per dag, schattingen alleen 5/15/30/60/120, prioriteit 1–3, escalatieniveau 0–3, `wa_message_id` uniek.
+  - `src/db/labels.ts`: Nederlandse labels bij de statussen en lenzen.
+  - Migratie `drizzle/0000_init.sql`, gegenereerd met `npm run db:generate`; `npm run db:migrate` voert hem uit.
+  - Seed: `example.ts` met een fictief bedrijf en drie klanten. `eigen-data.local.ts` wordt geladen als die bestaat (staat in `.gitignore`). Elke gebruiker krijgt het project *Losse taken*, instellingen met de standaardwaarden en een `conversation_state`. Een tweede run slaat bestaande gebruikers over.
+- **Controle Definition of Done:**
+  - Lege PostgreSQL 16-database: `npm run db:migrate` geeft "Migrations applied"; `npm run db:seed` maakt de gebruiker aan (1 gebruiker, 3 klanten, 4 projecten, 8 taken, 1 idee).
+  - Tweede `npm run db:seed`: "already exists, skipped".
+  - Met een tijdelijk `eigen-data.local.ts` laadt de seed ook die gebruiker; `git check-ignore` bevestigt dat het bestand genegeerd wordt.
+  - `tests/db.integration.test.ts` maakt een lege database, migreert, seedt en test de constraints, de idempotentie van `wa_message_id` en UTC-opslag. Met `TEST_DATABASE_URL`: 46 tests groen. Zonder: 38 groen, 8 overgeslagen.
+- **Keuzes binnen het bouwplan:**
+  - `weekly_review_day` is een ISO-weekdag (1 = maandag, 7 = zondag; standaard 7).
+  - `enabled_lenses` staat standaard op de vier lenzen van fase 2.
+  - `calendar_ids` staat standaard op `primary` (de hoofdagenda).
+  - `scheduled_nudges.sent_message_id` heeft geen foreign key, omdat berichten na 30 dagen verdwijnen.
+  - Voor de overige statuskolommen (gebruiker, klant, project, idee, bericht) zijn ook Postgres-enums gemaakt, met de waarden uit hoofdstuk 8.
+- **Open punten:**
+  - `pg_trgm` volgt bij de stap die hem gebruikt (zie `docs/later.md`).
+  - Er is nog geen `main`, dus nog geen pull request.
+  - `Publicato-personal` is publiek en bevat nog secrets (zie stap 0.1).
+
+## Stap 0.1 — aanvulling
+
+- 2026-09-30: `Publicato-personal` staat op public. Een scan van de huidige bestanden vond een Meta-token in `attached_assets/`, 9 cookiebestanden, 4 `.tar.gz`-archieven, database-URL's met wachtwoord en Mollie-achtige sleutels. Status: niet klaar.
+
 ## Volgende stap
 
-0.4 Database: `node-postgres`-client, schema uit hoofdstuk 8, migraties en seed.
+0.5 Simulator: `npm run sim` met een eenvoudige router.

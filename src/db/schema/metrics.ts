@@ -1,0 +1,59 @@
+import { index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { id, timestamps, userId } from './common.js';
+
+// Metadata only, no message content. Kept for 12 months (BOUWPLAN.md, 14).
+
+export const EVENT_NAMES = [
+  'inbound_message',
+  'task_created',
+  'task_status_changed',
+  'focus_item_done',
+  'suggestion_delivered',
+  'suggestion_status_changed',
+  'session_started',
+  'session_completed',
+  'reentry',
+  'overwhelm',
+  'nudge_skipped',
+] as const;
+
+export type EventName = (typeof EVENT_NAMES)[number];
+
+export const events = pgTable(
+  'events',
+  {
+    id: id(),
+    userId: userId(),
+    name: text('name').notNull(),
+    props: jsonb('props').$type<Record<string, unknown>>().notNull().default({}),
+    ...timestamps,
+  },
+  (table) => [index('events_user_name_created_idx').on(table.userId, table.name, table.createdAt)],
+);
+
+export const aiUsage = pgTable(
+  'ai_usage',
+  {
+    id: id(),
+    userId: userId(),
+    purpose: text('purpose').notNull(),
+    model: text('model').notNull(),
+    inputTokens: integer('input_tokens').notNull(),
+    outputTokens: integer('output_tokens').notNull(),
+    ...timestamps,
+  },
+  (table) => [index('ai_usage_user_created_idx').on(table.userId, table.createdAt)],
+);
+
+export const waUsage = pgTable(
+  'wa_usage',
+  {
+    id: id(),
+    userId: userId(),
+    templateName: text('template_name').notNull(),
+    category: text('category').notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+  },
+  (table) => [index('wa_usage_user_sent_idx').on(table.userId, table.sentAt)],
+);
