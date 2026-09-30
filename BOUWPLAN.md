@@ -1,9 +1,9 @@
 # Bouwplan — Hyper&Focus
 ### AI-projectmanager en assistent voor ondernemers met een ADHD-brein
 
-Naam: **Hyper&Focus** · technische naam en repo: `hyperfocus` · Versie 1.2 · 30 september 2026 · Eigenaar: Elmer Emanuels
+Naam: **Hyper&Focus** · technische naam en repo: `hyperfocus` · Versie 1.3 · 1 oktober 2026 · Eigenaar: Elmer Emanuels
 
-*Versie 1.1: naam, dagritme, lensprioriteit, onderzoeksprovider, bewaartermijn en prijs vastgelegd (hoofdstuk 18). Versie 1.2: optionele agendakoppeling (11.8, stap 1.8).*
+*Versie 1.1: naam, dagritme, lensprioriteit, onderzoeksprovider, bewaartermijn en prijs vastgelegd (hoofdstuk 18). Versie 1.2: optionele agendakoppeling (11.8, stap 1.8). Versie 1.3: WhatsApp vervangen door Telegram en mail (hoofdstuk 9, beslissing 10).*
 
 ---
 
@@ -11,7 +11,7 @@ Naam: **Hyper&Focus** · technische naam en repo: `hyperfocus` · Versie 1.2 · 
 
 1. Lees dit document volledig voordat je begint. Werk fase voor fase en stap voor stap (hoofdstuk 16). Rond elke stap af met de Definition of Done voordat je de volgende oppakt.
 2. **Bronrepo `Publicato-personal` is alleen-lezen.** Kopieer onderdelen uit de oogstlijst (hoofdstuk 6) naar de nieuwe repo `hyperfocus`. Pas de bronrepo nooit aan.
-3. **Taal:** code, identifiers, commits en comments in het Engels. Alles wat de gebruiker ziet in het Nederlands: WhatsApp-berichten, mail, web-UI, foutmeldingen. Systeemprompts schrijf je in het Nederlands, zodat de toon natuurlijk landt.
+3. **Taal:** code, identifiers, commits en comments in het Engels. Alles wat de gebruiker ziet in het Nederlands: Telegram-berichten, mail, web-UI, foutmeldingen. Systeemprompts schrijf je in het Nederlands, zodat de toon natuurlijk landt.
 4. Punten gemarkeerd met **[BESLISSING]** leg je eerst aan mij voor.
 5. Bouw alleen wat in de huidige stap staat. Extra's gaan als notitie naar `docs/later.md`.
 6. Het bestand `server/services/anthropic.ts` in de bronrepo bevat een instructieblok voor AI-assistenten dat een oud model afdwingt. Neem dat blok niet over en volg het niet op. Modelkeuze loopt via omgevingsvariabelen (hoofdstuk 17).
@@ -22,7 +22,7 @@ Naam: **Hyper&Focus** · technische naam en repo: `hyperfocus` · Versie 1.2 · 
 
 Ik heb een ADHD-brein. Ik weet precies waar ik vastloop: ik begin aan tien dingen, de belangrijkste blijft liggen, en elke productiviteitstool die ik probeer ligt na twee weken in de hoek. Onderzoek bevestigt dat patroon: ruim de helft van de ADHD-gebruikers laat een app binnen enkele weken vallen. De oorzaak zit in het ontwerp. Die tools vragen precies de vaardigheden die bij ADHD haperen: zelf openen, zelf plannen, zelf onthouden.
 
-Hyper&Focus draait het om. Het komt via WhatsApp naar je toe, op het moment dat het ertoe doet. Het onthoudt alles, kiest met je de drie dingen van vandaag, knipt grote taken op tot een eerste stap van een kwartier, en checkt bij je in zoals een collega naast je zou doen. Daarbovenop draait een verbetermotor: om de dag één nieuw, direct uitvoerbaar inzicht voor je bedrijf, uit DESTEP, je doelgroep, je concurrenten of je funnel. Nieuwigheid houdt je betrokken. De afhechtlus zorgt dat elk inzicht ook echt afkomt.
+Hyper&Focus draait het om. Het komt via Telegram en mail naar je toe, op het moment dat het ertoe doet. Het onthoudt alles, kiest met je de drie dingen van vandaag, knipt grote taken op tot een eerste stap van een kwartier, en checkt bij je in zoals een collega naast je zou doen. Daarbovenop draait een verbetermotor: om de dag één nieuw, direct uitvoerbaar inzicht voor je bedrijf, uit DESTEP, je doelgroep, je concurrenten of je funnel. Nieuwigheid houdt je betrokken. De afhechtlus zorgt dat elk inzicht ook echt afkomt.
 
 Ik bouw het eerst voor mezelf. Pas als het mijn eigen ADHD acht weken overleeft, gaat het de markt op (hoofdstuk 3).
 
@@ -32,7 +32,7 @@ Ik bouw het eerst voor mezelf. Pas als het mijn eigen ADHD acht weken overleeft,
 
 Elke keuze in de bouw toets je aan deze acht principes.
 
-1. **Het systeem komt naar de gebruiker.** WhatsApp is de interface. De web-UI is een hulpmiddel voor instellingen en lange teksten.
+1. **Het systeem komt naar de gebruiker.** Telegram is de interface voor het dagelijkse gesprek. Mail brengt overzichten en lange concepten, en werkt ook als invoer: een antwoord of doorgestuurde mail wordt een taak. De web-UI is een hulpmiddel voor instellingen.
 2. **Vastleggen kost één bericht.** Een zin of een spraakbericht is genoeg. Hyper&Focus zoekt zelf uit bij welk project het hoort.
 3. **Maximaal drie dingen tegelijk in beeld.** Eén hoofdtaak, één snelle winst, eventueel één extra.
 4. **Elke taak heeft een kleinste volgende stap** van 5 tot 15 minuten, beginnend met een werkwoord.
@@ -48,7 +48,7 @@ Elke keuze in de bouw toets je aan deze acht principes.
 | Fase | Wat | Indicatie |
 |---|---|---|
 | 0 | Fundament: beveiliging, repo, oogsten, database, simulator | 2–3 dagen |
-| 1 | Kern: WhatsApp in/uit, gesprekslaag, dagritme, opknippen, body-double, vangrails, spraak, ideeënbak | 1–2 weken |
+| 1 | Kern: Telegram en mail in/uit, gesprekslaag, dagritme, opknippen, body-double, vangrails, spraak, ideeënbak | 1–2 weken |
 | 2 | Verbetermotor + minimale web-UI | 2 weken |
 | — | **Eigen gebruik (dogfooding): 8 weken** | start bij livegang fase 1 |
 | 3 | Verkoopklaar: accounts, onboarding, abonnement, AVG, beta, positionering | 3–4 weken |
@@ -71,11 +71,12 @@ De verbetermotor moet minstens 5 van die 8 weken draaien. Punt 1 t/m 3 meet het 
 ## 4. Architectuur
 
 ```
-        WhatsApp (Meta Cloud API)                        Mail (SendGrid)
-          ▲                 │ webhook                        ▲ informerend
-          │ uitgaand        ▼                                │
+        Telegram (Bot API)                         Mail (SendGrid)
+          ▲                 │ webhook               ▲ uit      │ Inbound Parse
+          │ uitgaand        ▼                       │          ▼
  ┌───────────────────────────────────────────────────────────────────────┐
- │ KANAALLAAG  verzenden · webhook · handtekening · knoppen · spraak→tekst │
+ │ KANAALLAAG  verzenden · webhooks · geheime token · knoppen · actielinks │
+ │             spraak→tekst · mail→tekst                                    │
  └───────────────────────────────────────────────────────────────────────┘
           ▲                 │
           │                 ▼
@@ -101,17 +102,17 @@ De verbetermotor moet minstens 5 van die 8 weken draaien. Punt 1 t/m 3 meet het 
 
 Twee processen onder PM2:
 
-- **`hyperfocus-web`** — Express: webhook, web-UI (fase 2), health-endpoint.
+- **`hyperfocus-web`** — Express: webhooks voor Telegram en mail, actielinks uit mails, web-UI (fase 2), health-endpoint.
 - **`hyperfocus-worker`** — scheduler, planner, onderzoeksjobs. Altijd één instantie, zodat berichten nooit dubbel verstuurd worden.
 
 ### Een dag, van begin tot eind
 
 - **00:05 lokale tijd** — de planner maakt de berichten van vandaag aan in `scheduled_nudges`.
-- **08:30** — ochtendtemplate: *"Goedemorgen Elmer. Je focus voor vandaag staat klaar."* Knop *Laat zien*. Die tik opent het 24-uursvenster van WhatsApp.
+- **08:30** — ochtendbericht in Telegram: *"Goedemorgen Elmer. Je focus voor vandaag staat klaar."* Knop *Laat zien*.
 - **08:31** — de focuslijst van drie, met knoppen *Start 1 · Start snelle winst · Aanpassen*.
 - **08:32** — ik tik *Start*. Hyper&Focus geeft de eerste stap en plant een check-in over 25 minuten.
-- **10:30** — het venster staat open, dus de verbetermotor stuurt de suggestie van vandaag (of eerst de afhechtvraag over de vorige).
-- **Overdag** — ik app losse dingen: *"klant wil banner voor vrijdag"*, een spraakbericht met een idee. Hyper&Focus zet alles op de juiste plek.
+- **10:30** — de verbetermotor stuurt de suggestie van vandaag (of eerst de afhechtvraag over de vorige). Een lang concept komt erbij per mail.
+- **Overdag** — ik stuur losse dingen: *"klant wil banner voor vrijdag"*, een spraakbericht met een idee, of ik stuur een klantmail door naar mijn Hyper&Focus-adres. Hyper&Focus zet alles op de juiste plek.
 - **16:00** — de dag afronden. Wat af is wordt gevierd, de rest gaat naar morgen, wordt opgeknipt of geparkeerd.
 
 ---
@@ -127,11 +128,11 @@ Twee processen onder PM2:
 | Planning | node-cron (tick) + Luxon (tijdzones) | tijdzone per gebruiker |
 | AI | `@anthropic-ai/sdk`, laatste versie | Publicato zit op ^0.37; upgraden |
 | Transcriptie | OpenAI-SDK (al in Publicato) | alleen voor spraakberichten |
-| WhatsApp | Meta WhatsApp Cloud API | Graph-versie via env |
-| Mail | SendGrid | alleen informerend |
+| Chat | Telegram Bot API | rechtstreeks via `fetch`, zonder bibliotheek; webhook met geheime token |
+| Mail | SendGrid: versturen + Inbound Parse | uitgaand en inkomend; inkomend op een eigen subdomein |
 | Web-UI (fase 2) | React + Vite + Tailwind | mobile-first |
 | Tests | Vitest | plus eigen eval-script |
-| Hosting | Hostinger VPS met template *Claude Code* (Ubuntu 24.04), PM2, Nginx, Let's Encrypt | Meta vereist HTTPS voor de webhook; Node 20+ apart installeren, Ubuntu 24.04 levert een oudere versie |
+| Hosting | Hostinger VPS met template *Claude Code* (Ubuntu 24.04), PM2, Nginx, Let's Encrypt | Telegram vereist HTTPS voor de webhook; Node 20+ apart installeren, Ubuntu 24.04 levert een oudere versie |
 | Agenda (optioneel) | Google Agenda-API, OAuth 2.0 | alleen lezen; tokens versleuteld |
 
 ---
@@ -142,8 +143,6 @@ Twee processen onder PM2:
 
 | Bron in `Publicato-personal` | Doel in `hyperfocus` | Aanpassing |
 |---|---|---|
-| `server/services/whatsappService.ts` | `src/channels/whatsapp/client.ts` | taalcode template van `en_US` naar `nl`; interactieve knoppen en lijstberichten toevoegen; media ophalen voor spraak |
-| verify-token-deel uit `server/routes/engagementRoutes.ts` | `src/channels/whatsapp/webhook.ts` | handtekeningcontrole `X-Hub-Signature-256` toevoegen (ontbreekt nu), idempotentie, direct 200 teruggeven en asynchroon verwerken |
 | `server/services/anthropic.ts` | `src/ai/claude.ts` | SDK upgraden; instructieblok en hardcoded modellen verwijderen; modellen via env; helper voor tool use |
 | `server/services/openai.ts` | `src/ai/transcribe.ts` | alleen transcriptie behouden |
 | `server/utils/ai-json.ts`, `server/utils/jsonrepair.ts` | `src/ai/json.ts` | ongewijzigd |
@@ -157,7 +156,7 @@ Twee processen onder PM2:
 | `server/autoGPTAgent.ts` | patroon voor `src/engine/generate.ts` | alleen het doel-stappen-redenering-patroon; OpenAI vervangen door Claude |
 | `strategic-context-enhancer.ts`, `aiSuggestionsService.ts`, `aiHints.ts` | referentie | lezen als inspiratie voor prompts; herschrijven |
 | schema's `businessProfiles`, `customerPersonas`, `competitorIntelligence`, `swotAnalysis`, `businessGoals`, `brainstormIdeas` | `src/db/schema/` | afslanken volgens hoofdstuk 8 |
-| `server/services/emailService.ts` / `sendgridService.ts` | `src/channels/email/` | alleen versturen en één template (weekoverzicht) |
+| `server/services/emailService.ts` / `sendgridService.ts` | `src/channels/email/send.ts` | alleen versturen; templates voor weekoverzicht, concept en herstart. Inkomende mail bouw je nieuw (9.3) |
 | `server/auth.ts`, `server/middleware/auth.ts` | fase 2 | omzetten naar magic-link login |
 | `server/services/googleOAuthService.ts` | `src/integrations/calendar/oauth.ts` | alleen de scope `calendar.readonly`; scopes voor Drive, Ads, Analytics en Business Profile eruit |
 | `server/utils/tokenEncryption.ts` | `src/lib/crypto.ts` | nodig vanaf stap 1.8 voor agendatokens |
@@ -166,7 +165,7 @@ Twee processen onder PM2:
 
 ### Achterlaten
 
-Leonardo en alle beeld-, media- en videodiensten · alle publishers (social media, TikTok, Pinterest, WordPress, Shopify) · content items, pillars, drafts, published content · het vertaalsysteem · Google Ads, Analytics, Search Console, Business Profile · Klaviyo, Mailchimp · het creditsysteem (fase 3 gebruikt abonnementen) · de agency-structuur (fase 3 herbekijken) · alle `*-backup`, `*-old`, `temp_*`, `test-*.js`, `*cookies*.txt`, `*.tar.gz` en `attached_assets`.
+De WhatsApp-code (`whatsappService.ts`, het verify-token-deel van `engagementRoutes.ts`) · Leonardo en alle beeld-, media- en videodiensten · alle publishers (social media, TikTok, Pinterest, WordPress, Shopify) · content items, pillars, drafts, published content · het vertaalsysteem · Google Ads, Analytics, Search Console, Business Profile · Klaviyo, Mailchimp · het creditsysteem (fase 3 gebruikt abonnementen) · de agency-structuur (fase 3 herbekijken) · alle `*-backup`, `*-old`, `temp_*`, `test-*.js`, `*cookies*.txt`, `*.tar.gz` en `attached_assets`.
 
 ---
 
@@ -181,7 +180,7 @@ hyperfocus/
 ├── docs/
 │   └── later.md
 ├── scripts/
-│   ├── sim.ts                  # terminal-chat via dezelfde router als WhatsApp
+│   ├── sim.ts                  # terminal-chat via dezelfde router als Telegram en mail
 │   ├── sim-day.ts              # speelt een dag versneld af
 │   └── eval.ts                 # evaluatieset gesprekslaag
 ├── src/
@@ -195,8 +194,10 @@ hyperfocus/
 │   │       ├── example.ts
 │   │       └── eigen-data.local.ts   # in .gitignore
 │   ├── channels/
-│   │   ├── whatsapp/ client.ts · webhook.ts · signature.ts · interactive.ts · templates.ts · media.ts
-│   │   └── email/ sendgrid.ts · weekoverzicht.ts
+│   │   ├── channel.ts          # gedeelde interface: send(user, message) met tekst en knoppen
+│   │   ├── telegram/ client.ts · webhook.ts · keyboard.ts · voice.ts · link.ts
+│   │   ├── email/ send.ts · inbound.ts · parse-reply.ts · templates/
+│   │   └── actions/ links.ts     # ondertekende actielinks voor knoppen in mails
 │   ├── ai/
 │   │   ├── claude.ts · transcribe.ts · json.ts
 │   │   └── prompts/ systeem.nl.md · router.nl.md · ochtend.nl.md · afronden.nl.md · opknippen.nl.md · suggestie.nl.md
@@ -231,7 +232,7 @@ Alle tabellen hebben `id`, `user_id` (behalve `users`), `created_at` en `updated
 
 ### Tabellen
 
-**users** — `name`, `phone_e164` (uniek), `email`, `timezone` (IANA, standaard `Europe/Amsterdam`; voor mij nu `Asia/Makassar`), `locale` (`nl-NL`), `whatsapp_opt_in_at`, `status` (`active` | `paused`), `last_inbound_at` (voor het 24-uursvenster).
+**users** — `name`, `email` (uniek), `email_verified_at`, `telegram_user_id` (bigint, uniek), `telegram_chat_id` (bigint), `telegram_linked_at`, `preferred_channel` (`telegram` | `email`, standaard `telegram`), `timezone` (IANA, standaard `Europe/Amsterdam`; voor mij nu `Asia/Makassar`), `locale` (`nl-NL`), `status` (`active` | `paused`), `last_inbound_at` (voor terugtrekken bij stilte, 11.6).
 
 **user_settings** — `morning_time` (08:30), `midday_enabled` (true), `wrapup_time` (16:00), `weekly_review_day` (zondag), `weekly_review_time` (19:30), `quiet_start` (21:00), `quiet_end` (08:00), `max_proactive_per_day` (4), `session_minutes` (25), `engine_frequency` (`every_other_day` | `daily` | `twice_weekly`), `engine_time` (10:30), `enabled_lenses` (text[]), `paused_until`, `calendar_enabled` (false), `meeting_heads_up` (true), `meeting_followup` (true), `max_calendar_nudges_per_day` (2).
 
@@ -241,7 +242,7 @@ Alle tabellen hebben `id`, `user_id` (behalve `users`), `created_at` en `updated
 
 **projects** — `business_id` (optioneel), `client_id` (optioneel), `title`, `goal`, `status` (`active` | `parked` | `done`), `deadline`, `priority` (1–3), `is_weekly_focus`. Elke gebruiker krijgt automatisch een project *Losse taken*.
 
-**tasks** — `project_id`, `parent_task_id` (voor microstappen), `title`, `notes`, `status` (`task_status`), `estimated_minutes` (5/15/30/60/120), `due_date`, `snoozed_until`, `carry_over` (bool, "morgen verder"), `source` (`whatsapp` | `voice` | `engine` | `web` | `seed`), `stuck_since`, `last_escalation_level` (0–3), `completed_at`.
+**tasks** — `project_id`, `parent_task_id` (voor microstappen), `title`, `notes`, `status` (`task_status`), `estimated_minutes` (5/15/30/60/120), `due_date`, `snoozed_until`, `carry_over` (bool, "morgen verder"), `source` (`telegram` | `voice` | `email` | `engine` | `web` | `seed`), `stuck_since`, `last_escalation_level` (0–3), `completed_at`.
 
 **ideas** — de ideeënbak. `business_id` (optioneel), `text`, `source`, `status` (`inbox` | `promoted` | `archived`), `promoted_to_project_id`, `reviewed_at`.
 
@@ -251,7 +252,7 @@ Alle tabellen hebben `id`, `user_id` (behalve `users`), `created_at` en `updated
 
 **research_cache** — `business_id`, `kind` (`website` | `competitor` | `news` | `web`), `payload` (jsonb), `fetched_at`, `expires_at` (standaard +7 dagen).
 
-**messages** (verwijderd na 30 dagen) — `direction` (`in` | `out`), `channel` (`whatsapp` | `email` | `web`), `wa_message_id` (uniek, voor idempotentie), `type` (`text` | `button` | `list` | `audio` | `template`), `body`, `transcript`, `intent`, `task_id`, `suggestion_id`, `nudge_id`.
+**messages** (verwijderd na 30 dagen) — `direction` (`in` | `out`), `channel` (`telegram` | `email` | `web`), `external_id` (Telegram: `update_id` of `message_id`; mail: `Message-ID`), uniek op (`channel`, `external_id`) voor idempotentie, `type` (`text` | `button` | `audio` | `email` | `action_link`), `subject` (alleen mail), `body`, `transcript`, `intent`, `delivery_status` (`sent` | `failed`), `task_id`, `suggestion_id`, `nudge_id`.
 
 **scheduled_nudges** — `kind` (`nudge_kind`), `scheduled_for_utc`, `payload` (jsonb), `status` (`pending` | `sent` | `skipped` | `failed`), `skip_reason`, `sent_message_id`.
 
@@ -261,9 +262,9 @@ Alle tabellen hebben `id`, `user_id` (behalve `users`), `created_at` en `updated
 
 **conversation_state** — één rij per gebruiker. `mode` (`idle` | `session` | `wrapup` | `weekly_review` | `intake` | `onboarding`), `data` (jsonb), `expires_at`.
 
-**events** — `name`, `props` (jsonb). Minimaal: `inbound_message`, `task_created`, `task_status_changed`, `focus_item_done`, `suggestion_delivered`, `suggestion_status_changed`, `session_started`, `session_completed`, `reentry`, `overwhelm`, `nudge_skipped`.
+**events** — `name`, `props` (jsonb). Minimaal: `inbound_message`, `email_sent`, `task_created`, `task_status_changed`, `focus_item_done`, `suggestion_delivered`, `suggestion_status_changed`, `session_started`, `session_completed`, `reentry`, `overwhelm`, `nudge_skipped`.
 
-**ai_usage** — `purpose` (`router` | `morning` | `breakdown` | `engine` | `research` | …), `model`, `input_tokens`, `output_tokens`. Plus **wa_usage** — `template_name`, `category`, `sent_at`. Beide nodig voor de prijsbepaling in fase 3.
+**ai_usage** — `purpose` (`router` | `morning` | `breakdown` | `engine` | `research` | …), `model`, `input_tokens`, `output_tokens`. Nodig voor de prijsbepaling in fase 3. Telegram kost niets per bericht; verstuurde mails tel je via het event `email_sent`.
 
 ### Seed
 
@@ -271,44 +272,71 @@ Alle tabellen hebben `id`, `user_id` (behalve `users`), `created_at` en `updated
 
 ---
 
-## 9. WhatsApp-laag
+## 9. Kanaallaag: Telegram en mail
 
-### 9.1 Voorbereiding bij Meta (door mij, vóór stap 1.1)
+Twee kanalen, één router. Telegram is het dagelijkse gesprek: snel, met knoppen en spraak. Mail brengt overzichten en lange concepten, en is een tweede ingang: een antwoord op een mail van Hyper&Focus of een doorgestuurde mail gaat door dezelfde router als een Telegram-bericht. Beide kanalen implementeren `channel.ts` (`send(user, message)` met tekst en knoppen), zodat de proactieve laag en de gesprekslaag niet weten welk kanaal ze gebruiken.
 
-1. App in Meta for Developers met het WhatsApp-product.
-2. Testnummer voor ontwikkeling. Voor productie een apart nummer: een nummer op het WhatsApp Business Platform kan niet tegelijk in de gewone WhatsApp-app draaien.
-3. Bedrijfsverificatie voor productie.
-4. Permanente system-user-token.
-5. Webhook-URL en verify-token instellen, abonneren op `messages`.
-6. **Templates vroeg indienen** (goedkeuring kost tijd), in het Nederlands, categorie *utility*: `ochtend_focus`, `dag_afronden`, `weekreview`, `herstart`. Houd ze zakelijk en gekoppeld aan de eigen planning van de gebruiker; Meta beoordeelt de categorie.
+**Kanaalkeuze per bericht**
 
-### 9.2 Het 24-uursvenster bepaalt het ontwerp
+| Bericht | Kanaal |
+|---|---|
+| Ochtend, middag, afronden, sessie-check-ins, escalatie, afhechtvraag, herstart | `preferred_channel` (standaard Telegram) |
+| Suggestie van de verbetermotor | Telegram; een concept langer dan 600 tekens gaat daarnaast per mail |
+| Weekoverzicht (maandag) | mail |
+| Weekreview (zondag) | Telegram |
+| Antwoord op een inkomend bericht | hetzelfde kanaal als het inkomende bericht |
+| Fallback | Telegram geeft een fout (bot geblokkeerd, chat onbekend) → hetzelfde bericht per mail, met de knoppen als actielinks, en één keer per week de vraag om Telegram opnieuw te koppelen |
 
-WhatsApp staat vrije berichten alleen toe binnen 24 uur na het laatste bericht van de gebruiker. Daarbuiten mag alleen een goedgekeurde template, en templates kosten per bericht (controleer de actuele tarieven bij Meta). Daarom:
+### 9.1 Voorbereiding (door mij, vóór stap 1.1)
 
-- **De ochtendtemplate is de deurbel.** Eén korte template met een knop. De tik van de gebruiker opent het venster, daarna gaat alles gratis en vrij.
-- **Venster-bewuste planning.** `guardrails.ts` controleert per bericht of het venster open is (`users.last_inbound_at` < 24 uur). Bij een open venster gaat het bericht vrij uit. Bij een gesloten venster gaan alleen de vier templates uit; de rest wordt overgeslagen met `skip_reason = window_closed`.
-- **De verbetermotor rijdt mee op het venster.** Suggesties gaan alleen uit binnen een open venster. Wie niet reageert, krijgt minder berichten. Dat verlaagt kosten en past bij principe 7.
+**Telegram**
+1. Maak de bot aan via @BotFather: naam *Hyper&Focus*, gebruikersnaam naar keuze (eindigt op `bot`). Bewaar de token in `.env`.
+2. Stel beschrijving, profielfoto en de commandolijst in (`/start`, `/vandaag`, `/pauze`, `/parkeerplaats`).
+3. Laat privacy mode aan: de bot werkt alleen in privéchats.
 
-### 9.3 Webhook
+**Mail**
+1. Een verzendadres op het eigen domein, bijvoorbeeld `hallo@hyper-focus.pro`, met domeinauthenticatie in SendGrid (SPF, DKIM en DMARC als DNS-records).
+2. Inbound Parse op een subdomein: MX-record `in.hyper-focus.pro` → `mx.sendgrid.net`, doorsturen naar `https://hyper-focus.pro/webhooks/mail/{EMAIL_INBOUND_SECRET}`, met *spam check* aan.
+3. Mijn vaste invoeradres: `taken@in.hyper-focus.pro`. Antwoorden op mails van Hyper&Focus komen via `Reply-To` op hetzelfde adres binnen.
 
-- `GET /webhooks/whatsapp` — verify-token-challenge (patroon uit `engagementRoutes.ts`).
-- `POST /webhooks/whatsapp` — controleer `X-Hub-Signature-256` met `WHATSAPP_APP_SECRET` op de ruwe body; bij een ongeldige handtekening 401.
+### 9.2 Telegram
+
+**Webhook**
+- `setWebhook` naar `POST /webhooks/telegram` met `secret_token`. Telegram stuurt die mee in de header `X-Telegram-Bot-Api-Secret-Token`; bij een ontbrekende of onjuiste waarde volgt 401.
 - Geef direct 200 terug en verwerk asynchroon.
-- **Idempotentie:** schrijf elk inkomend bericht naar `messages` met `INSERT … ON CONFLICT (wa_message_id) DO NOTHING`. Bij een conflict: stoppen, want Meta levert soms dubbel.
-- **Toegestane nummers:** in fase 1 alleen mijn eigen nummer, via `WHATSAPP_ALLOWED_NUMBERS` in `.env`. Meta levert het afzendernummer zonder plusteken aan (bijv. `316…`); normaliseer naar E.164 voordat je vergelijkt. Onbekende nummers worden gelogd en genegeerd.
-- Statusupdates (`delivered`, `read`, `failed`) bijwerken op het bijbehorende uitgaande bericht.
+- **Idempotentie:** Telegram levert opnieuw als de webhook niet op tijd antwoordt. Schrijf elk inkomend bericht naar `messages` met `INSERT … ON CONFLICT (channel, external_id) DO NOTHING` op het `update_id`. Bij een conflict: stoppen.
+- **Toegestane gebruikers:** in fase 1 alleen mijn eigen Telegram-gebruikers-ID, via `TELEGRAM_ALLOWED_USER_IDS` in `.env`. Onbekende gebruikers krijgen één kort bericht (*"Deze bot is nog besloten."*), worden gelogd met een gemaskeerd ID en verder genegeerd.
 
-### 9.4 Berichttypes
+**Koppelen**
+- Een bot mag pas iemand berichten als die persoon de bot eerst zelf start. De koppeling loopt daarom via een deeplink: `https://t.me/{TELEGRAM_BOT_USERNAME}?start={code}`. De code is eenmalig, 30 minuten geldig en hoort bij één `users`-rij.
+- Bij `/start {code}` slaat Hyper&Focus `telegram_user_id` en `telegram_chat_id` op en bevestigt de koppeling.
+- In fase 1 maakt de seed mijn gebruiker aan en print het commando `npm run link:telegram` de deeplink.
 
-- **Tekst** — vrije invoer, naar de router.
-- **Knoppen (interactive reply buttons)** — maximaal 3 per bericht, maximaal 20 tekens per knop. De standaard voor elke keuze.
-- **Lijst (interactive list)** — maximaal 10 regels. Voor het afronden per taak, de weekreview en de ideeënbak.
-- **Spraak** — media-ID ophalen via de Graph API, downloaden met de token, transcriberen, daarna dezelfde route als tekst. Transcript opslaan in `messages.transcript`.
+**Berichttypes**
+- **Tekst** — vrije invoer, naar de router. Maximaal 4.096 tekens per bericht; langer wordt opgesplitst of gaat per mail.
+- **Knoppen (inline keyboard)** — de standaard voor elke keuze. Houd het bij maximaal 3 knoppen per rij en maximaal 3 rijen; de knoptekst maximaal 20 tekens. `callback_data` is maximaal 64 bytes, en de knop-ID's uit 9.4 passen daarbinnen.
+- **Knop-tik (`callback_query`)** — beantwoord binnen enkele seconden met `answerCallbackQuery` en haal de knoppen weg met `editMessageReplyMarkup`, zodat een keuze niet twee keer gemaakt wordt.
+- **Keuzelijst** — voor het afronden per taak, de weekreview en de ideeënbak: één knop per regel, maximaal 8 regels, plus *Meer* als er meer is.
+- **Spraak (`voice`)** — `getFile` geeft het pad, download met de bottoken, transcribeer, daarna dezelfde route als tekst. Transcript opslaan in `messages.transcript`, de audio direct verwijderen.
 
-### 9.5 Knop-ID-conventie
+### 9.3 Mail
 
-Knoppen worden afgehandeld zonder AI-aanroep: snel en goedkoop.
+**Uitgaand**
+- Via SendGrid, vanaf `EMAIL_FROM`, met `Reply-To: taken@in.hyper-focus.pro`.
+- Eenvoudige HTML plus een platte-tekstversie. Onderwerpregel zegt wat erin staat: *"Je week: 9 taken af, focus op de offerte"*.
+- **Knoppen in mail zijn actielinks:** `GET /a/{token}`. De token is een HMAC-ondertekende string met de knop-ID uit 9.4, de gebruiker en een vervaldatum (7 dagen), ondertekend met `ACTION_LINK_SECRET`. De link voert dezelfde afhandeling uit als de Telegram-knop in `buttons.ts` en toont een korte bevestigingspagina. Elke link werkt één keer.
+
+**Inkomend (SendGrid Inbound Parse)**
+- `POST /webhooks/mail/{EMAIL_INBOUND_SECRET}`; een onjuist pad geeft 404.
+- **Afzender controleren:** het `From`-adres moet `users.email` zijn (in fase 1 ook in `EMAIL_ALLOWED_SENDERS`) en de velden `SPF` en `dkim` uit Inbound Parse moeten *pass* zijn. Anders loggen en negeren.
+- **Idempotentie:** op de `Message-ID`-header, met dezelfde `ON CONFLICT`-regel als bij Telegram.
+- **Tekst eruit halen:** `parse-reply.ts` haalt de nieuwe tekst uit een antwoord (geciteerde tekst en handtekening eraf). Bij een doorgestuurde mail gaan onderwerp, afzender en de eerste 2.000 tekens als context mee naar de router, met de vraag welke taak eruit volgt.
+- Bijlagen worden genegeerd en niet opgeslagen.
+- Het antwoord gaat per mail terug, met dezelfde inhoud als in Telegram en de knoppen als actielinks.
+
+### 9.4 Knop-ID-conventie
+
+Knoppen worden afgehandeld zonder AI-aanroep: snel en goedkoop. Dezelfde ID's gelden voor Telegram-knoppen (`callback_data`) en actielinks in mail.
 
 ```
 t:{taskId}:done | t:{taskId}:tomorrow | t:{taskId}:split | t:{taskId}:park | t:{taskId}:release | t:{taskId}:start
@@ -324,9 +352,9 @@ wr:{step}:{value}
 
 ### 10.1 Stroom
 
-1. Knop of lijstkeuze → `buttons.ts` handelt deterministisch af.
+1. Knop, keuzelijst of actielink → `buttons.ts` handelt deterministisch af.
 2. Staat `conversation_state.mode` op iets anders dan `idle` → de handler van die modus krijgt het bericht eerst (bijv. afronden, sessie).
-3. Tekst of transcript → Claude (snel model) met tools en context. Claude kiest één of meer tools en schrijft het antwoord.
+3. Tekst, transcript of mailtekst → Claude (snel model) met tools en context. Claude kiest één of meer tools en schrijft het antwoord.
 4. Antwoord uit met passende knoppen.
 
 De router stelt maximaal één verduidelijkingsvraag. Is het project onduidelijk, dan gaat de taak naar *Losse taken* met de vraag waar hij hoort, met knoppen voor de drie meest waarschijnlijke projecten.
@@ -373,18 +401,18 @@ Gebruik tool use met een vast schema voor alles wat de database raakt. Log elke 
 
 - `hyperfocus-worker` draait elke minuut een tick (node-cron).
 - **Planner:** per gebruiker om 00:05 lokale tijd de berichten van de dag aanmaken in `scheduled_nudges`, omgerekend naar UTC met Luxon.
-- **Verzender:** haalt berichten op met `scheduled_for_utc <= now()` en `status = pending` (`SELECT … FOR UPDATE SKIP LOCKED`), laat ze door `guardrails.ts` lopen, verstuurt of slaat over met reden.
+- **Verzender:** haalt berichten op met `scheduled_for_utc <= now()` en `status = pending` (`SELECT … FOR UPDATE SKIP LOCKED`), laat ze door `guardrails.ts` lopen, kiest het kanaal (9, kanaalkeuze) en verstuurt of slaat over met reden.
 - Tijdzones testen op `Asia/Makassar` (Bali, UTC+8) en `Europe/Amsterdam` inclusief zomertijdwissel. Ik verhuis tijdens het gebruik van Bali naar Nederland; een tijdzonewissel moet de planning van de volgende dag direct goed zetten.
 
 ### 11.2 Dagritme
 
-| Moment | Standaard | Inhoud | Knoppen | Soort |
+| Moment | Standaard | Inhoud | Knoppen | Kanaal |
 |---|---|---|---|---|
-| Ochtend | 08:30 | deurbel, daarna focuslijst van max 3 | Laat zien · Vandaag vrij | template → vrij |
-| Middag | 13:30 | alleen als de hoofdtaak nog niet gestart is: aanbod om samen te beginnen | Starten · Later | alleen binnen venster |
-| Verbetermotor | om de dag, 10:30 | één suggestie, of eerst de afhechtvraag | Pak ik op · Later · Niet relevant | alleen binnen venster |
-| Afronden | 16:00 | de dag afronden: wat is af, wat gaat naar morgen | Alles gedaan · Deels · Morgen verder | vrij of template |
-| Weekreview | zondag 19:30 | drie korte stappen (11.7) | lijsten | template → vrij |
+| Ochtend | 08:30 | korte groet, daarna focuslijst van max 3 | Laat zien · Vandaag vrij | Telegram |
+| Middag | 13:30 | alleen als de hoofdtaak nog niet gestart is: aanbod om samen te beginnen | Starten · Later | Telegram |
+| Verbetermotor | om de dag, 10:30 | één suggestie, of eerst de afhechtvraag | Pak ik op · Later · Niet relevant | Telegram, lang concept ook per mail |
+| Afronden | 16:00 | de dag afronden: wat is af, wat gaat naar morgen | Alles gedaan · Deels · Morgen verder | Telegram |
+| Weekreview | zondag 19:30 | drie korte stappen (11.7) | keuzelijsten | Telegram |
 | Weekoverzicht | maandag 08:00 | wat is gedaan, focusproject, open suggesties | — | mail |
 
 ### 11.3 Focus samenstellen
@@ -418,7 +446,7 @@ Geldt voor taken in de focus of met een deadline. Maximaal één escalatieberich
 - **Stille uren:** 21:00–08:00 lokale tijd.
 - **Adem:** minimaal 45 minuten tussen twee proactieve berichten, sessie-check-ins uitgezonderd.
 - **Pauze:** "pauze", "vrij tot maandag", "vakantie" → `paused_until`. Tijdens een pauze alleen een bericht op de dag van terugkeer.
-- **Terugtrekken bij stilte:** 2 dagen geen reactie → alleen nog de ochtend · 4 dagen → stil · dag 7 → één `herstart`-template · daarna stilte tot de gebruiker zelf schrijft.
+- **Terugtrekken bij stilte:** 2 dagen geen reactie → alleen nog de ochtend · 4 dagen → stil · dag 7 → één herstartbericht, in Telegram én per mail · daarna stilte tot de gebruiker zelf schrijft.
 - **Zachte herstart:** het eerste bericht na ≥ 3 dagen stilte krijgt een welkom terug en één kleinste taak. Taken die ≥ 14 dagen stilstonden gaan naar de parkeerplaats. De lijst van open werk verschijnt alleen op verzoek.
 - **Overbelasting:** herkent de router signalen van overbelasting ("ik trek het niet", "alles loopt vast", "te veel"), dan zet `overwhelm` de dag stil, reageert Hyper&Focus met begrip en stuurt de volgende dag maximaal één bericht.
 - **Crisis:** bij signalen van wanhoop of zelfbeschadiging stopt Hyper&Focus alle productiviteitsberichten, reageert met zorg en verwijst naar 113 Zelfmoordpreventie (bel 113 of gratis 0800-0113, of chat via 113.nl) en de huisarts. Het gesprek krijgt een markering voor handmatige opvolging.
@@ -430,7 +458,7 @@ Geldt voor taken in de focus of met een deadline. Maximaal één escalatieberich
   1. *"Deze week af: [3 dingen]. Wat ging goed?"*
   2. *"Welk project krijgt volgende week voorrang?"* (lijst van actieve projecten → `is_weekly_focus`)
   3. *"In je ideeënbak staan 6 ideeën. Eén promoveren tot project, of laten staan?"* (lijst, maximaal één promotie per week)
-- **Weekoverzicht per mail** op maandag: wat is gedaan, het focusproject, open suggesties. Alleen informerend.
+- **Weekoverzicht per mail** op maandag: wat is gedaan, het focusproject, open suggesties met actielinks. Een antwoord op de mail gaat naar de router.
 
 ### 11.8 Agendakoppeling (optioneel)
 
@@ -442,7 +470,7 @@ Standaard uit. De gebruiker zet hem aan in de instellingen of met het bericht *"
 2. **Berichten wachten tot je vrij bent.** Valt een proactief bericht in een afspraak, dan schuift het naar direct na die afspraak. Lukt dat niet binnen 90 minuten, dan vervalt het met `skip_reason = in_meeting`. Sessie-check-ins schuiven mee.
 3. **Een sessie in een vrij blok.** De middag-check-in zoekt het eerste vrije blok van minimaal 30 minuten: *"Om 14:00 heb je een vrij uur. Zullen we dan de offerte doen?"* [Ja, om 14:00] [Nu] [Later].
 4. **Overgangen.** Tien minuten voor een afspraak die aan een klant of project gekoppeld is, volgt een korte heads-up met de open punten: *"Om 11:00 bel je met Bakkerij De Vries. Open: offerte, banner."*
-5. **Na de afspraak.** Direct na een gekoppelde afspraak, binnen het venster: *"Hoe ging het met Bakkerij De Vries? Stuur een spraakbericht met de actiepunten, dan zet ik ze klaar."* De actiepunten worden taken onder die klant.
+5. **Na de afspraak.** Direct na een gekoppelde afspraak: *"Hoe ging het met Bakkerij De Vries? Stuur een spraakbericht met de actiepunten, dan zet ik ze klaar."* De actiepunten worden taken onder die klant.
 
 Heads-ups en nabesprekingen hebben een eigen limiet: maximaal `max_calendar_nudges_per_day` (standaard 2), alleen voor gekoppelde afspraken, en ze volgen de stille uren en de pauze.
 
@@ -536,12 +564,12 @@ Elke suggestie:
 }
 ```
 
-In WhatsApp maximaal 600 tekens. Een lang concept komt als apart bericht, of in fase 2 als link naar de web-UI.
+In Telegram maximaal 600 tekens. Een lang concept komt per mail, met de knoppen als actielinks, en in fase 2 ook als link naar de web-UI.
 
 ### 12.7 Feedback
 
-- Knoppen onder elke suggestie: Pak ik op · Later · Niet relevant.
-- *Niet relevant* → één optionele lijstvraag: Past niet bij mijn bedrijf · Heb ik al · Te groot · Andere reden. De reden gaat mee in de volgende prompt.
+- Knoppen onder elke suggestie: Pak ik op · Later · Niet relevant. In de mail dezelfde keuzes als actielinks.
+- *Niet relevant* → één optionele keuzevraag: Past niet bij mijn bedrijf · Heb ik al · Te groot · Andere reden. De reden gaat mee in de volgende prompt.
 - Alle statuswijzigingen voeden de bandit en de events voor de verkooppoort.
 
 ---
@@ -550,17 +578,17 @@ In WhatsApp maximaal 600 tekens. Een lang concept komt als apart bericht, of in 
 
 ### Regels
 
-- Kort: ochtend ≤ 400 tekens, suggestie ≤ 600, overige berichten ≤ 300.
+- Kort: ochtend ≤ 400 tekens, suggestie ≤ 600, overige Telegram-berichten ≤ 300. Een mail mag langer, met de kern in de eerste twee zinnen.
 - Je-vorm, spreektaal, actieve zinnen.
 - Maximaal één emoji per bericht, alleen als markering (💡 bij een suggestie, ✔ bij gedaan).
-- Elk bericht eindigt met knoppen of met één vraag.
+- Elk bericht eindigt met knoppen (in mail: actielinks) of met één vraag.
 - Vier afgerond werk kort en concreet.
 - Benoem open werk neutraal: *"staat nog open"*.
 - Woorden die Hyper&Focus weglaat: achterstand, te laat, vergeten, alweer, nog steeds, je moet, je had.
 
 ### Voorbeeldberichten
 
-**Ochtend (template)**
+**Ochtend**
 > Goedemorgen Elmer. Je focus voor vandaag staat klaar.
 > [Laat zien] [Vandaag vrij]
 
@@ -604,7 +632,7 @@ In WhatsApp maximaal 600 tekens. Een lang concept komt als apart bericht, of in 
 ### Skelet systeemprompt (`prompts/systeem.nl.md`)
 
 ```
-Je bent Hyper&Focus, de projectmanager en assistent van {naam}. {naam} is ondernemer ({bedrijf}). Je werkt via WhatsApp.
+Je bent Hyper&Focus, de projectmanager en assistent van {naam}. {naam} is ondernemer ({bedrijf}). Je werkt via Telegram en mail.
 
 Je doel: {naam} elke dag laten beginnen aan wat telt, met zo min mogelijk denkwerk.
 
@@ -628,15 +656,16 @@ Context:
 ## 14. Veiligheid, privacy en welzijn
 
 **Techniek**
-- Handtekeningcontrole op de webhook, toegestane nummers in fase 1, secrets alleen in `.env` (nooit in de repo), agendatokens (stap 1.8) en tokens van gebruikers (fase 3) versleuteld opslaan (`crypto.ts`).
+- Geheime token op de Telegram-webhook, geheim pad plus SPF- en DKIM-controle op inkomende mail, ondertekende actielinks die één keer werken, toegestane gebruikers in fase 1, secrets alleen in `.env` (nooit in de repo), agendatokens (stap 1.8) en tokens van gebruikers (fase 3) versleuteld opslaan (`crypto.ts`).
 - Nachtelijke `pg_dump` naar externe opslag.
 - VPS: eigen gebruiker met sudo in plaats van root, inloggen met SSH-sleutel, wachtwoord- en rootlogin uit, firewall alleen open op 22, 80 en 443, PostgreSQL alleen lokaal bereikbaar, snapshot vóór grote wijzigingen. Claude Code op de VPS draait naast de productiesleutels: laat de toestemmingsvragen aan staan.
 
 **AVG**
 - Minimale data. Geen diagnose vragen of opslaan: het product werkt zonder.
-- Verwerkersovereenkomsten met Anthropic, Meta, OpenAI, SendGrid, Hostinger en, bij een gekoppelde agenda, Google. Hosting in de EU.
+- Verwerkersovereenkomsten met Anthropic, OpenAI, SendGrid (Twilio), Hostinger en, bij een gekoppelde agenda, Google. Hosting in de EU.
+- **Telegram [BESLISSING vóór fase 3]:** Telegram biedt geen verwerkersovereenkomst en berichten staan op de servers van Telegram. Voor eigen gebruik is dat mijn eigen keuze. Vóór de beta beslissen: Telegram houden met een duidelijke uitleg in de privacyverklaring, of mail en de web-UI als standaardkanaal voor klanten.
 - Commando's *"exporteer mijn gegevens"* en *"verwijder mijn gegevens"*, plus dezelfde knoppen in de web-UI (fase 2).
-- **Bewaartermijn:** berichten, inclusief transcripties, worden na 30 dagen verwijderd door een nachtelijke job in de worker. Spraakopnames worden direct na transcriptie verwijderd en nooit opgeslagen. Taken, projecten, ideeën en suggesties blijven bestaan tot de gebruiker ze verwijdert. `events`, `ai_usage` en `wa_usage` bevatten alleen metadata zonder berichtinhoud en blijven 12 maanden bewaard; die zijn nodig voor de verkooppoort en de kostenmeting.
+- **Bewaartermijn:** berichten, inclusief transcripties, worden na 30 dagen verwijderd door een nachtelijke job in de worker. Spraakopnames worden direct na transcriptie verwijderd en nooit opgeslagen. Taken, projecten, ideeën en suggesties blijven bestaan tot de gebruiker ze verwijdert. `events` en `ai_usage` bevatten alleen metadata zonder berichtinhoud en blijven 12 maanden bewaard; die zijn nodig voor de verkooppoort en de kostenmeting.
 - **Agenda:** alleen de velden uit `calendar_events`, alleen voor vandaag en morgen; een nachtelijke job ruimt oudere afspraken op. Deelnemers, beschrijvingen en locaties van afspraken halen we nooit op.
 
 **Welzijn**
@@ -649,12 +678,12 @@ Context:
 
 ## 15. Testen
 
-- **Unit (Vitest):** knop-ID-parser, vangrails, tijdzones (`Asia/Makassar` en `Europe/Amsterdam`, inclusief zomertijdwissel en een tijdzonewissel van de gebruiker), focussamenstelling, escalatieladder, afhechtregels R1–R4, lensselectie met koude start, idempotentie van de webhook.
+- **Unit (Vitest):** knop-ID-parser, vangrails, tijdzones (`Asia/Makassar` en `Europe/Amsterdam`, inclusief zomertijdwissel en een tijdzonewissel van de gebruiker), focussamenstelling, escalatieladder, afhechtregels R1–R4, lensselectie met koude start, idempotentie van beide webhooks, actielinks (ondertekening, vervaldatum, één keer bruikbaar), `parse-reply.ts` met antwoorden uit Gmail, Outlook en Apple Mail.
 - **Evaluatieset (`npm run eval`):** 50 echte Nederlandse voorbeeldberichten met de verwachte tool-aanroep. Inclusief typefouten, spraaktranscripties, mix van Nederlands en Engels, klantnamen, "done", "doe ik morgen", overbelastingszinnen. Doel: ≥ 90% correct.
 - **Agenda:** vrije-tijdberekening, hele-dag- en afgeslagen afspraken, verschuiven van berichten, tijdzones, gedrag bij een mislukte synchronisatie. Gebruik een nep-`CalendarProvider` met vaste afspraken.
-- **Simulator (`npm run sim`):** terminal-chat door dezelfde router als WhatsApp. In development gaan uitgaande berichten naar de console.
+- **Simulator (`npm run sim`):** terminal-chat door dezelfde router als Telegram en mail. In development gaan uitgaande berichten naar de console.
 - **Dagsimulatie (`npm run sim:day -- --date 2026-10-06`):** speelt de planning van een dag versneld af, inclusief vangrails.
-- **Webhooktests** met opgenomen Meta-payloads: tekst, knop, lijst, audio, status, dubbele levering, ongeldige handtekening.
+- **Webhooktests** met opgenomen payloads. Telegram: tekst, `callback_query`, `voice`, `/start` met code, dubbele levering, onjuiste geheime token, onbekende gebruiker. Mail (Inbound Parse): antwoord, doorgestuurde mail, onbekende afzender, SPF- of DKIM-fout, dubbele `Message-ID`.
 
 ---
 
@@ -679,14 +708,14 @@ Context:
 
 ### Fase 1 — Kern
 
-**1.1 WhatsApp in en uit** (9.3–9.5). Maak bij deze stap de VPS aan (zie 5 en 14), met domein, HTTPS en de webhook-URL.
-*Klaar als:* een bericht aan het botnummer binnen 3 seconden antwoord krijgt · dubbele levering leidt tot één verwerking · een ongeldige handtekening geeft 401 · een onbekend nummer wordt genegeerd en gelogd.
+**1.1 Telegram en mail in en uit** (hoofdstuk 9). De VPS, het domein en HTTPS staan er al (1 oktober 2026). Neem uit de vervallen branch `stap-1.1` (WhatsApp) over wat kanaalonafhankelijk is: de verwerking met idempotentie, de opslag van berichten en events, en de koppeling met de router.
+*Klaar als:* een Telegram-bericht aan de bot binnen 3 seconden antwoord krijgt · een knop-tik de knoppen weghaalt en de keuze één keer verwerkt · dubbele levering leidt tot één verwerking · een onjuiste geheime token geeft 401 · een onbekende gebruiker wordt genegeerd en gelogd · een antwoord op een mail van Hyper&Focus binnen 1 minuut een antwoord per mail oplevert · een actielink uit een mail de juiste actie uitvoert en daarna niet meer werkt.
 
 **1.2 Gesprekslaag met tools** (hoofdstuk 10).
 *Klaar als:* de evaluatieset ≥ 90% haalt · knoppen werken zonder AI-aanroep · een taak over een klant komt onder het juiste project terecht.
 
-**1.3 Dagritme en templates** (11.1–11.3).
-*Klaar als:* de templates zijn goedgekeurd · ochtend en afronden komen op lokale tijd aan in beide testtijdzones · de focus telt maximaal drie taken met één snelle winst · bij een gesloten venster gaan alleen templates uit.
+**1.3 Dagritme** (11.1–11.3).
+*Klaar als:* ochtend en afronden komen op lokale tijd aan in beide testtijdzones · de focus telt maximaal drie taken met één snelle winst · bij een geblokkeerde bot gaat het bericht per mail uit.
 
 **1.4 Opknippen en body-double** (11.4, tool `break_down`).
 *Klaar als:* "help me starten met X" 3–5 stappen oplevert met een eerste stap van ≤ 10 minuten · de check-in na de ingestelde minuten komt.
@@ -694,11 +723,11 @@ Context:
 **1.5 Vangrails, escalatieladder, herstart, overbelasting** (11.5–11.6).
 *Klaar als:* alle unit tests groen zijn · een dagsimulatie van 7 dagen stilte precies het afgesproken berichtenpatroon oplevert · een overbelastingszin de dag stilzet.
 
-**1.6 Spraakberichten** (9.4).
+**1.6 Spraakberichten** (9.2).
 *Klaar als:* een spraakbericht van 30 seconden binnen 8 seconden een taak of idee oplevert, met transcript opgeslagen en de audio verwijderd.
 
 **1.7 Ideeënbak, weekreview, weekoverzicht** (11.7).
-*Klaar als:* ideeën nooit in de focus verschijnen · de weekreview in maximaal drie tikken klaar is · de maandagmail binnenkomt.
+*Klaar als:* ideeën nooit in de focus verschijnen · de weekreview in maximaal drie tikken klaar is · de maandagmail binnenkomt · een doorgestuurde mail naar `taken@in.hyper-focus.pro` een taak oplevert onder de juiste klant.
 
 → **Start eigen gebruik.** Vanaf hier gebruik ik Hyper&Focus dagelijks. De verkooppoort-meting (hoofdstuk 3) loopt vanaf dit moment.
 
@@ -717,21 +746,21 @@ Context:
 *Klaar als:* elke lens drie opeenvolgende suggesties levert die voldoen aan 12.6, zonder herhaling.
 
 **2.4 Selectie en afhechtlus** (12.4–12.5).
-*Klaar als:* unit tests voor R1–R4 groen zijn · de bandit na de koude start aantoonbaar vaker de lenzen kiest die ik oppak · suggesties alleen binnen een open venster uitgaan.
+*Klaar als:* unit tests voor R1–R4 groen zijn · de bandit na de koude start aantoonbaar vaker de lenzen kiest die ik oppak · na 2 dagen zonder reactie geen nieuwe suggesties uitgaan (11.6).
 
 **2.5 Feedback** (12.7).
 *Klaar als:* elke knop de juiste status zet en *Niet relevant* de reden meeneemt in de volgende generatie.
 
 **2.6 Minimale web-UI.** Magic-link login. Schermen: Vandaag · Projecten & klanten · Parkeerplaats & ideeënbak · Suggesties (met concepten) · Instellingen. Mobile-first. Laat grafieken en statistieken weg.
-*Klaar als:* ik alles uit WhatsApp ook op mijn telefoon in de browser kan bekijken en bijwerken, en instellingen direct effect hebben op de planning.
+*Klaar als:* ik alles uit Telegram ook op mijn telefoon in de browser kan bekijken en bijwerken, en instellingen direct effect hebben op de planning.
 
 ### Fase 3 — Verkoopklaar (na de verkooppoort)
 
 **3.1 Accounts.** Meerdere gebruikers volledig gescheiden; tenant-laag voorbereiden voor white-label.
-**3.2 Onboarding en opt-in.** Aanmelden via een webformulier met toestemming, daarna een wa.me-link waarmee de gebruiker zelf het eerste bericht stuurt. Intake in WhatsApp binnen 5 minuten: naam, woonplaats (→ tijdzone), ritmetijden, focusbedrijf met website, drie lopende projecten.
-**3.3 Abonnement.** Mollie-abonnementen uit de geoogste code. Prijs **€26,88 per maand**, met een **proefmaand**. De machtiging leg je vast met een eerste betaling bij de start; het abonnement krijgt als startdatum het einde van de proefmaand. Drie dagen voor het einde van de proefmaand stuurt Hyper&Focus een WhatsApp-bericht met *Doorgaan · Stoppen*, zodat niemand ongemerkt gaat betalen.
+**3.2 Onboarding en opt-in.** Aanmelden via een webformulier met toestemming en mailbevestiging, daarna een Telegram-deeplink (9.2) waarmee de gebruiker de bot zelf start. Wie geen Telegram wil, kiest mail als `preferred_channel`. Intake in Telegram of per mail binnen 5 minuten: naam, woonplaats (→ tijdzone), ritmetijden, focusbedrijf met website, drie lopende projecten.
+**3.3 Abonnement.** Mollie-abonnementen uit de geoogste code. Prijs **€26,88 per maand**, met een **proefmaand**. De machtiging leg je vast met een eerste betaling bij de start; het abonnement krijgt als startdatum het einde van de proefmaand. Drie dagen voor het einde van de proefmaand stuurt Hyper&Focus een bericht in Telegram en per mail met *Doorgaan · Stoppen*, zodat niemand ongemerkt gaat betalen.
 **3.4 AVG-pakket.** Privacyverklaring, verwerkersovereenkomsten, export en verwijderen, bewaartermijnen.
-**3.5 Kosten per gebruiker.** Rapport uit `ai_usage` en `wa_usage`: gemiddelde maandkosten per actieve gebruiker, afgezet tegen €26,88, inclusief de kosten van proefgebruikers die niet doorgaan.
+**3.5 Kosten per gebruiker.** Rapport uit `ai_usage` en de mailtelling (`email_sent`): gemiddelde maandkosten per actieve gebruiker, afgezet tegen €26,88, inclusief de kosten van proefgebruikers die niet doorgaan.
 **3.6 Beta.** 10 ondernemers, 4 weken. Meet dag-14- en dag-30-retentie (reageert nog op minimaal 3 dagen per week).
 **3.7 Positionering en mijn verhaal.** Landingspagina met mijn eigen verhaal als ondernemer met een ADHD-brein, juridisch getoetste teksten (hoofdstuk 14).
 **3.8 Optioneel: white-label** voor ADHD-coaches en businesscoaches, op basis van de tenant-branding uit Publicato.
@@ -744,7 +773,7 @@ Context:
 ```
 # Algemeen
 NODE_ENV=development
-APP_BASE_URL=https://hyperfocus.example.nl
+APP_BASE_URL=https://hyper-focus.pro
 DATABASE_URL=postgres://…
 DEFAULT_TIMEZONE=Europe/Amsterdam
 
@@ -757,17 +786,19 @@ CLAUDE_MODEL_SMART=claude-sonnet-5-5
 OPENAI_API_KEY=
 TRANSCRIBE_MODEL=
 
-# WhatsApp
-WHATSAPP_GRAPH_VERSION=
-WHATSAPP_ACCESS_TOKEN=
-WHATSAPP_PHONE_NUMBER_ID=
-WHATSAPP_APP_SECRET=
-WHATSAPP_VERIFY_TOKEN=
-WHATSAPP_ALLOWED_NUMBERS=+316…        # fase 1: alleen mijn eigen nummer
+# Telegram
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_BOT_USERNAME=
+TELEGRAM_WEBHOOK_SECRET=              # willekeurig, 32+ tekens
+TELEGRAM_ALLOWED_USER_IDS=            # fase 1: alleen mijn eigen gebruikers-ID
 
 # Mail
 SENDGRID_API_KEY=
-EMAIL_FROM=hyperfocus@…
+EMAIL_FROM=hallo@hyper-focus.pro
+EMAIL_REPLY_TO=taken@in.hyper-focus.pro
+EMAIL_INBOUND_SECRET=                 # willekeurig, deel van het webhookpad
+EMAIL_ALLOWED_SENDERS=                # fase 1: alleen mijn eigen adres
+ACTION_LINK_SECRET=                   # ondertekent actielinks in mails
 
 # Onderzoek
 RESEARCH_PROVIDER=claude        # standaard; perplexity als alternatief
@@ -776,14 +807,14 @@ PERPLEXITY_API_KEY=
 # Agenda (optioneel)
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=https://hyperfocus.example.nl/auth/google/callback
+GOOGLE_REDIRECT_URI=https://hyper-focus.pro/auth/google/callback
 
 # Fase 3
 MOLLIE_API_KEY=
 ENCRYPTION_KEY=
 ```
 
-Controleer bij de start van de bouw de actuele modelnamen in de documentatie van Anthropic en de actuele Graph API-versie bij Meta.
+Controleer bij de start van de bouw de actuele modelnamen in de documentatie van Anthropic.
 
 ---
 
@@ -798,18 +829,20 @@ Controleer bij de start van de bouw de actuele modelnamen in de documentatie van
 | 3 | Frequentie verbetermotor | om de dag |
 | 4 | Lenzen fase 2 | Doelgroep, Concurrent, Funnel, DESTEP (laagste prioriteit) |
 | 5 | Onderzoeksprovider | Claude met web search; Perplexity schakelbaar |
-| 6 | Toegestaan nummer fase 1 | mijn eigen nummer, in `.env` |
+| 6 | Toegestane gebruiker fase 1 | mijn eigen Telegram-gebruikers-ID en mailadres, in `.env` |
 | 7 | Bewaartermijn berichten | 30 dagen |
 | 8 | Prijs | €26,88 per maand, proefmaand van 1 maand |
 | 9 | Agenda | optioneel en standaard uit; Google Agenda eerst, alleen lezen |
+| 10 | Kanalen (1 oktober 2026) | Telegram voor het dagelijkse gesprek, mail voor overzichten, concepten en als tweede invoer. WhatsApp vervalt: alle WhatsApp-accounts in mijn Meta-portfolio zijn uitgeschakeld en een nieuwe portfolio kan ik niet aanmaken. |
 
 ### Nog open
 
-1. Het WhatsApp-nummer voor de bot (apart van mijn eigen nummer).
+1. Gebruikersnaam van de Telegram-bot.
 2. Is €26,88 inclusief of exclusief btw?
 3. Merk- en domeincheck voor Hyper&Focus vóór fase 3.
 4. Welke agenda's tellen mee: alleen je hoofdagenda, of ook gedeelde agenda's?
+5. Telegram voor klanten in fase 3, gezien de AVG (hoofdstuk 14).
 
 ---
 
-*Bouwplan v1.2 — ik lees dit zelf na en pas aan waar nodig.*
+*Bouwplan v1.3 — ik lees dit zelf na en pas aan waar nodig.*
