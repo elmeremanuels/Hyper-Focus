@@ -2,6 +2,7 @@ import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'dr
 import { id, timestamps, userId } from './common.js';
 import {
   conversationMode,
+  deliveryStatus,
   messageChannel,
   messageDirection,
   messageType,
@@ -47,6 +48,9 @@ export const messages = pgTable(
       onDelete: 'set null',
     }),
     nudgeId: integer('nudge_id').references(() => scheduledNudges.id, { onDelete: 'set null' }),
+    /** Outbound only: latest status from Meta (BOUWPLAN.md, 9.3). Decided 2026-09-30. */
+    deliveryStatus: deliveryStatus('delivery_status'),
+    deliveryStatusAt: timestamp('delivery_status_at', { withTimezone: true }),
     ...timestamps,
   },
   (table) => [

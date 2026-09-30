@@ -104,6 +104,40 @@ Geheugen tussen sessies. Werk dit bij aan het eind van elke bouwstap.
   - De router slaat berichten nog niet op en legt nog geen taken vast. Dat komt in 1.1 (berichten) en 1.2 (Claude met tools).
   - De Start-knop plant nog geen check-in; die komt in 1.4.
 
+## Stap 1.1 — WhatsApp in en uit
+
+- **Status:** code klaar; live-controle wacht op de VPS en de Meta-app (door Elmer)
+- **Datum:** 2026-09-30
+- **Branch:** `stap-1.1`
+- **Beslissing (2026-09-30, Elmer):** kolommen `delivery_status` en `delivery_status_at` op `messages` voor de statusupdates uit 9.3. Migratie `0001_message_delivery_status.sql`.
+- **Gebouwd:**
+  - `POST /webhooks/whatsapp`:
+    - controleert `X-Hub-Signature-256` op de ruwe body; bij een ongeldige handtekening of een ontbrekend app-geheim volgt 401;
+    - geeft direct 200 terug en verwerkt daarna op de achtergrond.
+  - `inbound.ts`: zet tekst, reply-knop, lijstkeuze, template-knop, audio en statusupdates om. Nummers gaan naar E.164.
+  - `processor.ts`:
+    - verwerkt alleen toegestane nummers; een onbekend nummer wordt gelogd met een gemaskeerd nummer en genegeerd;
+    - idempotent via `ON CONFLICT (wa_message_id) DO NOTHING`;
+    - werkt `last_inbound_at` bij en schrijft het event `inbound_message`;
+    - stuurt het bericht door de router en de antwoorden via WhatsApp;
+    - statussen gaan alleen vooruit (sent → delivered → read).
+  - `interactive.ts` en `client.ts`: reply-knoppen (≤ 3, ≤ 20 tekens) en lijsten (≤ 10 regels).
+  - `channel.ts`: slaat elk uitgaand bericht op met status `sent`.
+  - `templates.ts`: namen van de vier templates.
+  - `src/core/messages.ts`: opslag van berichten, events en `last_inbound_at`.
+  - `docs/deploy.md` en `ecosystem.config.cjs` voor de VPS.
+- **Controle Definition of Done:**
+  - *Dubbele levering leidt tot één verwerking:* `tests/whatsapp.integration.test.ts` levert dezelfde Meta-payload twee keer af via HTTP met database. Resultaat: één inkomende rij, één antwoord naar de Graph API.
+  - *Ongeldige handtekening geeft 401:* `tests/whatsapp-webhook.test.ts`, plus een curl op de draaiende server (401 ongeldig, 200 geldig).
+  - *Onbekend nummer genegeerd en gelogd:* processor- en integratietest (niets opgeslagen, niets verstuurd, log met `+316*****111`).
+  - *Antwoord binnen 3 seconden:* lokaal antwoordt de webhook binnen 1 seconde en verwerkt hij daarna op de achtergrond. Het echte bericht naar het botnummer controleer je op de VPS (`docs/deploy.md`, stap 6).
+  - `npm test`: 75 groen en 9 overgeslagen zonder database; 90 groen met `TEST_DATABASE_URL`.
+- **Open punten:**
+  - VPS, domein, HTTPS en Meta-webhook inrichten (`docs/deploy.md`). Daarna de live-controle.
+  - Templates bij Meta indienen (9.1): `ochtend_focus`, `dag_afronden`, `weekreview`, `herstart`.
+  - Spraakberichten krijgen nu een kort antwoord; transcriptie komt in 1.6.
+  - De actuele Graph API-versie invullen in `WHATSAPP_GRAPH_VERSION`.
+
 ## Stap 0.1 — Beveiliging bronrepo (update)
 
 - 2026-09-30: een scan van de huidige bestanden vond een Meta-token in `attached_assets/`, 9 cookiebestanden, 4 `.tar.gz`-archieven, database-URL's met wachtwoord en Mollie-achtige sleutels.
@@ -116,4 +150,4 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 
 ## Volgende stap
 
-1.1 WhatsApp in en uit (9.3–9.5). Vraagt eerst de voorbereiding bij Meta (9.1) en een VPS met domein en HTTPS. In de cloud-sessie bouw en test ik met opgenomen Meta-payloads en zonder productiesleutels.
+1.2 Gesprekslaag met tools (hoofdstuk 10).

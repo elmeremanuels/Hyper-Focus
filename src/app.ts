@@ -2,7 +2,11 @@ import express, { type Express } from 'express';
 import { createWhatsAppWebhookRouter } from './channels/whatsapp/webhook.js';
 
 export interface AppOptions {
-  whatsappVerifyToken?: string | undefined;
+  whatsapp?: {
+    verifyToken: string | undefined;
+    appSecret: string | undefined;
+    onPayload?: (body: unknown) => Promise<unknown>;
+  };
 }
 
 export function createApp(options: AppOptions = {}): Express {
@@ -13,7 +17,13 @@ export function createApp(options: AppOptions = {}): Express {
     res.json({ status: 'ok' });
   });
 
-  app.use(createWhatsAppWebhookRouter({ verifyToken: options.whatsappVerifyToken }));
+  app.use(
+    createWhatsAppWebhookRouter({
+      verifyToken: options.whatsapp?.verifyToken,
+      appSecret: options.whatsapp?.appSecret,
+      ...(options.whatsapp?.onPayload && { onPayload: options.whatsapp.onPayload }),
+    }),
+  );
 
   return app;
 }

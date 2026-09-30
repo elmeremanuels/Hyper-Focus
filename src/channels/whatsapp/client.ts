@@ -1,7 +1,9 @@
 // Harvested from Publicato-personal server/services/whatsappService.ts.
 // Changed: config is injected (Graph version from env), template language is `nl`,
-// and inbound handling moved to the webhook (step 1.1). Interactive buttons, lists
-// and media download are added in step 1.1 (BOUWPLAN.md, 9.4).
+// inbound handling moved to the webhook, and interactive buttons and lists added
+// (BOUWPLAN.md, 9.4). Media download follows with voice messages in step 1.6.
+import type { Button, ListMenu } from '../../conversation/types.js';
+import { buttonsPayload, listPayload } from './interactive.js';
 
 export interface WhatsAppConfig {
   graphVersion: string;
@@ -12,22 +14,6 @@ export interface WhatsAppConfig {
 export interface WhatsAppSendResult {
   id: string | undefined;
   status: string | undefined;
-}
-
-export interface WhatsAppWebhookPayload {
-  object: string;
-  entry: Array<{
-    id: string;
-    changes: Array<{
-      field: string;
-      value: {
-        messaging_product: string;
-        metadata: { display_phone_number: string; phone_number_id: string };
-        statuses?: unknown[];
-        messages?: unknown[];
-      };
-    }>;
-  }>;
 }
 
 export const TEMPLATE_LANGUAGE = 'nl';
@@ -52,6 +38,14 @@ export class WhatsAppClient {
       type: 'text',
       text: { body },
     });
+  }
+
+  async sendButtons(to: string, text: string, buttons: Button[]): Promise<WhatsAppSendResult> {
+    return this.post(buttonsPayload(to, text, buttons));
+  }
+
+  async sendList(to: string, text: string, list: ListMenu): Promise<WhatsAppSendResult> {
+    return this.post(listPayload(to, text, list));
   }
 
   async sendTemplate(

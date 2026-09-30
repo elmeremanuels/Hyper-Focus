@@ -1,0 +1,39 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15550783881",
+              "phone_number_id": "106540352242922"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Sam"
+                },
+                "wa_id": "31600000000"
+              }
+            ],
+            "messages": [
+              {
+                "from": "31600000000",
+                "id": "wamid.TEXT1",
+                "timestamp": "1791280800",
+                "type": "text",
+                "text": {
+                  "body": "Hoi"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

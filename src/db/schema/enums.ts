@@ -41,6 +41,7 @@ export const researchKind = pgEnum('research_kind', ['website', 'competitor', 'n
 export const messageDirection = pgEnum('message_direction', ['in', 'out']);
 export const messageChannel = pgEnum('message_channel', ['whatsapp', 'email', 'web']);
 export const messageType = pgEnum('message_type', ['text', 'button', 'list', 'audio', 'template']);
+export const deliveryStatus = pgEnum('delivery_status', ['sent', 'delivered', 'read', 'failed']);
 export const nudgeStatus = pgEnum('nudge_status', ['pending', 'sent', 'skipped', 'failed']);
 export const calendarProvider = pgEnum('calendar_provider', ['google']);
 export const calendarConnectionStatus = pgEnum('calendar_connection_status', [

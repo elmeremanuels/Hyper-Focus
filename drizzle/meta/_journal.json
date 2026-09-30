@@ -8,6 +8,13 @@
       "when": 1790786797303,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790787810927,
+      "tag": "0001_message_delivery_status",
+      "breakpoints": true
     }
   ]
 }
