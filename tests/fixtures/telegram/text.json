@@ -1,0 +1,19 @@
+{
+  "update_id": 500001,
+  "message": {
+    "message_id": 10,
+    "from": {
+      "id": 111222333,
+      "is_bot": false,
+      "first_name": "Sam",
+      "language_code": "nl"
+    },
+    "chat": {
+      "id": 111222333,
+      "first_name": "Sam",
+      "type": "private"
+    },
+    "date": 1791280800,
+    "text": "Hoi"
+  }
+}

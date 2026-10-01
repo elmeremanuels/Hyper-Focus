@@ -1,15 +1,29 @@
-import { boolean, check, integer, pgTable, smallint, text, time, timestamp } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  check,
+  integer,
+  pgTable,
+  smallint,
+  text,
+  time,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { engineFrequency, userStatus } from './enums.js';
+import { engineFrequency, preferredChannel, userStatus } from './enums.js';
 
 export const users = pgTable('users', {
   id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
   name: text('name').notNull(),
-  phoneE164: text('phone_e164').notNull().unique(),
-  email: text('email'),
+  email: text('email').unique(),
+  emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+  // Telegram ids fit in 52 bits, so number mode is safe.
+  telegramUserId: bigint('telegram_user_id', { mode: 'number' }).unique(),
+  telegramChatId: bigint('telegram_chat_id', { mode: 'number' }),
+  telegramLinkedAt: timestamp('telegram_linked_at', { withTimezone: true }),
+  preferredChannel: preferredChannel('preferred_channel').notNull().default('telegram'),
   timezone: text('timezone').notNull().default('Europe/Amsterdam'),
   locale: text('locale').notNull().default('nl-NL'),
-  whatsappOptInAt: timestamp('whatsapp_opt_in_at', { withTimezone: true }),
   status: userStatus('status').notNull().default('active'),
   lastInboundAt: timestamp('last_inbound_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

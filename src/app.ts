@@ -1,19 +1,45 @@
 import express, { type Express } from 'express';
-import { createWhatsAppWebhookRouter } from './channels/whatsapp/webhook.js';
+import { createActionRouter, type ActionRouteConfig } from './channels/actions/route.js';
+import { createMailWebhookRouter, type InboundFields } from './channels/email/inbound.js';
+import { createTelegramWebhookRouter } from './channels/telegram/webhook.js';
 
 export interface AppOptions {
-  whatsappVerifyToken?: string | undefined;
+  telegram?: {
+    secretToken: string | undefined;
+    onUpdate?: (body: unknown) => Promise<unknown>;
+  };
+  mail?: {
+    secret: string | undefined;
+    onMail?: (fields: InboundFields) => Promise<unknown>;
+  };
+  actions?: ActionRouteConfig;
 }
 
 export function createApp(options: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
+  // Behind Nginx on the VPS.
+  app.set('trust proxy', 'loopback');
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
 
-  app.use(createWhatsAppWebhookRouter({ verifyToken: options.whatsappVerifyToken }));
+  app.use(
+    createTelegramWebhookRouter({
+      secretToken: options.telegram?.secretToken,
+      ...(options.telegram?.onUpdate && { onUpdate: options.telegram.onUpdate }),
+    }),
+  );
+  app.use(
+    createMailWebhookRouter({
+      secret: options.mail?.secret,
+      ...(options.mail?.onMail && { onMail: options.mail.onMail }),
+    }),
+  );
+  if (options.actions) {
+    app.use(createActionRouter(options.actions));
+  }
 
   return app;
 }

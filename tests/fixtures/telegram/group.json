@@ -1,0 +1,19 @@
+{
+  "update_id": 500007,
+  "message": {
+    "message_id": 14,
+    "from": {
+      "id": 111222333,
+      "is_bot": false,
+      "first_name": "Sam",
+      "language_code": "nl"
+    },
+    "chat": {
+      "id": -100123,
+      "title": "Team",
+      "type": "supergroup"
+    },
+    "date": 1791280800,
+    "text": "Hoi"
+  }
+}

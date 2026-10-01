@@ -1,10 +1,12 @@
-import { index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
 import { id, timestamps, userId } from './common.js';
 
 // Metadata only, no message content. Kept for 12 months (BOUWPLAN.md, 14).
+// Telegram costs nothing per message; sent mails are counted through the email_sent event.
 
 export const EVENT_NAMES = [
   'inbound_message',
+  'email_sent',
   'task_created',
   'task_status_changed',
   'focus_item_done',
@@ -43,17 +45,4 @@ export const aiUsage = pgTable(
     ...timestamps,
   },
   (table) => [index('ai_usage_user_created_idx').on(table.userId, table.createdAt)],
-);
-
-export const waUsage = pgTable(
-  'wa_usage',
-  {
-    id: id(),
-    userId: userId(),
-    templateName: text('template_name').notNull(),
-    category: text('category').notNull(),
-    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
-    ...timestamps,
-  },
-  (table) => [index('wa_usage_user_sent_idx').on(table.userId, table.sentAt)],
 );

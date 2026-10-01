@@ -1,0 +1,13 @@
+{
+  "to": "taken@in.hyper-focus.invalid",
+  "charsets": "{\"to\":\"UTF-8\",\"from\":\"UTF-8\",\"subject\":\"UTF-8\",\"text\":\"UTF-8\"}",
+  "envelope": "{\"to\":[\"taken@in.hyper-focus.invalid\"],\"from\":\"sam@voorbeeld.invalid\"}",
+  "spam_score": "0.1",
+  "attachments": "0",
+  "from": "Sam <sam@voorbeeld.invalid>",
+  "subject": "Fwd: Banner voor vrijdag",
+  "headers": "Message-ID: <fwd-3@mail.gmail.com>\n",
+  "SPF": "pass",
+  "dkim": "{@voorbeeld.invalid : pass}",
+  "text": "Kun je hier een taak van maken?\n\n---------- Forwarded message ---------\nVan: Anna <anna@bakkerij.invalid>\nDate: di 30 sep 2026 om 17:02\nSubject: Banner voor vrijdag\nTo: Sam <sam@voorbeeld.invalid>\n\nHoi Sam, kun je de banner voor vrijdag klaar hebben? Groet, Anna\n"
+}

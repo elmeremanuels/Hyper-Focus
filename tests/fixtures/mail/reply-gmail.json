@@ -1,0 +1,13 @@
+{
+  "to": "taken@in.hyper-focus.invalid",
+  "charsets": "{\"to\":\"UTF-8\",\"from\":\"UTF-8\",\"subject\":\"UTF-8\",\"text\":\"UTF-8\"}",
+  "envelope": "{\"to\":[\"taken@in.hyper-focus.invalid\"],\"from\":\"sam@voorbeeld.invalid\"}",
+  "spam_score": "0.1",
+  "attachments": "0",
+  "from": "Sam <sam@voorbeeld.invalid>",
+  "subject": "Re: Bericht van Hyper&Focus",
+  "headers": "Received: from mail.voorbeeld.invalid\nMessage-ID: <CAGmail-1@mail.gmail.com>\nIn-Reply-To: <out-1@hyper-focus.invalid>\nFrom: Sam <sam@voorbeeld.invalid>\nSubject: Re: Bericht van Hyper&Focus\n",
+  "SPF": "pass",
+  "dkim": "{@voorbeeld.invalid : pass}",
+  "text": "vandaag\n\nOp wo 1 okt 2026 om 08:30 schreef Hyper&Focus <\nhallo@hyper-focus.invalid>:\n\n> Zal ik je focus voor vandaag laten zien?\n> Laat zien: https://hyper-focus.invalid/a/abc\n"
+}

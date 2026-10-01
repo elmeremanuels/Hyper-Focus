@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CALENDAR_SCOPES, GoogleCalendarOAuth } from '../src/integrations/calendar/oauth.js';
-import { SendGridMailer, type MailTransport } from '../src/channels/email/sendgrid.js';
+import { EmailSender, type MailTransport } from '../src/channels/email/send.js';
 import { Transcriber } from '../src/ai/transcribe.js';
 
 describe('GoogleCalendarOAuth', () => {
@@ -26,25 +26,41 @@ describe('GoogleCalendarOAuth', () => {
   });
 });
 
-describe('SendGridMailer', () => {
-  it('reports missing configuration without sending', async () => {
-    const mailer = new SendGridMailer({ apiKey: undefined, from: undefined });
-    const result = await mailer.send({ to: 'a@example.nl', subject: 'Test', text: 'Hoi' });
-    expect(result.success).toBe(false);
+describe('EmailSender', () => {
+  it('refuses to send without configuration', async () => {
+    const sender = new EmailSender({ apiKey: undefined, from: undefined, replyTo: undefined });
+    expect(sender.isConfigured()).toBe(false);
+    await expect(
+      sender.send({ to: 'a@example.nl', subject: 'Test', text: 'Hoi', html: '<p>Hoi</p>' }),
+    ).rejects.toThrow(/not configured/);
   });
 
-  it('sends through the transport', async () => {
-    const transport: MailTransport = {
-      setApiKey: vi.fn(),
-      send: vi.fn(async () => [{ headers: { 'x-message-id': 'm1' } }, {}] as [
-        { headers: Record<string, unknown> },
-        unknown,
-      ]),
-    };
-    const mailer = new SendGridMailer({ apiKey: 'key', from: 'hf@example.nl' }, transport);
-    const result = await mailer.send({ to: 'a@example.nl', subject: 'Weekoverzicht', text: 'Hoi' });
-    expect(result).toEqual({ success: true, messageId: 'm1' });
-    expect(transport.setApiKey).toHaveBeenCalledWith('key');
+  it('sends with Reply-To and threading headers', async () => {
+    const send = vi.fn(async () => [{ headers: { 'x-message-id': 'm1' } }, {}] as [
+      { headers: Record<string, unknown> },
+      unknown,
+    ]);
+    const transport: MailTransport = { setApiKey: vi.fn(), send };
+    const sender = new EmailSender(
+      { apiKey: 'key', from: 'hallo@hyper-focus.invalid', replyTo: 'taken@in.hyper-focus.invalid' },
+      transport,
+    );
+
+    const result = await sender.send({
+      to: 'a@example.nl',
+      subject: 'Re: Je week',
+      text: 'Hoi',
+      html: '<p>Hoi</p>',
+      inReplyTo: '<abc@mail.example.nl>',
+    });
+
+    expect(result).toEqual({ messageId: 'm1' });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        replyTo: 'taken@in.hyper-focus.invalid',
+        headers: { 'In-Reply-To': '<abc@mail.example.nl>', References: '<abc@mail.example.nl>' },
+      }),
+    );
   });
 });
 
