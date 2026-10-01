@@ -1,23 +1,21 @@
-// Channel-independent message shapes. WhatsApp (step 1.1) and the simulator both
-// translate to and from these, so they share one router.
+// Channel-independent message shapes. Telegram, mail and the simulator all translate
+// to and from these, so they share one router (BOUWPLAN.md, 9).
 
 export interface Button {
-  /** Button id, see BOUWPLAN.md 9.5. */
+  /** Button id, see BOUWPLAN.md 9.4. At most 64 bytes (Telegram callback_data). */
   id: string;
-  /** Max 20 characters (WhatsApp limit). */
+  /** At most 20 characters. */
   title: string;
 }
 
 export type InboundMessage =
-  | { kind: 'text'; from: string; text: string }
-  | { kind: 'button'; from: string; buttonId: string; title: string };
+  | { kind: 'text'; userId: number; text: string }
+  | { kind: 'button'; userId: number; buttonId: string; title: string };
 
 export interface OutboundMessage {
   text: string;
-  /** Max 3 buttons (WhatsApp limit). */
+  /** Up to 9 buttons, shown three per row. Ignored when `choices` is set. */
   buttons?: Button[];
-}
-
-export interface OutboundChannel {
-  send(to: string, message: OutboundMessage): Promise<void>;
+  /** Choice list: one button per row, up to 8 (BOUWPLAN.md, 9.2). */
+  choices?: Button[];
 }

@@ -1,0 +1,13 @@
+{
+  "to": "taken@in.hyper-focus.invalid",
+  "charsets": "{\"to\":\"UTF-8\",\"from\":\"UTF-8\",\"subject\":\"UTF-8\",\"text\":\"UTF-8\"}",
+  "envelope": "{\"to\":[\"taken@in.hyper-focus.invalid\"],\"from\":\"sam@voorbeeld.invalid\"}",
+  "spam_score": "0.1",
+  "attachments": "0",
+  "from": "Sam <sam@voorbeeld.invalid>",
+  "subject": "Re: Bericht van Hyper&Focus",
+  "headers": "Message-ID: <AM0PR-outlook-2@eurprd.outlook.com>\n",
+  "SPF": "pass",
+  "dkim": "{@voorbeeld.invalid : pass}",
+  "text": "Help\r\n\r\nVerzonden vanuit Outlook voor iOS\r\n________________________________\r\nVan: Hyper&Focus <hallo@hyper-focus.invalid>\r\nVerzonden: woensdag 1 oktober 2026 08:30\r\nAan: Sam <sam@voorbeeld.invalid>\r\nOnderwerp: Bericht van Hyper&Focus\r\n\r\nZal ik je focus voor vandaag laten zien?\r\n"
+}

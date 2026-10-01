@@ -18,13 +18,13 @@ export interface SeedResult {
   created: boolean;
 }
 
-/** Loads seed data for one user. Skips the user if the phone number already exists. */
+/** Loads seed data for one user. Skips the user if the mail address already exists. */
 export async function loadSeed(db: Database, data: SeedData): Promise<SeedResult> {
   return db.transaction(async (tx) => {
     const [existing] = await tx
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.phoneE164, data.user.phoneE164));
+      .where(eq(users.email, data.user.email.toLowerCase()));
     if (existing) {
       return { userId: existing.id, created: false };
     }
@@ -33,8 +33,12 @@ export async function loadSeed(db: Database, data: SeedData): Promise<SeedResult
       .insert(users)
       .values({
         name: data.user.name,
-        phoneE164: data.user.phoneE164,
-        email: data.user.email ?? null,
+        email: data.user.email.toLowerCase(),
+        ...(data.user.telegramUserId !== undefined && {
+          telegramUserId: data.user.telegramUserId,
+          telegramChatId: data.user.telegramUserId,
+          telegramLinkedAt: new Date(),
+        }),
         ...(data.user.timezone !== undefined && { timezone: data.user.timezone }),
       })
       .returning({ id: users.id });

@@ -114,9 +114,6 @@ Geheugen tussen sessies. Werk dit bij aan het eind van elke bouwstap.
 
 Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sinds 2026-09-30 en bevat 0.2 t/m 0.4.
 
-## Volgende stap
-
-1.1 WhatsApp in en uit (9.3–9.5). Vraagt eerst de voorbereiding bij Meta (9.1) en een VPS met domein en HTTPS. In de cloud-sessie bouw en test ik met opgenomen Meta-payloads en zonder productiesleutels.
 
 ## Bouwplan v1.3 — Telegram en mail in plaats van WhatsApp
 
@@ -128,3 +125,56 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - De huidige code op `main` bevat nog de WhatsApp-verify-webhook uit stap 0.3 en de `WHATSAPP_*`-variabelen in `env.ts`. Opruimen in stap 1.1.
 - **Infrastructuur (klaar):** Hostinger VPS KVM 2 (Duitsland), `hyper-focus.pro` met HTTPS, app draait onder PM2, `/health` geeft ok, nachtelijke `pg_dump`, snapshot gemaakt. Installatie via `setup-vps.sh`.
 - **Open:** Telegram-bot aanmaken bij @BotFather; SendGrid-domeinauthenticatie en Inbound Parse (MX `in.hyper-focus.pro`); SSH-sleutel op de VPS en daarna SSH-hardening; repo privé maken.
+
+## Stap 1.1 — Telegram en mail in en uit
+
+- **Status:** code klaar; live-controle op de VPS volgt (door Elmer, zie `docs/kanalen.md`)
+- **Datum:** 2026-10-01
+- **Branch:** `stap-1.1-telegram` (vanaf de branch van PR #1). PR #2 (WhatsApp) is gesloten.
+- **Datamodel:** migratie `0001_telegram_mail.sql` volgens hoofdstuk 8 van v1.3:
+  - `users`: Telegram-velden, `email_verified_at` en `preferred_channel` erbij; `phone_e164` en `whatsapp_opt_in_at` eruit; `email` uniek.
+  - `messages`: `external_id` (uniek met `channel`), `subject` en `delivery_status`; `wa_message_id` eruit.
+  - `wa_usage` vervalt; event `email_sent` erbij.
+  - Getest als upgrade: `main` met seed-data → migratie 0001 → gebruikers en taken blijven staan.
+- **Gebouwd:**
+  - `channels/channel.ts`: gedeelde interface `send(user, message)`, plus `createDelivery`. Kan Telegram de gebruiker niet bereiken (bot geblokkeerd, niet gekoppeld), dan gaat hetzelfde bericht per mail.
+  - Telegram (`channels/telegram/`):
+    - client via `fetch`;
+    - inline-knoppen: 3 per rij, maximaal 3 rijen, keuzelijst tot 8 regels, `callback_data` ≤ 64 bytes;
+    - webhook met `X-Telegram-Bot-Api-Secret-Token` (401 bij fout), direct 200, verwerking op de achtergrond.
+  - Verwerking van Telegram-updates:
+    - alleen `TELEGRAM_ALLOWED_USER_IDS`; anderen krijgen "Deze bot is nog besloten." en worden gemaskeerd gelogd;
+    - idempotent op `update_id`; een knop-tik telt één keer per bericht, ook bij een tweede tik;
+    - `answerCallbackQuery` en het weghalen van de knoppen;
+    - commando's `/vandaag`, `/pauze`, `/parkeerplaats`, `/help`.
+  - Koppelen: `/start {code}` met een eenmalige code (HMAC, 30 minuten geldig, ongeldig na de eerste koppeling). `npm run link:telegram` print de deeplink.
+  - Mail (`channels/email/`):
+    - versturen met `Reply-To` en threading-headers;
+    - HTML plus tekst, knoppen als actielinks;
+    - Inbound Parse-webhook (404 bij een verkeerd pad, bijlagen genegeerd);
+    - afzendercontrole: bekende gebruiker, `EMAIL_ALLOWED_SENDERS`, SPF pass en DKIM pass voor het afzenderdomein;
+    - idempotent op `Message-ID`;
+    - `parse-reply.ts` voor Gmail, Outlook en Apple Mail, in het Nederlands en Engels;
+    - een doorgestuurde mail gaat met afzender, onderwerp en de eerste 2.000 tekens naar de router.
+  - Actielinks (`channels/actions/`): ondertekend, 7 dagen geldig, één keer bruikbaar. De nonce staat in `messages` (kanaal `web`, type `action_link`), dus er is geen extra tabel nodig.
+  - `npm run telegram:webhook` registreert de webhook.
+  - De WhatsApp-code uit stap 0.3 is verwijderd.
+- **Afwijking van 9.3, ter beoordeling:** `GET /a/{token}` toont een bevestigingspagina die zichzelf meteen verstuurt; pas de `POST` voert de actie uit. Voor jou blijft het één tik. Mailscanners (bijvoorbeeld Outlook Safe Links) openen links vooraf; met een directe `GET` zouden zij de eenmalige link al opgebruiken.
+- **Controle Definition of Done** (lokaal, met nep-Telegram en nep-SendGrid via HTTP en een echte database; `tests/channels.integration.test.ts`):
+  - *Telegram-antwoord binnen 3 seconden:* de webhook antwoordt binnen 1 seconde en het antwoord gaat meteen uit. Live te controleren op de VPS.
+  - *Knop-tik haalt knoppen weg en wordt één keer verwerkt:* `editMessageReplyMarkup` volgt, en een tweede tik op hetzelfde bericht geeft `duplicate`.
+  - *Dubbele levering één keer verwerkt:* zelfde `update_id` en zelfde `Message-ID` geven `duplicate`, zonder tweede antwoord.
+  - *Onjuiste geheime token geeft 401:* test, en curl op de draaiende server.
+  - *Onbekende gebruiker genegeerd en gelogd:* niets opgeslagen, gemaskeerd ID in de log.
+  - *Antwoord op een mail levert een mail op:* het antwoord gaat per mail terug in dezelfde thread. "Binnen 1 minuut" is live te controleren.
+  - *Actielink werkt één keer:* eerste `POST` 200 met het antwoord, tweede `POST` 410 "Deze link is al gebruikt."
+  - `npm test`: 105 groen en 17 overgeslagen zonder database; 122 groen met `TEST_DATABASE_URL`. Ook groen: typecheck, lint, build en de simulator.
+- **Open punten:**
+  - Op de VPS: `.env` aanvullen, migreren, `npm run telegram:webhook`, koppelen, SendGrid inrichten (`docs/kanalen.md`). Daarna de live-controle.
+  - `eigen-data.local.ts` op de VPS: `phoneE164` wordt `email`.
+  - Transcriptie van spraak volgt in 1.6. Een spraakbericht krijgt nu een kort antwoord.
+  - Zie `docs/later.md`: de knop *Meer* bij lange lijsten en de wekelijkse herkoppelvraag.
+
+## Volgende stap
+
+1.2 Gesprekslaag met tools (hoofdstuk 10).

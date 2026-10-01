@@ -1,0 +1,98 @@
+// Telegram Bot API over fetch, without a library (BOUWPLAN.md, 5).
+
+export interface InlineKeyboardButton {
+  text: string;
+  callback_data: string;
+}
+
+export interface InlineKeyboardMarkup {
+  inline_keyboard: InlineKeyboardButton[][];
+}
+
+export class TelegramApiError extends Error {
+  constructor(
+    readonly method: string,
+    readonly errorCode: number,
+    readonly description: string,
+  ) {
+    super(`Telegram ${method} failed (${errorCode}): ${description}`);
+    this.name = 'TelegramApiError';
+  }
+
+  /** The user blocked the bot or the chat no longer exists. */
+  get chatUnreachable(): boolean {
+    return (
+      this.errorCode === 403 ||
+      (this.errorCode === 400 && /chat not found|user is deactivated/i.test(this.description))
+    );
+  }
+}
+
+type FetchLike = typeof fetch;
+
+interface ApiResponse<T> {
+  ok: boolean;
+  result?: T;
+  error_code?: number;
+  description?: string;
+}
+
+export class TelegramClient {
+  constructor(
+    private readonly token: string,
+    private readonly fetchImpl: FetchLike = fetch,
+  ) {}
+
+  async sendMessage(
+    chatId: number,
+    text: string,
+    replyMarkup?: InlineKeyboardMarkup,
+  ): Promise<{ messageId: number }> {
+    const result = await this.call<{ message_id: number }>('sendMessage', {
+      chat_id: chatId,
+      text,
+      link_preview_options: { is_disabled: true },
+      ...(replyMarkup && { reply_markup: replyMarkup }),
+    });
+    return { messageId: result.message_id };
+  }
+
+  async answerCallbackQuery(callbackQueryId: string): Promise<void> {
+    await this.call('answerCallbackQuery', { callback_query_id: callbackQueryId });
+  }
+
+  /** Removes the inline keyboard so a choice cannot be made twice. */
+  async removeKeyboard(chatId: number, messageId: number): Promise<void> {
+    await this.call('editMessageReplyMarkup', {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: { inline_keyboard: [] },
+    });
+  }
+
+  async setWebhook(url: string, secretToken: string): Promise<void> {
+    await this.call('setWebhook', {
+      url,
+      secret_token: secretToken,
+      allowed_updates: ['message', 'callback_query'],
+      drop_pending_updates: false,
+    });
+  }
+
+  private async call<T>(method: string, body: Record<string, unknown>): Promise<T> {
+    const response = await this.fetchImpl(`https://api.telegram.org/bot${this.token}/${method}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const payload = (await response.json()) as ApiResponse<T>;
+    if (!payload.ok || payload.result === undefined) {
+      throw new TelegramApiError(
+        method,
+        payload.error_code ?? response.status,
+        payload.description ?? 'Unknown error',
+      );
+    }
+    return payload.result;
+  }
+}

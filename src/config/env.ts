@@ -12,17 +12,18 @@ const ianaTimezone = z.string().refine(isValidTimezone, {
   message: 'Must be a valid IANA timezone, e.g. Europe/Amsterdam',
 });
 
-const e164 = z.string().regex(/^\+[1-9]\d{6,14}$/, 'Must be an E.164 number, e.g. +31612345678');
+const commaList = (value: unknown) =>
+  typeof value === 'string'
+    ? value
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0)
+    : (value ?? []);
 
-const numberList = z.preprocess(
-  (value) =>
-    typeof value === 'string'
-      ? value
-          .split(',')
-          .map((part) => part.trim())
-          .filter((part) => part.length > 0)
-      : (value ?? []),
-  z.array(e164),
+const telegramUserIds = z.preprocess(commaList, z.array(z.coerce.number().int().positive()));
+const emailList = z.preprocess(
+  commaList,
+  z.array(z.email().transform((address) => address.toLowerCase())),
 );
 
 export const envSchema = z.object({
@@ -45,17 +46,26 @@ export const envSchema = z.object({
   OPENAI_API_KEY: optionalString,
   TRANSCRIBE_MODEL: optionalString,
 
-  // WhatsApp
-  WHATSAPP_GRAPH_VERSION: optionalString,
-  WHATSAPP_ACCESS_TOKEN: optionalString,
-  WHATSAPP_PHONE_NUMBER_ID: optionalString,
-  WHATSAPP_APP_SECRET: optionalString,
-  WHATSAPP_VERIFY_TOKEN: optionalString,
-  WHATSAPP_ALLOWED_NUMBERS: numberList,
+  // Telegram
+  TELEGRAM_BOT_TOKEN: optionalString,
+  TELEGRAM_BOT_USERNAME: optionalString,
+  TELEGRAM_WEBHOOK_SECRET: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .min(32, 'Use at least 32 characters')
+      .regex(/^[A-Za-z0-9_-]+$/, 'Only A-Z, a-z, 0-9, _ and - (Telegram limit)')
+      .optional(),
+  ),
+  TELEGRAM_ALLOWED_USER_IDS: telegramUserIds,
 
   // Mail
   SENDGRID_API_KEY: optionalString,
   EMAIL_FROM: z.preprocess(emptyToUndefined, z.email().optional()),
+  EMAIL_REPLY_TO: z.preprocess(emptyToUndefined, z.email().optional()),
+  EMAIL_INBOUND_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+  EMAIL_ALLOWED_SENDERS: emailList,
+  ACTION_LINK_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
 
   // Research
   RESEARCH_PROVIDER: z.preprocess(

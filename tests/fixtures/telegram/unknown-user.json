@@ -1,0 +1,18 @@
+{
+  "update_id": 500008,
+  "message": {
+    "message_id": 1,
+    "from": {
+      "id": 444555666,
+      "is_bot": false,
+      "first_name": "Onbekend"
+    },
+    "chat": {
+      "id": 444555666,
+      "first_name": "Onbekend",
+      "type": "private"
+    },
+    "date": 1791280800,
+    "text": "Hallo"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "update_id": 500004,
+  "callback_query": {
+    "id": "4382bfdwdsb323b2da",
+    "from": {
+      "id": 111222333,
+      "is_bot": false,
+      "first_name": "Sam",
+      "language_code": "nl"
+    },
+    "chat_instance": "-123",
+    "data": "help",
+    "message": {
+      "message_id": 20,
+      "from": {
+        "id": 999,
+        "is_bot": true,
+        "first_name": "Hyper&Focus"
+      },
+      "chat": {
+        "id": 111222333,
+        "first_name": "Sam",
+        "type": "private"
+      },
+      "date": 1791280801,
+      "text": "Zal ik je focus laten zien?",
+      "reply_markup": {
+        "inline_keyboard": [
+          [
+            {
+              "text": "Laat zien",
+              "callback_data": "f:show"
+            },
+            {
+              "text": "Wat kan ik?",
+              "callback_data": "help"
+            }
+          ]
+        ]
+      }
+    }
+  }
+}

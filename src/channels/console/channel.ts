@@ -1,17 +1,17 @@
-import type { Button, OutboundChannel, OutboundMessage } from '../../conversation/types.js';
+import type { Button, OutboundMessage } from '../../conversation/types.js';
 
 /**
- * Development channel: prints outgoing messages to the console (BOUWPLAN.md, 15).
+ * Development output: prints outgoing messages to the console (BOUWPLAN.md, 15).
  * Buttons are numbered so the simulator can press them by number.
  */
-export class ConsoleChannel implements OutboundChannel {
+export class ConsoleChannel {
   private lastButtons: Button[] = [];
 
   constructor(private readonly write: (line: string) => void = (line) => console.log(line)) {}
 
-  async send(_to: string, message: OutboundMessage): Promise<void> {
+  async send(message: OutboundMessage): Promise<void> {
     this.write(`\nHyper&Focus: ${message.text}`);
-    this.lastButtons = message.buttons ?? [];
+    this.lastButtons = message.choices ?? message.buttons ?? [];
     if (this.lastButtons.length > 0) {
       this.write(this.lastButtons.map((button, index) => `  [${index + 1}] ${button.title}`).join('\n'));
     }
