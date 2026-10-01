@@ -2,7 +2,7 @@
 
 ## Wat dit is
 
-Hyper&Focus is een AI-projectmanager en assistent via WhatsApp voor ondernemers met een ADHD-brein. `BOUWPLAN.md` is leidend. Lees het volledig in je eerste sessie. Lees in elke volgende sessie minimaal `docs/voortgang.md`, de bouwstap waar je aan werkt en de hoofdstukken waar die stap naar verwijst.
+Hyper&Focus is een AI-projectmanager en assistent via Telegram en mail voor ondernemers met een ADHD-brein. `BOUWPLAN.md` is leidend. Lees het volledig in je eerste sessie. Lees in elke volgende sessie minimaal `docs/voortgang.md`, de bouwstap waar je aan werkt en de hoofdstukken waar die stap naar verwijst.
 
 ## Werkwijze
 
@@ -31,8 +31,8 @@ Hyper&Focus is een AI-projectmanager en assistent via WhatsApp voor ondernemers 
 ## Veiligheid
 
 - Nooit secrets committen. `.env` staat in `.gitignore`; `.env.example` bevat alleen namen.
-- Geen productiesleutels (WhatsApp, Mollie, Google) in cloud-sessies. Bouw en test met de simulator (`npm run sim`) en nep-providers.
-- Persoonlijke gegevens, zoals telefoonnummers en klantnamen, alleen in `.env` of in bestanden die eindigen op `.local.ts`.
+- Geen productiesleutels (Telegram-bottoken, SendGrid, Mollie, Google) in cloud-sessies. Bouw en test met de simulator (`npm run sim`) en nep-providers.
+- Persoonlijke gegevens, zoals Telegram-gebruikers-ID's, mailadressen en klantnamen, alleen in `.env` of in bestanden die eindigen op `.local.ts`.
 
 ## Techniek in het kort
 
@@ -47,6 +47,6 @@ Details staan in BOUWPLAN.md.
 
 Aangemaakt in stap 0.2 en daarna actueel gehouden.
 
-- Nu beschikbaar: `npm run dev` · `npm test` · `npm run lint` · `npm run typecheck` · `npm run build` · `npm start` · `npm run db:generate` · `npm run db:migrate` · `npm run db:seed`
+- Nu beschikbaar: `npm run dev` · `npm test` · `npm run lint` · `npm run typecheck` · `npm run build` · `npm start` · `npm run db:generate` · `npm run db:migrate` · `npm run db:seed` · `npm run sim`
 - Databasetests draaien alleen met `TEST_DATABASE_URL` (rol met CREATEDB).
-- Volgen in latere stappen: `npm run sim` (0.5) · `npm run eval` (1.2) · `npm run sim:day` (1.5)
+- Volgen in latere stappen: `npm run eval` (1.2) · `npm run sim:day` (1.5)
