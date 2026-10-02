@@ -25,7 +25,7 @@ export class EmailChannel implements Channel {
 
   async send(user: ChannelUser, message: OutboundMessage, context: SendContext = {}): Promise<void> {
     if (!user.email) throw new ChannelUnavailableError('email', 'user has no mail address');
-    if (!this.sender.isConfigured()) throw new ChannelUnavailableError('email', 'SendGrid not configured');
+    if (!this.sender.isConfigured()) throw new ChannelUnavailableError('email', 'Brevo not configured');
 
     const { actionLinkSecret: secret, baseUrl } = this.config;
     const now = this.config.now ?? (() => new Date());

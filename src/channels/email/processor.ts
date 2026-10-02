@@ -6,7 +6,7 @@ import type { Router } from '../../conversation/router.js';
 import type { OutboundMessage } from '../../conversation/types.js';
 import { mask } from '../../lib/secrets.js';
 import type { Delivery } from '../channel.js';
-import { parseInboundMail, type InboundFields } from './inbound.js';
+import { parseInboundMail, type InboundItem } from './inbound.js';
 import { detectForward, extractReply } from './parse-reply.js';
 
 export interface MailProcessorDeps {
@@ -30,8 +30,8 @@ export function createMailProcessor(deps: MailProcessorDeps) {
   const now = deps.now ?? (() => new Date());
   const allowed = new Set(deps.allowedSenders.map((address) => address.toLowerCase()));
 
-  return async function processMail(fields: InboundFields): Promise<MailOutcome> {
-    const mail = parseInboundMail(fields);
+  return async function processMail(item: InboundItem): Promise<MailOutcome> {
+    const mail = parseInboundMail(item);
     if (!mail.from) {
       log.warn('Ignored inbound mail without a sender address');
       return 'ignored';

@@ -1,9 +1,9 @@
 # Bouwplan — Hyper&Focus
 ### AI-projectmanager en assistent voor ondernemers met een ADHD-brein
 
-Naam: **Hyper&Focus** · technische naam en repo: `hyperfocus` · Versie 1.3 · 1 oktober 2026 · Eigenaar: Elmer Emanuels
+Naam: **Hyper&Focus** · technische naam en repo: `hyperfocus` · Versie 1.4 · 2 oktober 2026 · Eigenaar: Elmer Emanuels
 
-*Versie 1.1: naam, dagritme, lensprioriteit, onderzoeksprovider, bewaartermijn en prijs vastgelegd (hoofdstuk 18). Versie 1.2: optionele agendakoppeling (11.8, stap 1.8). Versie 1.3: WhatsApp vervangen door Telegram en mail (hoofdstuk 9, beslissing 10).*
+*Versie 1.1: naam, dagritme, lensprioriteit, onderzoeksprovider, bewaartermijn en prijs vastgelegd (hoofdstuk 18). Versie 1.2: optionele agendakoppeling (11.8, stap 1.8). Versie 1.3: WhatsApp vervangen door Telegram en mail (hoofdstuk 9, beslissing 10). Versie 1.4: SendGrid vervangen door Brevo (beslissing 11).*
 
 ---
 
@@ -71,8 +71,8 @@ De verbetermotor moet minstens 5 van die 8 weken draaien. Punt 1 t/m 3 meet het 
 ## 4. Architectuur
 
 ```
-        Telegram (Bot API)                         Mail (SendGrid)
-          ▲                 │ webhook               ▲ uit      │ Inbound Parse
+        Telegram (Bot API)                         Mail (Brevo)   
+          ▲                 │ webhook               ▲ uit      │ Inbound Parsing
           │ uitgaand        ▼                       │          ▼
  ┌───────────────────────────────────────────────────────────────────────┐
  │ KANAALLAAG  verzenden · webhooks · geheime token · knoppen · actielinks │
@@ -129,7 +129,7 @@ Twee processen onder PM2:
 | AI | `@anthropic-ai/sdk`, laatste versie | Publicato zit op ^0.37; upgraden |
 | Transcriptie | OpenAI-SDK (al in Publicato) | alleen voor spraakberichten |
 | Chat | Telegram Bot API | rechtstreeks via `fetch`, zonder bibliotheek; webhook met geheime token |
-| Mail | SendGrid: versturen + Inbound Parse | uitgaand en inkomend; inkomend op een eigen subdomein |
+| Mail | Brevo: transactionele API + Inbound Parsing | uitgaand en inkomend; inkomend op een eigen subdomein; rechtstreeks via `fetch` |
 | Web-UI (fase 2) | React + Vite + Tailwind | mobile-first |
 | Tests | Vitest | plus eigen eval-script |
 | Hosting | Hostinger VPS met template *Claude Code* (Ubuntu 24.04), PM2, Nginx, Let's Encrypt | Telegram vereist HTTPS voor de webhook; Node 20+ apart installeren, Ubuntu 24.04 levert een oudere versie |
@@ -156,7 +156,7 @@ Twee processen onder PM2:
 | `server/autoGPTAgent.ts` | patroon voor `src/engine/generate.ts` | alleen het doel-stappen-redenering-patroon; OpenAI vervangen door Claude |
 | `strategic-context-enhancer.ts`, `aiSuggestionsService.ts`, `aiHints.ts` | referentie | lezen als inspiratie voor prompts; herschrijven |
 | schema's `businessProfiles`, `customerPersonas`, `competitorIntelligence`, `swotAnalysis`, `businessGoals`, `brainstormIdeas` | `src/db/schema/` | afslanken volgens hoofdstuk 8 |
-| `server/services/emailService.ts` / `sendgridService.ts` | `src/channels/email/send.ts` | alleen versturen; templates voor weekoverzicht, concept en herstart. Inkomende mail bouw je nieuw (9.3) |
+| `server/services/emailService.ts` / `sendgridService.ts` | referentie | versturen loopt via Brevo (`src/channels/email/send.ts`, nieuw); templates voor weekoverzicht, concept en herstart. Inkomende mail bouw je nieuw (9.3) |
 | `server/auth.ts`, `server/middleware/auth.ts` | fase 2 | omzetten naar magic-link login |
 | `server/services/googleOAuthService.ts` | `src/integrations/calendar/oauth.ts` | alleen de scope `calendar.readonly`; scopes voor Drive, Ads, Analytics en Business Profile eruit |
 | `server/utils/tokenEncryption.ts` | `src/lib/crypto.ts` | nodig vanaf stap 1.8 voor agendatokens |
@@ -295,8 +295,8 @@ Twee kanalen, één router. Telegram is het dagelijkse gesprek: snel, met knoppe
 3. Laat privacy mode aan: de bot werkt alleen in privéchats.
 
 **Mail**
-1. Een verzendadres op het eigen domein, bijvoorbeeld `hallo@hyper-focus.pro`, met domeinauthenticatie in SendGrid (SPF, DKIM en DMARC als DNS-records).
-2. Inbound Parse op een subdomein: MX-record `in.hyper-focus.pro` → `mx.sendgrid.net`, doorsturen naar `https://hyper-focus.pro/webhooks/mail/{EMAIL_INBOUND_SECRET}`, met *spam check* aan.
+1. Een verzendadres op het eigen domein, bijvoorbeeld `hallo@hyper-focus.pro`, met domeinauthenticatie in Brevo (SPF, DKIM en DMARC als DNS-records).
+2. Inbound Parsing op een subdomein: MX-records `in.hyper-focus.pro` → `inbound1.sendinblue.com` en `inbound2.sendinblue.com`. Daarna de inbound-webhook aanmaken met `npm run brevo:inbound -- --domain in.hyper-focus.pro`; die stuurt door naar `https://hyper-focus.pro/webhooks/mail/{EMAIL_INBOUND_SECRET}`.
 3. Mijn vaste invoeradres: `taken@in.hyper-focus.pro`. Antwoorden op mails van Hyper&Focus komen via `Reply-To` op hetzelfde adres binnen.
 
 ### 9.2 Telegram
@@ -322,13 +322,13 @@ Twee kanalen, één router. Telegram is het dagelijkse gesprek: snel, met knoppe
 ### 9.3 Mail
 
 **Uitgaand**
-- Via SendGrid, vanaf `EMAIL_FROM`, met `Reply-To: taken@in.hyper-focus.pro`.
+- Via de Brevo-API (`POST /v3/smtp/email`), vanaf `EMAIL_FROM`, met `Reply-To: taken@in.hyper-focus.pro`.
 - Eenvoudige HTML plus een platte-tekstversie. Onderwerpregel zegt wat erin staat: *"Je week: 9 taken af, focus op de offerte"*.
 - **Knoppen in mail zijn actielinks:** `GET /a/{token}`. De token is een HMAC-ondertekende string met de knop-ID uit 9.4, de gebruiker en een vervaldatum (7 dagen), ondertekend met `ACTION_LINK_SECRET`. De link voert dezelfde afhandeling uit als de Telegram-knop in `buttons.ts` en toont een korte bevestigingspagina. Elke link werkt één keer.
 
-**Inkomend (SendGrid Inbound Parse)**
-- `POST /webhooks/mail/{EMAIL_INBOUND_SECRET}`; een onjuist pad geeft 404.
-- **Afzender controleren:** het `From`-adres moet `users.email` zijn (in fase 1 ook in `EMAIL_ALLOWED_SENDERS`) en de velden `SPF` en `dkim` uit Inbound Parse moeten *pass* zijn. Anders loggen en negeren.
+**Inkomend (Brevo Inbound Parsing)**
+- `POST /webhooks/mail/{EMAIL_INBOUND_SECRET}`; een onjuist pad geeft 404. Brevo stuurt JSON met een lijst `items`, één per mail.
+- **Afzender controleren:** het `From`-adres moet `users.email` zijn (in fase 1 ook in `EMAIL_ALLOWED_SENDERS`) en SPF en DKIM voor het afzenderdomein moeten *pass* zijn volgens de headers `Authentication-Results` en `Received-SPF`. Anders loggen en negeren.
 - **Idempotentie:** op de `Message-ID`-header, met dezelfde `ON CONFLICT`-regel als bij Telegram.
 - **Tekst eruit halen:** `parse-reply.ts` haalt de nieuwe tekst uit een antwoord (geciteerde tekst en handtekening eraf). Bij een doorgestuurde mail gaan onderwerp, afzender en de eerste 2.000 tekens als context mee naar de router, met de vraag welke taak eruit volgt.
 - Bijlagen worden genegeerd en niet opgeslagen.
@@ -662,7 +662,7 @@ Context:
 
 **AVG**
 - Minimale data. Geen diagnose vragen of opslaan: het product werkt zonder.
-- Verwerkersovereenkomsten met Anthropic, OpenAI, SendGrid (Twilio), Hostinger en, bij een gekoppelde agenda, Google. Hosting in de EU.
+- Verwerkersovereenkomsten met Anthropic, OpenAI, Brevo, Hostinger en, bij een gekoppelde agenda, Google. Hosting in de EU.
 - **Telegram [BESLISSING vóór fase 3]:** Telegram biedt geen verwerkersovereenkomst en berichten staan op de servers van Telegram. Voor eigen gebruik is dat mijn eigen keuze. Vóór de beta beslissen: Telegram houden met een duidelijke uitleg in de privacyverklaring, of mail en de web-UI als standaardkanaal voor klanten.
 - Commando's *"exporteer mijn gegevens"* en *"verwijder mijn gegevens"*, plus dezelfde knoppen in de web-UI (fase 2).
 - **Bewaartermijn:** berichten, inclusief transcripties, worden na 30 dagen verwijderd door een nachtelijke job in de worker. Spraakopnames worden direct na transcriptie verwijderd en nooit opgeslagen. Taken, projecten, ideeën en suggesties blijven bestaan tot de gebruiker ze verwijdert. `events` en `ai_usage` bevatten alleen metadata zonder berichtinhoud en blijven 12 maanden bewaard; die zijn nodig voor de verkooppoort en de kostenmeting.
@@ -683,7 +683,7 @@ Context:
 - **Agenda:** vrije-tijdberekening, hele-dag- en afgeslagen afspraken, verschuiven van berichten, tijdzones, gedrag bij een mislukte synchronisatie. Gebruik een nep-`CalendarProvider` met vaste afspraken.
 - **Simulator (`npm run sim`):** terminal-chat door dezelfde router als Telegram en mail. In development gaan uitgaande berichten naar de console.
 - **Dagsimulatie (`npm run sim:day -- --date 2026-10-06`):** speelt de planning van een dag versneld af, inclusief vangrails.
-- **Webhooktests** met opgenomen payloads. Telegram: tekst, `callback_query`, `voice`, `/start` met code, dubbele levering, onjuiste geheime token, onbekende gebruiker. Mail (Inbound Parse): antwoord, doorgestuurde mail, onbekende afzender, SPF- of DKIM-fout, dubbele `Message-ID`.
+- **Webhooktests** met opgenomen payloads. Telegram: tekst, `callback_query`, `voice`, `/start` met code, dubbele levering, onjuiste geheime token, onbekende gebruiker. Mail (Brevo Inbound Parsing): antwoord, doorgestuurde mail, onbekende afzender, SPF- of DKIM-fout, dubbele `Message-ID`.
 
 ---
 
@@ -793,7 +793,7 @@ TELEGRAM_WEBHOOK_SECRET=              # willekeurig, 32+ tekens
 TELEGRAM_ALLOWED_USER_IDS=            # fase 1: alleen mijn eigen gebruikers-ID
 
 # Mail
-SENDGRID_API_KEY=
+BREVO_API_KEY=
 EMAIL_FROM=hallo@hyper-focus.pro
 EMAIL_REPLY_TO=taken@in.hyper-focus.pro
 EMAIL_INBOUND_SECRET=                 # willekeurig, deel van het webhookpad
@@ -834,6 +834,7 @@ Controleer bij de start van de bouw de actuele modelnamen in de documentatie van
 | 8 | Prijs | €26,88 per maand, proefmaand van 1 maand |
 | 9 | Agenda | optioneel en standaard uit; Google Agenda eerst, alleen lezen |
 | 10 | Kanalen (1 oktober 2026) | Telegram voor het dagelijkse gesprek, mail voor overzichten, concepten en als tweede invoer. WhatsApp vervalt: alle WhatsApp-accounts in mijn Meta-portfolio zijn uitgeschakeld en een nieuwe portfolio kan ik niet aanmaken. |
+| 11 | Mailprovider (2 oktober 2026) | Brevo in plaats van SendGrid, voor versturen en Inbound Parsing. |
 
 ### Nog open
 
@@ -845,4 +846,4 @@ Controleer bij de start van de bouw de actuele modelnamen in de documentatie van
 
 ---
 
-*Bouwplan v1.3 — ik lees dit zelf na en pas aan waar nodig.*
+*Bouwplan v1.4 — ik lees dit zelf na en pas aan waar nodig.*

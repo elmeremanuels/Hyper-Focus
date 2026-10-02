@@ -1,12 +1,27 @@
-// SendGrid Inbound Parse: POST /webhooks/mail/{EMAIL_INBOUND_SECRET} (BOUWPLAN.md, 9.3).
-// A wrong path gives 404. Fields are parsed from multipart/form-data; attachments are
-// skipped and never stored.
+// Brevo Inbound Parsing: POST /webhooks/mail/{EMAIL_INBOUND_SECRET} (BOUWPLAN.md, 9.3).
+// A wrong path gives 404. Brevo posts JSON with an `items` array, one entry per mail.
+// Attachments are ignored and never stored.
 import crypto from 'node:crypto';
-import busboy from 'busboy';
-import { Router, type Request } from 'express';
+import express, { Router } from 'express';
+import { z } from 'zod';
 import { safeEqual } from '../../lib/secrets.js';
 
-export type InboundFields = Record<string, string>;
+const mailbox = z.looseObject({ Name: z.string().nullish(), Address: z.string().nullish() });
+
+const item = z.looseObject({
+  MessageId: z.string().nullish(),
+  InReplyTo: z.string().nullish(),
+  From: mailbox.nullish(),
+  Subject: z.string().nullish(),
+  RawTextBody: z.string().nullish(),
+  RawHtmlBody: z.string().nullish(),
+  ExtractedMarkdownMessage: z.string().nullish(),
+  Headers: z.record(z.string(), z.union([z.string(), z.array(z.string())])).nullish(),
+});
+
+export type InboundItem = z.infer<typeof item>;
+
+const payload = z.looseObject({ items: z.array(z.unknown()) });
 
 export interface InboundMail {
   from: string | undefined;
@@ -19,7 +34,7 @@ export interface InboundMail {
 
 export interface MailWebhookConfig {
   secret: string | undefined;
-  onMail?: (fields: InboundFields) => Promise<unknown>;
+  onMail?: (item: InboundItem) => Promise<unknown>;
   log?: Pick<Console, 'warn' | 'error'>;
 }
 
@@ -27,25 +42,28 @@ export function createMailWebhookRouter(config: MailWebhookConfig): Router {
   const router = Router();
   const log = config.log ?? console;
 
-  router.post('/webhooks/mail/:secret', async (req, res) => {
+  router.post('/webhooks/mail/:secret', express.json({ limit: '10mb' }), (req, res) => {
     if (!safeEqual(req.params.secret, config.secret)) {
       res.sendStatus(404);
       return;
     }
 
-    let fields: InboundFields;
-    try {
-      fields = await readFields(req);
-    } catch (error) {
-      log.warn('Could not parse inbound mail:', error);
+    const parsed = payload.safeParse(req.body);
+    if (!parsed.success) {
+      log.warn('Rejected inbound mail payload without items');
       res.sendStatus(400);
       return;
     }
 
     res.sendStatus(200);
 
-    if (config.onMail) {
-      config.onMail(fields).catch((error: unknown) => {
+    for (const raw of parsed.data.items) {
+      const mail = item.safeParse(raw);
+      if (!mail.success) {
+        log.warn('Skipped a malformed inbound mail item');
+        continue;
+      }
+      config.onMail?.(mail.data).catch((error: unknown) => {
         log.error('Inbound mail processing failed:', error);
       });
     }
@@ -54,43 +72,28 @@ export function createMailWebhookRouter(config: MailWebhookConfig): Router {
   return router;
 }
 
-function readFields(req: Request): Promise<InboundFields> {
-  return new Promise((resolve, reject) => {
-    const fields: InboundFields = {};
-    let parser: busboy.Busboy;
-    try {
-      parser = busboy({ headers: req.headers, limits: { fieldSize: 2 * 1024 * 1024, fields: 50 } });
-    } catch (error) {
-      reject(error instanceof Error ? error : new Error(String(error)));
-      return;
-    }
-    parser.on('field', (name, value) => {
-      fields[name] = value;
-    });
-    // Attachments are ignored (BOUWPLAN.md, 9.3).
-    parser.on('file', (_name, stream) => stream.resume());
-    parser.on('error', reject);
-    parser.on('close', () => resolve(fields));
-    req.pipe(parser);
-  });
-}
-
-export function parseInboundMail(fields: InboundFields): InboundMail {
-  const from = extractAddress(fields.from ?? '');
-  const subject = (fields.subject ?? '').trim();
-  const text = fields.text?.trim() ? fields.text : htmlToText(fields.html ?? '');
-  const headerId = /^Message-ID:\s*(<[^>\s]+>)/im.exec(fields.headers ?? '')?.[1];
+export function parseInboundMail(mail: InboundItem): InboundMail {
+  const from = extractAddress(mail.From?.Address ?? '');
+  const subject = (mail.Subject ?? '').trim();
+  const text = mail.RawTextBody?.trim()
+    ? mail.RawTextBody
+    : mail.RawHtmlBody
+      ? htmlToText(mail.RawHtmlBody)
+      : (mail.ExtractedMarkdownMessage ?? '');
   const messageId =
-    headerId ??
+    normalizeMessageId(mail.MessageId) ??
     `sha256:${crypto.createHash('sha256').update(`${from}\n${subject}\n${text}`).digest('hex')}`;
+
+  const { spf, dkimDomains } = authResults(mail.Headers ?? {});
+  const domain = from?.split('@')[1];
 
   return {
     from,
     subject,
     text,
     messageId,
-    spfPass: /^\s*pass\b/i.test(fields.SPF ?? ''),
-    dkimPass: from !== undefined && dkimPasses(fields.dkim ?? '', from),
+    spfPass: spf,
+    dkimPass: domain !== undefined && dkimDomains.some((d) => domain === d || domain.endsWith(`.${d}`)),
   };
 }
 
@@ -100,14 +103,38 @@ export function extractAddress(value: string): string | undefined {
   return match?.[1]?.toLowerCase();
 }
 
-/** dkim looks like "{@gmail.com : pass}" or "{@a.nl : fail, @b.nl : pass}". */
-function dkimPasses(dkim: string, from: string): boolean {
-  const domain = from.split('@')[1];
-  if (!domain) return false;
-  return [...dkim.matchAll(/@([\w.-]+)\s*:\s*(\w+)/g)].some(([, signer = '', result = '']) => {
-    const d = signer.toLowerCase();
-    return result.toLowerCase() === 'pass' && (domain === d || domain.endsWith(`.${d}`));
-  });
+function normalizeMessageId(value: string | null | undefined): string | undefined {
+  const id = value?.trim();
+  if (!id) return undefined;
+  return id.startsWith('<') ? id : `<${id}>`;
+}
+
+/**
+ * Reads SPF and DKIM results from the Authentication-Results and Received-SPF headers
+ * that the receiving server adds. Brevo does not send separate fields for them.
+ */
+export function authResults(headers: Record<string, string | string[]>): {
+  spf: boolean;
+  dkimDomains: string[];
+} {
+  const values = (name: string): string[] => {
+    const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name);
+    const value = key ? headers[key] : undefined;
+    return value === undefined ? [] : Array.isArray(value) ? value : [value];
+  };
+
+  const results = values('authentication-results');
+  const spf =
+    results.some((result) => /\bspf=pass\b/i.test(result)) ||
+    values('received-spf').some((result) => /^\s*pass\b/i.test(result));
+
+  const dkimDomains = results.flatMap((result) =>
+    [...result.matchAll(/\bdkim=pass\b[^;]*?\bheader\.(?:d|i)=@?([\w.-]+)/gi)].map(([, d = '']) =>
+      d.toLowerCase(),
+    ),
+  );
+
+  return { spf, dkimDomains };
 }
 
 function htmlToText(html: string): string {

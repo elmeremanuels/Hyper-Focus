@@ -2,7 +2,7 @@
   "Uuid": [
     "7a3c1f2e-0000-4000-8000-000000000001"
   ],
-  "MessageId": "<spoof-4@evil.invalid>",
+  "MessageId": "<noauth-6@voorbeeld.invalid>",
   "InReplyTo": null,
   "From": {
     "Name": "Sam",
@@ -20,14 +20,13 @@
   "Cc": null,
   "ReplyTo": null,
   "SentAtDate": "Wed, 1 Oct 2026 10:30:00 +0200",
-  "Subject": "Re: Bericht van Hyper&Focus",
+  "Subject": "Re: x",
   "Attachments": [],
   "Headers": {
-    "Message-ID": "<spoof-4@evil.invalid>",
+    "Message-ID": "<noauth-6@voorbeeld.invalid>",
     "From": "Sam <sam@voorbeeld.invalid>",
-    "Subject": "Re: Bericht van Hyper&Focus",
-    "Date": "Wed, 1 Oct 2026 10:30:00 +0200",
-    "Authentication-Results": "mx.brevo.invalid; spf=softfail smtp.mailfrom=voorbeeld.invalid; dkim=pass header.d=evil.invalid"
+    "Subject": "Re: x",
+    "Date": "Wed, 1 Oct 2026 10:30:00 +0200"
   },
   "SpamScore": 0.1,
   "RawTextBody": "vandaag\n",

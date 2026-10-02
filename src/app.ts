@@ -1,6 +1,6 @@
 import express, { type Express } from 'express';
 import { createActionRouter, type ActionRouteConfig } from './channels/actions/route.js';
-import { createMailWebhookRouter, type InboundFields } from './channels/email/inbound.js';
+import { createMailWebhookRouter, type InboundItem } from './channels/email/inbound.js';
 import { createTelegramWebhookRouter } from './channels/telegram/webhook.js';
 
 export interface AppOptions {
@@ -10,7 +10,7 @@ export interface AppOptions {
   };
   mail?: {
     secret: string | undefined;
-    onMail?: (fields: InboundFields) => Promise<unknown>;
+    onMail?: (item: InboundItem) => Promise<unknown>;
   };
   actions?: ActionRouteConfig;
 }
