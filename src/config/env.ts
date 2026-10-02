@@ -80,6 +80,9 @@ export const envSchema = z.object({
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,
   GOOGLE_REDIRECT_URI: optionalUrl,
+  MICROSOFT_CLIENT_ID: optionalString,
+  MICROSOFT_CLIENT_SECRET: optionalString,
+  MICROSOFT_REDIRECT_URI: optionalUrl,
 
   // Phase 3
   MOLLIE_API_KEY: optionalString,

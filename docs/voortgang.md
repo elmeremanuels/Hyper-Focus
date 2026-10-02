@@ -330,6 +330,40 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 
 → **Start eigen gebruik** (BOUWPLAN 16) zodra 1.2 t/m 1.7 op de VPS staan en de evaluatieset ≥ 90% haalt.
 
+## Stap 1.8 — Agendakoppeling: Google, Outlook en Apple
+
+- **Datum:** 2026-10-02
+- **Besluit (Elmer):** de agenda koppelt met Google, Outlook en Apple. Bouwplan v1.5, beslissing 12.
+- **Status:** klaar in code. Inrichten op de VPS volgens `docs/agenda.md`.
+- **Datamodel (bewust gewijzigd):** enum `calendar_provider` krijgt `microsoft` en `apple` (migratie `0002_calendar_providers`). Er komen geen nieuwe kolommen bij: Apple ID en app-specifiek wachtwoord staan samen versleuteld in `refresh_token_enc`, de agenda-URL's in `calendar_ids`.
+- **Gebouwd:**
+  - `integrations/calendar/`: één `CalendarProvider`-interface met drie aanbieders:
+    - Google: OAuth, `calendar.readonly`, `singleEvents`.
+    - Outlook: Microsoft Graph `calendarView`, `Calendars.Read`, tenant `common`.
+    - Apple: CalDAV met ontdekking van de agenda's, `calendar-query` met `expand` en een eigen ICS-parser.
+  - Afgeslagen, geannuleerde en vrije afspraken tellen niet als bezet. Deelnemers, beschrijvingen en locaties worden nooit opgehaald.
+  - Koppelen: "koppel agenda" → persoonlijke link (15 minuten, ondertekend) → pagina met de ingerichte agenda's. Apple vraagt het app-specifieke wachtwoord op die pagina, nooit in de chat. Tokens en wachtwoord worden versleuteld opgeslagen (`ENCRYPTION_KEY`).
+  - Sync: de planner haalt om 00:05 vandaag en morgen op, de worker ververst elke 15 minuten. Alleen dat venster blijft bewaard. Afspraken worden op woorden aan klanten gekoppeld ("Call Bakkerij De Vries").
+  - Focus en vrije tijd: bij ≥ 4 uur afspraken, of als de schatting niet past, vervalt de derde taak. Past het dan nog niet, dan wordt de hoofdtaak de eerste microstap.
+  - Ochtendbericht met één regel over de dag (afspraken, hele-dag-afspraken, grootste vrije blok). `show_today` noemt de afspraken.
+  - Een proactief bericht tijdens een afspraak schuift naar direct erna. Lukt dat niet binnen 90 minuten, dan vervalt het (`in_meeting`). Sessie-check-ins schuiven mee.
+  - Middag: het eerste vrije blok van ≥ 30 minuten met *Ja, om 14:00 · Nu · Later*. Knop `ps:{taak}:{HHMM}` plant de sessie.
+  - Heads-up 10 minuten voor een gekoppelde afspraak met open punten, en een vraag naar actiepunten direct erna. Maximaal `max_calendar_nudges_per_day`. Deze berichten volgen stille uren en pauze, maar tellen niet mee voor de daglimiet.
+  - Tools `connect_calendar`, `disconnect_calendar`, `find_free_slot`; drie nieuwe gevallen in de evaluatieset (66 in totaal).
+  - Mislukt de sync, dan plant de planner zonder agenda en meldt het afrondbericht dat één keer.
+- **Controle (Definition of Done)** in `tests/calendar.integration.test.ts`, met een nep-`CalendarProvider`:
+  - *Met de agenda uit werkt alles zoals na 1.7:* `without a calendar everything works as before`, en alle eerdere tests blijven groen.
+  - *Een proactief bericht tijdens een afspraak komt direct erna:* `moves a proactive message to right after an appointment, or drops it after 90 minutes`.
+  - *Een dag met vijf uur afspraken telt maximaal twee focustaken:* `a day with five hours of appointments…`.
+  - *Een klantafspraak geeft tien minuten vooraf een heads-up met open punten:* `gives a heads-up…`.
+  - *"Ontkoppel agenda" trekt de toegang in en verwijdert tokens en afspraken:* `"ontkoppel agenda" revokes access…`.
+  - Verder: koppelpagina's met verlopen link, Apple-login met fout en goed wachtwoord (versleuteld opgeslagen), de Google-callback, een mislukte sync, `find_free_slot` met plannen.
+  - Providers apart (`tests/calendar-units.test.ts`): mapping per aanbieder, paginering, token verversen bij Microsoft, CalDAV-ontdekking met een iCloud-partitiehost, ICS met tijdzones, `DURATION`, gevouwen regels en hele-dag-afspraken.
+  - `npm test`: 238 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
+- **Open:**
+  - Live controleren per aanbieder (`docs/agenda.md`, tabel onderaan). Vooral Apple: dat iCloud `expand` uitvoert voor terugkerende afspraken.
+  - Twijfelgevallen bij het koppelen aan een klant gaan nog niet naar het snelle model. Er is alleen een woordvergelijking (`docs/later.md`).
+
 ## Volgende stap
 
-1.8 Agendakoppeling (11.8).
+Testplan fase 1 (`docs/testplan-fase1.md`), daarna eigen gebruik.

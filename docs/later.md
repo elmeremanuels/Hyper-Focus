@@ -10,3 +10,5 @@ Ideeën en extra's die buiten de huidige bouwstap vallen.
 - Ochtendbericht: nu een vaste tekst zonder AI. Het slimme model (10.4) kan de groet persoonlijker maken, bijvoorbeeld samen met het agenda-overzicht (1.8). Eerst kijken of de vaste tekst werkt.
 - Middagbericht: de tijd (13:30) staat vast in de code. Een instelling `midday_time` vraagt een datamodelwijziging.
 - Database: enumwaarde `weekly_mail` voor `nudge_kind`, zodat het weekoverzicht geen `payload.part` nodig heeft (1.7).
+- Agenda: twijfel bij het koppelen van een afspraak aan een klant voorleggen aan het snelle model, en `pg_trgm` voor de naamvergelijking (11.8). Nu: woordvergelijking.
+- Agenda: kiezen welke agenda's meetellen (beslissing open punt 4). Nu: Google de hoofdagenda, Outlook de standaardagenda, Apple alle agenda's met afspraken.

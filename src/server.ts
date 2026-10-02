@@ -53,6 +53,19 @@ if (env.DATABASE_URL) {
     messages: services.messages,
     router: services.router,
   };
+
+  if (services.calendar) {
+    options.calendar = {
+      db,
+      service: services.calendar,
+      notify: async (userId, text) => {
+        const user = await services.users.findById(userId);
+        if (user) await services.delivery.send(user, { text });
+      },
+    };
+  } else {
+    console.warn('Calendar off: set ENCRYPTION_KEY, ACTION_LINK_SECRET and APP_BASE_URL to enable it');
+  }
 } else {
   console.warn('DATABASE_URL not set: webhooks are verified but not processed');
 }

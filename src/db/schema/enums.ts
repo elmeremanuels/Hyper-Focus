@@ -44,7 +44,7 @@ export const messageType = pgEnum('message_type', ['text', 'button', 'audio', 'e
 export const deliveryStatus = pgEnum('delivery_status', ['sent', 'failed']);
 export const preferredChannel = pgEnum('preferred_channel', ['telegram', 'email']);
 export const nudgeStatus = pgEnum('nudge_status', ['pending', 'sent', 'skipped', 'failed']);
-export const calendarProvider = pgEnum('calendar_provider', ['google']);
+export const calendarProvider = pgEnum('calendar_provider', ['google', 'microsoft', 'apple']);
 export const calendarConnectionStatus = pgEnum('calendar_connection_status', [
   'active',
   'error',

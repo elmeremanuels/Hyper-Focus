@@ -2,6 +2,7 @@
 // database has a fixed schema; input is validated again before it runs.
 import type Anthropic from '@anthropic-ai/sdk';
 import type { ClaudeClient } from '../ai/claude.js';
+import type { CalendarService } from '../integrations/calendar/service.js';
 import { z } from 'zod';
 import type { Database } from '../db/client.js';
 import { appendClientNote, findClientByName } from '../core/clients.js';
@@ -32,6 +33,8 @@ export interface ToolContext {
   source: InboundSource;
   /** For tools that need a second AI call, such as breaking down a big task. */
   claude?: Pick<ClaudeClient, 'callWithTools'> | undefined;
+  /** Calendar providers and secrets, when the calendar is set up (step 1.8). */
+  calendar?: CalendarService | undefined;
 }
 
 export interface ToolOutcome {
