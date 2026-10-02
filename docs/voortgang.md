@@ -366,4 +366,4 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 
 ## Volgende stap
 
-Testplan fase 1 (`docs/testplan-fase1.md`), daarna eigen gebruik.
+Stappen 1.2 t/m 1.8 één voor één live zetten volgens `docs/testplan-fase1.md`. Daarna eigen gebruik.
