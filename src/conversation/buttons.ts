@@ -1,0 +1,147 @@
+// Buttons, choices and action links are handled without an AI call (BOUWPLAN.md, 9.4, 10.1).
+import type { Database } from '../db/client.js';
+import { setPausedUntil } from '../core/settings.js';
+import { carryOver, getTask, listOpenTasks, moveTask, setTaskStatus } from '../core/tasks.js';
+import { setSuggestionStatus } from '../core/suggestions.js';
+import { startOfNextLocalDay } from '../lib/time.js';
+import type { Button, OutboundMessage } from './types.js';
+import { focusMessage, SHOW_TODAY, todaysFocus } from './views.js';
+
+export type ParsedButton =
+  | { kind: 'task'; taskId: number; action: 'done' | 'tomorrow' | 'split' | 'park' | 'release' | 'start' | 'unpark' }
+  | { kind: 'suggestion'; suggestionId: number; action: 'in_progress' | 'later' | 'done' | 'not_relevant' }
+  | { kind: 'focus'; action: 'show' | 'dayoff' | 'adjust' }
+  | { kind: 'session'; taskId: number; action: 'done' | 'plus10' | 'stuck' }
+  | { kind: 'review'; step: string; value: string }
+  | { kind: 'move'; taskId: number; projectId: number }
+  | { kind: 'help' };
+
+/** Parses the button ids from BOUWPLAN.md 9.4, plus `mv:{taskId}:{projectId}`, `t:{id}:unpark` and `help`. */
+export function parseButtonId(id: string): ParsedButton | undefined {
+  let match = /^t:(\d+):(done|tomorrow|split|park|release|start|unpark)$/.exec(id);
+  if (match) return { kind: 'task', taskId: Number(match[1]), action: match[2] as never };
+  match = /^s:(\d+):(in_progress|later|done|not_relevant)$/.exec(id);
+  if (match) return { kind: 'suggestion', suggestionId: Number(match[1]), action: match[2] as never };
+  match = /^f:(show|dayoff|adjust)$/.exec(id);
+  if (match) return { kind: 'focus', action: match[1] as never };
+  match = /^sess:(\d+):(done|plus10|stuck)$/.exec(id);
+  if (match) return { kind: 'session', taskId: Number(match[1]), action: match[2] as never };
+  match = /^wr:([a-z0-9_]+):([\w-]+)$/.exec(id);
+  if (match) return { kind: 'review', step: match[1] ?? '', value: match[2] ?? '' };
+  match = /^mv:(\d+):(\d+)$/.exec(id);
+  if (match) return { kind: 'move', taskId: Number(match[1]), projectId: Number(match[2]) };
+  if (id === 'help') return { kind: 'help' };
+  return undefined;
+}
+
+export interface ButtonContext {
+  db: Database;
+  userId: number;
+  timezone: string;
+  now: Date;
+}
+
+/** A later step can take over a button kind (session in 1.4, review in 1.7). */
+export type ButtonExtension = (button: ParsedButton, ctx: ButtonContext) => Promise<OutboundMessage[] | undefined>;
+
+export const HELP_MESSAGE: OutboundMessage = {
+  text: 'Stuur me wat je moet doen, een idee of een vraag in gewone woorden. "Vandaag" laat je focus zien.',
+  buttons: [SHOW_TODAY],
+};
+
+const UNKNOWN: OutboundMessage = { text: 'Die knop ken ik niet.', buttons: [SHOW_TODAY] };
+const GONE: OutboundMessage = { text: 'Die taak kan ik niet meer vinden.', buttons: [SHOW_TODAY] };
+
+export async function handleButton(
+  id: string,
+  ctx: ButtonContext,
+  extensions: ButtonExtension[] = [],
+): Promise<OutboundMessage[]> {
+  const button = parseButtonId(id);
+  if (!button) return [UNKNOWN];
+
+  for (const extension of extensions) {
+    const handled = await extension(button, ctx);
+    if (handled) return handled;
+  }
+
+  const { db, userId, timezone, now } = ctx;
+  switch (button.kind) {
+    case 'help':
+      return [HELP_MESSAGE];
+
+    case 'focus':
+      if (button.action === 'show') return [focusMessage(await todaysFocus(db, userId, timezone, now))];
+      if (button.action === 'dayoff') {
+        await setPausedUntil(db, userId, startOfNextLocalDay(timezone, now));
+        return [{ text: 'Vandaag vrij. Morgen ben ik er weer.' }];
+      }
+      return [await adjustMessage(db, userId, now)];
+
+    case 'move': {
+      const task = await getTask(db, userId, button.taskId);
+      if (!task || !(await moveTask(db, userId, button.taskId, button.projectId))) return [GONE];
+      const moved = await getTask(db, userId, button.taskId);
+      return [{ text: `Staat nu bij ${moved?.projectTitle ?? 'het project'}.` }];
+    }
+
+    case 'task':
+      return [await handleTaskButton(button.taskId, button.action, ctx)];
+
+    case 'suggestion': {
+      const status = button.action === 'later' ? 'parked' : button.action;
+      const ok = await setSuggestionStatus(db, userId, button.suggestionId, status, null, now);
+      if (!ok) return [{ text: 'Die suggestie kan ik niet meer vinden.' }];
+      const texts = {
+        in_progress: 'Mooi, staat op mee bezig.',
+        later: 'Komt later terug.',
+        done: 'Gedaan ✔',
+        not_relevant: 'Genoteerd: niet relevant.',
+      } as const;
+      return [{ text: texts[button.action] }];
+    }
+
+    case 'session':
+    case 'review':
+      return [UNKNOWN];
+  }
+}
+
+async function handleTaskButton(
+  taskId: number,
+  action: Extract<ParsedButton, { kind: 'task' }>['action'],
+  { db, userId, timezone, now }: ButtonContext,
+): Promise<OutboundMessage> {
+  const task = await getTask(db, userId, taskId);
+  if (!task) return GONE;
+
+  switch (action) {
+    case 'done':
+      await setTaskStatus(db, userId, taskId, 'done', now);
+      return { text: `✔ ${task.title} is af.`, buttons: [SHOW_TODAY] };
+    case 'tomorrow':
+      await carryOver(db, userId, taskId, startOfNextLocalDay(timezone, now));
+      return { text: `${task.title} staat klaar voor morgen.` };
+    case 'park':
+      await setTaskStatus(db, userId, taskId, 'parked', now);
+      return { text: `${task.title} staat op je parkeerplaats. Je haalt hem terug met "parkeerplaats".` };
+    case 'release':
+      await setTaskStatus(db, userId, taskId, 'released', now);
+      return { text: `${task.title} is losgelaten.` };
+    case 'unpark':
+      await setTaskStatus(db, userId, taskId, 'open', now);
+      return { text: `${task.title} is terug.`, buttons: [{ id: `t:${taskId}:start`, title: 'Start' }] };
+    case 'start':
+      await setTaskStatus(db, userId, taskId, 'in_progress', now);
+      return { text: `Top. Begin met ${task.title}. Stuur "klaar" als het af is.` };
+    case 'split':
+      return { text: 'Opknippen komt er in de volgende versie bij.', buttons: [{ id: `t:${taskId}:start`, title: 'Toch starten' }] };
+  }
+}
+
+async function adjustMessage(db: Database, userId: number, now: Date): Promise<OutboundMessage> {
+  const open = await listOpenTasks(db, userId, 8, now);
+  if (open.length === 0) return { text: 'Er staat niets open om uit te kiezen.' };
+  const choices: Button[] = open.map((task) => ({ id: `t:${task.id}:start`, title: task.title }));
+  return { text: 'Waar wil je mee beginnen?', choices };
+}

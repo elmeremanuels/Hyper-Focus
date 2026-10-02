@@ -205,6 +205,31 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 - **Controle:** `npm test`: 134 groen met `TEST_DATABASE_URL`; zonder database 117 groen en 17 overgeslagen. Typecheck, lint en build groen.
 - **Open:** na de deploy één mail sturen, de headerregel in de log bekijken en het antwoord per mail controleren.
 
+## Stap 1.2 — Gesprekslaag met tools
+
+- **Datum:** 2026-10-02
+- **Status:** klaar in code; de evaluatieset draait op de VPS (cloud-sessie heeft geen Anthropic-sleutel).
+- **Besluit (Elmer):** slim model wordt `claude-opus-5-5`; snel blijft `claude-haiku-4-5-20251001` (BOUWPLAN 17).
+- **Gebouwd:**
+  - `conversation/assistant.ts`: de stroom uit 10.1. Knoppen en de woorden *vandaag*, *parkeerplaats* en *help* gaan zonder AI. Een actieve modus krijgt het bericht eerst. Daarna Claude (snel model) met tools, maximaal 3 toolrondes. Bij een fout van Claude volgt een kort excuus.
+  - `conversation/tools.ts`: `add_task`, `add_idea`, `set_task_status`, `set_suggestion_status`, `snooze`, `log_note`, `show_today`, `show_parking`, `pause`, `update_settings`, `overwhelm`. Elke invoer gaat door zod.
+  - `add_task`: een klantnaam ("de bakker") wijst het project van die klant aan. Zonder klant of project gaat de taak naar *Losse taken*, met knoppen `mv:{taak}:{project}` voor de drie belangrijkste projecten.
+  - `conversation/buttons.ts`: alle knop-ID's uit 9.4, plus `mv:`, `t:{id}:unpark` en `help`. Sessie- en weekreviewknoppen volgen in 1.4 en 1.7.
+  - `conversation/context.ts`: context van maximaal 12.000 tekens (~3.000 tokens). De oudste berichten vallen eerst weg.
+  - Prompts in `src/ai/prompts/` (`systeem.nl.md`, `router.nl.md`). De build kopieert ze naar `dist/ai/prompts`.
+  - Elke Claude-aanroep komt in `ai_usage` met gebruiker, doel en tokens.
+  - `npm run eval`: 55 Nederlandse voorbeeldberichten met de verwachte tools, op vaste voorbeelddata. Voert nooit een tool uit en raakt de database niet. Exit 1 onder 90%.
+  - Taken en ideeën krijgen de bron mee (`telegram`, `email`, `web`).
+- **Controle (Definition of Done):**
+  - *Knoppen zonder AI-aanroep:* test `handles buttons without calling Claude` (nep-Claude wordt niet aangeroepen).
+  - *Taak over een klant onder het juiste project:* tests `puts a task about a client under that client's project` en `runs Claude's tool calls…` (Kees → Onderhoud Fietsenmaker Jansen).
+  - *Evaluatieset ≥ 90%:* **nog te draaien op de VPS**: `sudo -iu app; cd ~/hyperfocus; npm run eval`.
+  - `npm test`: 168 groen met `TEST_DATABASE_URL`. Typecheck, lint, build en de simulator groen.
+- **[BESLISSING] `log_note`:** projecten hebben geen notitieveld. Een notitie gaat nu naar de taak of naar de klant van het project; een nieuwe deadline gaat naar het project. Wil je een kolom `projects.notes`, dan is dat een datamodelwijziging.
+- **Open:**
+  - Op de VPS in `.env`: `ANTHROPIC_API_KEY`, `CLAUDE_MODEL_FAST=claude-haiku-4-5-20251001`, `CLAUDE_MODEL_SMART=claude-opus-5-5`. Zonder sleutel beantwoordt de bot alleen knoppen en vaste woorden.
+  - Vervalste afzender bij inkomende mail (zonder SPF/DKIM): nog geen keuze gemaakt tussen een moeilijk te raden adres en een geheim woord.
+
 ## Volgende stap
 
-1.2 Gesprekslaag met tools (hoofdstuk 10).
+1.3 Dagritme (11.1–11.3).

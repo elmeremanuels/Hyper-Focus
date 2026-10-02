@@ -344,7 +344,10 @@ s:{suggestionId}:in_progress | s:{suggestionId}:later | s:{suggestionId}:done | 
 f:show | f:dayoff | f:adjust
 sess:{taskId}:done | sess:{taskId}:plus10 | sess:{taskId}:stuck
 wr:{step}:{value}
+mv:{taskId}:{projectId} | t:{taskId}:unpark | help
 ```
+
+`mv:` verplaatst een taak uit *Losse taken* naar een project (10.1). `t:{taskId}:unpark` haalt een taak van de parkeerplaats. `help` toont wat Hyper&Focus kan.
 
 ---
 
@@ -780,7 +783,7 @@ DEFAULT_TIMEZONE=Europe/Amsterdam
 # Claude
 ANTHROPIC_API_KEY=
 CLAUDE_MODEL_FAST=claude-haiku-4-5-20251001
-CLAUDE_MODEL_SMART=claude-sonnet-5-5
+CLAUDE_MODEL_SMART=claude-opus-5-5
 
 # Transcriptie
 OPENAI_API_KEY=

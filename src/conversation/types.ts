@@ -8,9 +8,12 @@ export interface Button {
   title: string;
 }
 
+/** Where an inbound message came from; tasks and ideas keep it as their source. */
+export type InboundSource = 'telegram' | 'voice' | 'email' | 'web';
+
 export type InboundMessage =
-  | { kind: 'text'; userId: number; text: string }
-  | { kind: 'button'; userId: number; buttonId: string; title: string };
+  | { kind: 'text'; userId: number; text: string; source?: InboundSource }
+  | { kind: 'button'; userId: number; buttonId: string; title: string; source?: InboundSource };
 
 export interface OutboundMessage {
   text: string;
