@@ -11,8 +11,7 @@ import { TelegramChannel } from '../src/channels/telegram/channel.js';
 import { TelegramClient } from '../src/channels/telegram/client.js';
 import { createLinkCode } from '../src/channels/telegram/link.js';
 import { createTelegramProcessor, type TelegramOutcome } from '../src/channels/telegram/processor.js';
-import { createDbRouterDeps } from '../src/conversation/deps.js';
-import { createRouter } from '../src/conversation/router.js';
+import { createAssistantRouter, type AssistantDeps } from '../src/conversation/assistant.js';
 import { createDbMessageStore } from '../src/core/messages.js';
 import { createDbUserStore } from '../src/core/users.js';
 import { connect, type DbConnection } from '../src/db/client.js';
@@ -61,7 +60,11 @@ describe.skipIf(!adminUrl)('Telegram and mail end to end (integration)', () => {
 
     const userStore = createDbUserStore(connection.db);
     const messageStore = createDbMessageStore(connection.db);
-    const router = createRouter(createDbRouterDeps(connection.db));
+    // Claude answers a greeting; "vandaag" and buttons never reach it.
+    const claude = {
+      callWithTools: vi.fn(async () => ({ text: 'Hoi Sam. Zal ik je focus laten zien?', toolCalls: [] })),
+    } as unknown as AssistantDeps['claude'];
+    const router = createAssistantRouter({ db: connection.db, claude });
     const client = new TelegramClient('test-token', telegram.fetchImpl);
     const delivery = createDelivery({
       telegram: new TelegramChannel(client, messageStore),
@@ -214,7 +217,7 @@ describe.skipIf(!adminUrl)('Telegram and mail end to end (integration)', () => {
     const path = new URL(link!).pathname;
     const first = await fetch(`${server.baseUrl}${path}`, { method: 'POST' });
     expect(first.status).toBe(200);
-    expect(await first.text()).toContain('succes');
+    expect(await first.text()).toContain('Begin met');
 
     const second = await fetch(`${server.baseUrl}${path}`, { method: 'POST' });
     expect(second.status).toBe(410);

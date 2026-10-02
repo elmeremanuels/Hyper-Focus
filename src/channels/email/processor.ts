@@ -102,7 +102,7 @@ export function createMailProcessor(deps: MailProcessorDeps) {
       type: forward ? 'forward' : 'reply',
     });
 
-    const replies = text ? await deps.router({ kind: 'text', userId: user.id, text }) : [EMPTY_REPLY];
+    const replies = text ? await deps.router({ kind: 'text', userId: user.id, text, source: 'email' }) : [EMPTY_REPLY];
     const context = { subject: replySubject(mail.subject), inReplyTo: mail.messageId };
     for (const reply of replies) {
       await deps.delivery.send(user, reply, { via: 'email', context });

@@ -13,6 +13,7 @@ export interface ClaudeConfig {
 }
 
 export interface AiUsageRecord {
+  userId?: number;
   purpose: string;
   model: string;
   inputTokens: number;
@@ -22,6 +23,8 @@ export interface AiUsageRecord {
 export type UsageRecorder = (record: AiUsageRecord) => Promise<void> | void;
 
 export interface GenerateOptions {
+  /** The user the call is for; recorded in ai_usage. */
+  userId?: number;
   purpose: string;
   tier: ModelTier;
   system?: string;
@@ -90,6 +93,7 @@ export class ClaudeClient {
     });
 
     await this.recordUsage({
+      ...(options.userId !== undefined && { userId: options.userId }),
       purpose: options.purpose,
       model,
       inputTokens: message.usage.input_tokens,

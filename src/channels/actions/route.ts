@@ -78,7 +78,7 @@ export function createActionRouter(config: ActionRouteConfig): Router {
       await config.messages.touchLastInbound(userId, now());
       await config.messages.recordEvent(userId, 'inbound_message', { channel: 'email', type: 'action_link' });
 
-      const replies = await config.router({ kind: 'button', userId, buttonId, title: buttonId });
+      const replies = await config.router({ kind: 'button', userId, buttonId, title: buttonId, source: 'web' });
       res.status(200).type('html').send(page('Gelukt', replies.map((reply) => renderReply(reply, userId)).join('')));
     } catch (error) {
       next(error);

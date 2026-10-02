@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').cpSync('src/ai/prompts','dist/ai/prompts',{recursive:true})\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
@@ -19,6 +19,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed/index.ts",
     "sim": "tsx scripts/sim.ts",
+    "eval": "tsx scripts/eval.ts",
     "link:telegram": "tsx scripts/link-telegram.ts",
     "telegram:webhook": "tsx scripts/telegram-webhook.ts",
     "brevo:inbound": "tsx scripts/brevo-inbound.ts"

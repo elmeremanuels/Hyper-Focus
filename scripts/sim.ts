@@ -5,12 +5,14 @@ import readline from 'node:readline';
 import { parseArgs } from 'node:util';
 import { getEnv } from '../src/config/env.js';
 import { ConsoleChannel } from '../src/channels/console/channel.js';
-import { createDbRouterDeps, createMemoryRouterDeps } from '../src/conversation/deps.js';
+import { createAssistantRouter } from '../src/conversation/assistant.js';
+import { createMemoryRouterDeps } from '../src/conversation/deps.js';
 import { createRouter } from '../src/conversation/router.js';
 import type { InboundMessage } from '../src/conversation/types.js';
 import { createDbUserStore } from '../src/core/users.js';
 import { connect, type DbConnection } from '../src/db/client.js';
 import example from '../src/db/seed/example.js';
+import { buildClaude } from '../src/wiring.js';
 
 const { values } = parseArgs({
   options: { email: { type: 'string', default: example.user.email } },
@@ -31,18 +33,22 @@ if (env.DATABASE_URL) {
   userId = user.id;
 }
 
-const deps = connection
-  ? createDbRouterDeps(connection.db)
-  : createMemoryRouterDeps(example.user.name, [
-      { id: 1, title: 'Factuur september versturen', estimatedMinutes: 5, projectTitle: 'Losse taken' },
-      { id: 2, title: 'Offerte bakkerij afmaken', estimatedMinutes: 60, projectTitle: 'Website bakkerij' },
-    ]);
-
-const router = createRouter(deps);
+// With a database the simulator runs the real assistant (Claude when ANTHROPIC_API_KEY is set);
+// without one, the keyword router with example tasks.
+const claude = connection ? buildClaude(env, connection.db) : undefined;
+const router = connection
+  ? createAssistantRouter({ db: connection.db, claude })
+  : createRouter(
+      createMemoryRouterDeps(example.user.name, [
+        { id: 1, title: 'Factuur september versturen', estimatedMinutes: 5, projectTitle: 'Losse taken' },
+        { id: 2, title: 'Offerte bakkerij afmaken', estimatedMinutes: 60, projectTitle: 'Website bakkerij' },
+      ]),
+    );
 const channel = new ConsoleChannel();
 
 console.log(
-  `Hyper&Focus simulator · ${email} · ${connection ? 'database' : 'zonder database'}\n` +
+  `Hyper&Focus simulator · ${email} · ${connection ? 'database' : 'zonder database'}` +
+    `${connection ? (claude ? ' · Claude' : ' · zonder Claude') : ''}\n` +
     'Typ een bericht, een cijfer om op een knop te tikken, of "stop".',
 );
 
@@ -66,8 +72,8 @@ rl.on('line', (line) => {
 
     const button = channel.buttonForInput(input);
     const message: InboundMessage = button
-      ? { kind: 'button', userId, buttonId: button.id, title: button.title }
-      : { kind: 'text', userId, text: input };
+      ? { kind: 'button', userId, buttonId: button.id, title: button.title, source: 'telegram' }
+      : { kind: 'text', userId, text: input, source: 'telegram' };
     if (!process.stdin.isTTY) {
       console.log(`\nJij: ${button ? `[${button.title}]` : input}`);
     }

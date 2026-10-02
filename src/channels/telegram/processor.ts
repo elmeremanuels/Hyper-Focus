@@ -144,17 +144,24 @@ export function createTelegramProcessor(deps: TelegramProcessorDeps) {
     let inbound: InboundMessage;
     switch (content.kind) {
       case 'text':
-        inbound = { kind: 'text', userId: user.id, text: content.text };
+        inbound = { kind: 'text', userId: user.id, text: content.text, source: 'telegram' };
         break;
       case 'command':
         inbound = {
           kind: 'text',
           userId: user.id,
           text: COMMAND_TEXT[content.command] ?? content.command,
+          source: 'telegram',
         };
         break;
       case 'button':
-        inbound = { kind: 'button', userId: user.id, buttonId: content.buttonId, title: content.title };
+        inbound = {
+          kind: 'button',
+          userId: user.id,
+          buttonId: content.buttonId,
+          title: content.title,
+          source: 'telegram',
+        };
         break;
       case 'voice':
         // Transcription follows in step 1.6.
