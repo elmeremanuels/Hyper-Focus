@@ -1,5 +1,9 @@
-// Handles an inbound mail (BOUWPLAN.md, 9.3): sender and SPF/DKIM checks, idempotency on
-// Message-ID, reply extraction, forwarded mail as context, and the answer by mail.
+// Handles an inbound mail (BOUWPLAN.md, 9.3), idempotent on Message-ID, with reply
+// extraction, forwarded mail as context and the answer by mail.
+//
+// Trust: the secret webhook path (EMAIL_INBOUND_SECRET) and EMAIL_ALLOWED_SENDERS.
+// Brevo sends no SPF/DKIM results, so those count only when the headers are present:
+// a reported failure rejects the mail. A spam score above the limit rejects it too.
 import type { MessageStore } from '../../core/messages.js';
 import type { UserStore } from '../../core/users.js';
 import type { Router } from '../../conversation/router.js';
@@ -15,11 +19,15 @@ export interface MailProcessorDeps {
   delivery: Delivery;
   router: Router;
   allowedSenders: readonly string[];
+  /** Mail with a higher Brevo SpamScore is ignored. */
+  maxSpamScore?: number;
   log?: Pick<Console, 'info' | 'warn' | 'error'>;
   now?: () => Date;
 }
 
 export type MailOutcome = 'processed' | 'duplicate' | 'ignored';
+
+export const DEFAULT_MAX_SPAM_SCORE = 5;
 
 export const EMPTY_REPLY: OutboundMessage = {
   text: 'Ik zag geen nieuwe tekst in je mail. Schrijf je bericht boven de geciteerde tekst.',
@@ -29,9 +37,21 @@ export function createMailProcessor(deps: MailProcessorDeps) {
   const log = deps.log ?? console;
   const now = deps.now ?? (() => new Date());
   const allowed = new Set(deps.allowedSenders.map((address) => address.toLowerCase()));
+  const maxSpamScore = deps.maxSpamScore ?? DEFAULT_MAX_SPAM_SCORE;
+  let headerNamesLogged = false;
 
   return async function processMail(item: InboundItem): Promise<MailOutcome> {
     const mail = parseInboundMail(item);
+
+    // Once per process: which headers does Brevo actually send? Names only, no values.
+    if (!headerNamesLogged) {
+      headerNamesLogged = true;
+      log.info(
+        `Brevo inbound header names: ${mail.headerNames.join(', ') || '(none)'}; ` +
+          `SpamScore ${mail.spamScore === undefined ? 'absent' : 'present'}`,
+      );
+    }
+
     if (!mail.from) {
       log.warn('Ignored inbound mail without a sender address');
       return 'ignored';
@@ -42,11 +62,13 @@ export function createMailProcessor(deps: MailProcessorDeps) {
       ? 'unknown sender'
       : !allowed.has(mail.from)
         ? 'sender not allowed'
-        : !mail.spfPass
-          ? 'SPF not pass'
-          : !mail.dkimPass
-            ? 'DKIM not pass'
-            : undefined;
+        : mail.spf === 'fail'
+          ? 'SPF fail'
+          : mail.dkim === 'fail'
+            ? 'DKIM fail'
+            : mail.spamScore !== undefined && mail.spamScore > maxSpamScore
+              ? `spam score ${mail.spamScore} above ${maxSpamScore}`
+              : undefined;
     if (!user || reason) {
       log.warn(`Ignored inbound mail from ${mask(mail.from)}: ${reason}`);
       return 'ignored';

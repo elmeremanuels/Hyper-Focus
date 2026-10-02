@@ -10,6 +10,7 @@ describe('parseEnv', () => {
     expect(env.RESEARCH_PROVIDER).toBe('claude');
     expect(env.TELEGRAM_ALLOWED_USER_IDS).toEqual([]);
     expect(env.EMAIL_ALLOWED_SENDERS).toEqual([]);
+    expect(env.EMAIL_MAX_SPAM_SCORE).toBe(5);
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();
   });
 

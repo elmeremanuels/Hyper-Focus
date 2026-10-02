@@ -328,7 +328,7 @@ Twee kanalen, één router. Telegram is het dagelijkse gesprek: snel, met knoppe
 
 **Inkomend (Brevo Inbound Parsing)**
 - `POST /webhooks/mail/{EMAIL_INBOUND_SECRET}`; een onjuist pad geeft 404. Brevo stuurt JSON met een lijst `items`, één per mail.
-- **Afzender controleren:** het `From`-adres moet `users.email` zijn (in fase 1 ook in `EMAIL_ALLOWED_SENDERS`) en SPF en DKIM voor het afzenderdomein moeten *pass* zijn volgens de headers `Authentication-Results` en `Received-SPF`. Anders loggen en negeren.
+- **Afzender controleren:** de basis is het geheime webhookpad (`EMAIL_INBOUND_SECRET`) plus het `From`-adres: dat moet `users.email` zijn (in fase 1 ook in `EMAIL_ALLOWED_SENDERS`). Brevo stuurt geen SPF- of DKIM-uitslag mee. Staan de headers `Authentication-Results` of `Received-SPF` er toch, dan moet de uitslag *pass* zijn. Mail met een `SpamScore` boven `EMAIL_MAX_SPAM_SCORE` (standaard 5) wordt genegeerd. Bij afwijzing: loggen en negeren.
 - **Idempotentie:** op de `Message-ID`-header, met dezelfde `ON CONFLICT`-regel als bij Telegram.
 - **Tekst eruit halen:** `parse-reply.ts` haalt de nieuwe tekst uit een antwoord (geciteerde tekst en handtekening eraf). Bij een doorgestuurde mail gaan onderwerp, afzender en de eerste 2.000 tekens als context mee naar de router, met de vraag welke taak eruit volgt.
 - Bijlagen worden genegeerd en niet opgeslagen.
@@ -656,7 +656,7 @@ Context:
 ## 14. Veiligheid, privacy en welzijn
 
 **Techniek**
-- Geheime token op de Telegram-webhook, geheim pad plus SPF- en DKIM-controle op inkomende mail, ondertekende actielinks die één keer werken, toegestane gebruikers in fase 1, secrets alleen in `.env` (nooit in de repo), agendatokens (stap 1.8) en tokens van gebruikers (fase 3) versleuteld opslaan (`crypto.ts`).
+- Geheime token op de Telegram-webhook, geheim pad, toegestane afzenders en een spamdrempel op inkomende mail (SPF en DKIM als de headers er zijn), ondertekende actielinks die één keer werken, toegestane gebruikers in fase 1, secrets alleen in `.env` (nooit in de repo), agendatokens (stap 1.8) en tokens van gebruikers (fase 3) versleuteld opslaan (`crypto.ts`).
 - Nachtelijke `pg_dump` naar externe opslag.
 - VPS: eigen gebruiker met sudo in plaats van root, inloggen met SSH-sleutel, wachtwoord- en rootlogin uit, firewall alleen open op 22, 80 en 443, PostgreSQL alleen lokaal bereikbaar, snapshot vóór grote wijzigingen. Claude Code op de VPS draait naast de productiesleutels: laat de toestemmingsvragen aan staan.
 

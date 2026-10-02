@@ -1,9 +1,9 @@
 {
   "Uuid": [
-    "0b6f1e0a-0000-4000-8000-000000000001"
+    "0b6f1e0a-0000-4000-8000-000000000006"
   ],
-  "MessageId": "<CAGmail-1@mail.gmail.com>",
-  "InReplyTo": "<out-1@hyper-focus.invalid>",
+  "MessageId": "<spoof-6@evil.invalid>",
+  "InReplyTo": null,
   "From": {
     "Name": "Sam",
     "Address": "sam@voorbeeld.invalid"
@@ -28,16 +28,15 @@
     "MIME-Version": "1.0",
     "From": "Sam <sam@voorbeeld.invalid>",
     "Date": "Wed, 1 Oct 2026 10:30:00 +0200",
-    "Message-ID": "<CAGmail-1@mail.gmail.com>",
+    "Message-ID": "<spoof-6@evil.invalid>",
     "Subject": "Re: Bericht van Hyper&Focus",
     "To": "taken@in.hyper-focus.invalid",
     "Content-Type": "multipart/alternative",
-    "In-Reply-To": "<out-1@hyper-focus.invalid>",
-    "References": "<out-1@hyper-focus.invalid>"
+    "Authentication-Results": "mx.example.invalid; spf=softfail smtp.mailfrom=voorbeeld.invalid; dkim=pass header.d=evil.invalid"
   },
   "SpamScore": 1.2,
-  "ExtractedMarkdownMessage": "vandaag  \n",
+  "ExtractedMarkdownMessage": "vandaag\n  \n",
   "ExtractedMarkdownSignature": null,
-  "RawHtmlBody": "<div dir=\"ltr\">vandaag</div><br><div class=\"gmail_quote\"><blockquote>Zal ik je focus voor vandaag laten zien?</blockquote></div>\r\n",
-  "RawTextBody": "vandaag\r\n\r\nOp wo 1 okt 2026 om 08:30 schreef Hyper&Focus <\r\nhallo@hyper-focus.invalid>:\r\n\r\n> Zal ik je focus voor vandaag laten zien?\r\n> Laat zien: https://hyper-focus.invalid/a/abc\r\n"
+  "RawHtmlBody": null,
+  "RawTextBody": "vandaag\r\n"
 }
