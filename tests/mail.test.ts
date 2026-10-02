@@ -216,7 +216,7 @@ describe('mail processor', () => {
       { channel: 'email', externalId: '<CAGmail-1@mail.gmail.com>', body: 'vandaag' },
     ]);
     expect(messages.outbound()).toMatchObject([
-      { channel: 'email', externalId: '<brevo-1@smtp-relay.invalid>', type: 'email' },
+      { channel: 'email', externalId: expect.stringMatching(/^<brevo-\w+-1@smtp-relay\.invalid>$/), type: 'email' },
     ]);
     expect(messages.events.map((event) => event.name)).toEqual(['inbound_message', 'email_sent']);
   });
