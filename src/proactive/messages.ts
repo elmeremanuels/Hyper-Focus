@@ -1,8 +1,9 @@
 // The messages of the daily rhythm (BOUWPLAN.md, 11.2 and 13). Deterministic: no AI call.
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
-import { dailyFocus } from '../db/schema/index.js';
-import { getTask, type TaskSummary } from '../core/tasks.js';
+import { dailyFocus, tasks } from '../db/schema/index.js';
+import { recordEvent } from '../core/events.js';
+import { getTask, listOpenTasks, type TaskSummary } from '../core/tasks.js';
 import type { OutboundMessage } from '../conversation/types.js';
 import { SHOW_TODAY } from '../conversation/views.js';
 
@@ -12,12 +13,19 @@ export interface NudgeContext {
   name: string;
   timezone: string;
   now: Date;
+  /** Local days since the user last wrote. */
+  silentDays: number;
 }
 
 /** The composed message, or a reason to skip it. */
 export type Composed =
-  | { message: OutboundMessage; subject: string }
+  | { message: OutboundMessage; subject: string; /** Also send by mail when it went by Telegram. */ alsoByMail?: boolean }
   | { skip: string };
+
+/** After this many silent days the first message is a soft restart (BOUWPLAN.md, 11.6). */
+export const REENTRY_AFTER_DAYS = 3;
+/** Tasks without movement this long go to the parking lot on a restart. */
+export const PARK_AFTER_DAYS = 14;
 
 export const DAY_OFF = { id: 'f:dayoff', title: 'Vandaag vrij' };
 
@@ -34,6 +42,7 @@ async function plannedFocus(ctx: NudgeContext, localDate: string): Promise<TaskS
 const isOpen = (task: TaskSummary) => task.status === 'open' || task.status === 'in_progress';
 
 export async function composeMorning(ctx: NudgeContext, localDate: string): Promise<Composed> {
+  if (ctx.silentDays >= REENTRY_AFTER_DAYS) return composeReentry(ctx, false);
   const focus = (await plannedFocus(ctx, localDate)).filter(isOpen);
   if (focus.length === 0) {
     return {
@@ -90,6 +99,45 @@ export async function composeWrapup(ctx: NudgeContext, localDate: string): Promi
         { id: `t:${first.id}:park`, title: 'Parkeren' },
         ...(open.length > 1 ? [{ id: 'f:carry', title: 'Alles morgen' }] : []),
         { id: 'f:alldone', title: 'Alles gedaan' },
+      ],
+    },
+  };
+}
+
+/**
+ * Soft restart: welcome back and one smallest task; the list of open work only on request.
+ * Tasks that stood still for 14 days or more go to the parking lot first.
+ */
+export async function composeReentry(ctx: NudgeContext, alsoByMail = true): Promise<Composed> {
+  const cutoff = new Date(ctx.now.getTime() - PARK_AFTER_DAYS * 86_400_000);
+  await ctx.db
+    .update(tasks)
+    .set({ status: 'parked', carryOver: false, snoozedUntil: null })
+    .where(
+      and(
+        eq(tasks.userId, ctx.userId),
+        inArray(tasks.status, ['open', 'in_progress']),
+        isNull(tasks.parentTaskId),
+        lt(tasks.updatedAt, cutoff),
+      ),
+    );
+  await recordEvent(ctx.db, ctx.userId, 'reentry', { silentDays: ctx.silentDays });
+
+  const open = await listOpenTasks(ctx.db, ctx.userId, 20, ctx.now);
+  const smallest = [...open].sort((a, b) => (a.estimatedMinutes ?? 999) - (b.estimatedMinutes ?? 999))[0];
+  const welcome = 'Welkom terug. Ik heb alles even stilgezet.';
+  if (!smallest) {
+    return { subject: 'Welkom terug', alsoByMail, message: { text: `${welcome} Stuur me wat je wilt doen, dan beginnen we klein.` } };
+  }
+  const minutes = smallest.estimatedMinutes ? `, ${smallest.estimatedMinutes} minuten` : '';
+  return {
+    subject: 'Welkom terug',
+    alsoByMail,
+    message: {
+      text: `${welcome} Eén ding om mee te beginnen: ${lowerFirst(smallest.title)}${minutes}. Zullen we?`,
+      buttons: [
+        { id: `t:${smallest.id}:start`, title: 'Ja' },
+        { id: `t:${smallest.id}:tomorrow`, title: 'Morgen' },
       ],
     },
   };

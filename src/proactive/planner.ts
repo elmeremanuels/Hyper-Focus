@@ -5,6 +5,8 @@ import type { Database } from '../db/client.js';
 import { dailyFocus, projects, scheduledNudges, tasks, users } from '../db/schema/index.js';
 import { getSettings } from '../core/settings.js';
 import { localDate, localNow, localTimeOnDate } from '../lib/time.js';
+import { ESCALATION_TIME, pickEscalation } from './escalation.js';
+import { silentDays } from './guardrails.js';
 import { composeFocus, type ComposedFocus, type FocusCandidate } from './focus.js';
 
 export const PLANNER_TIME = '00:05';
@@ -91,6 +93,13 @@ export async function planDay(
       add('midday', MIDDAY_TIME, { taskId: focus.mainTaskId });
     }
     add('wrapup', settings.wrapupTime);
+
+    const escalation = await pickEscalation(tx, userId, focus.taskIds, today, timezone, now);
+    if (escalation) add('escalation', ESCALATION_TIME, escalation);
+
+    // Day 7 of silence: one restart message, in Telegram and by mail (BOUWPLAN.md, 11.6).
+    const [user] = await tx.select({ lastInboundAt: users.lastInboundAt }).from(users).where(eq(users.id, userId));
+    if (silentDays(user?.lastInboundAt ?? null, timezone, now) === 7) add('reentry', settings.morningTime);
 
     if (nudges.length > 0) {
       await tx.insert(scheduledNudges).values(nudges.map((nudge) => ({ userId, ...nudge })));

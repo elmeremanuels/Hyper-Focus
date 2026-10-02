@@ -22,6 +22,7 @@
     "db:seed": "tsx src/db/seed/index.ts",
     "sim": "tsx scripts/sim.ts",
     "eval": "tsx scripts/eval.ts",
+    "sim:day": "tsx scripts/sim-day.ts",
     "link:telegram": "tsx scripts/link-telegram.ts",
     "telegram:webhook": "tsx scripts/telegram-webhook.ts",
     "brevo:inbound": "tsx scripts/brevo-inbound.ts"

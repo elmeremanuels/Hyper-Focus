@@ -10,6 +10,7 @@ import { loadContext, renderContext } from './context.js';
 import type { Router } from './router.js';
 import { getState, type ConversationMode, type ConversationStateRow } from './state.js';
 import { sessionButtons, sessionModeHandler, SESSION_TOOLS, type SessionData } from './session.js';
+import { CRISIS_REPLY, crisisTool, flagCrisis, looksLikeCrisis } from './wellbeing.js';
 import { CORE_TOOLS, runTool, toAnthropicTools, type ToolDefinition, type ToolOutcome } from './tools.js';
 import type { Button, InboundMessage, InboundSource, OutboundMessage } from './types.js';
 import { focusView, parkingMessage, SHOW_TODAY } from './views.js';
@@ -33,7 +34,7 @@ export interface AssistantDeps {
 }
 
 /** All tools the router offers Claude. */
-export const ROUTER_TOOLS: ToolDefinition[] = [...CORE_TOOLS, ...SESSION_TOOLS];
+export const ROUTER_TOOLS: ToolDefinition[] = [...CORE_TOOLS, ...SESSION_TOOLS, crisisTool];
 
 /** Tool rounds per message; after that the reply goes out as it is. */
 export const MAX_TOOL_ROUNDS = 3;
@@ -78,6 +79,11 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
 
     if (message.kind === 'button') {
       return handleButton(message.buttonId, ctx, buttonExtensions);
+    }
+
+    if (looksLikeCrisis(message.text)) {
+      await flagCrisis(deps.db, profile.id, 'pattern', log);
+      return [CRISIS_REPLY];
     }
 
     const state = await getState(deps.db, profile.id, ctx.now);
