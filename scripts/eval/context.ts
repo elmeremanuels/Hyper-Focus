@@ -43,6 +43,7 @@ export const EVAL_CONTEXT: ContextData = {
   ],
   clients: ['Bakkerij De Vries', 'Boho Interieur', 'Fietsenmaker Jansen'],
   suggestions: [{ id: 3, title: 'Knop "Kom proeven" op de homepage van de bakkerij', status: 'in_progress' }],
+  session: null,
   recentMessages: [
     { direction: 'out', body: 'Vandaag, in deze volgorde:\n1. Offerte bakkerij afmaken · 60 min\n2. Onderwerpregels nieuwsbrief kiezen · 15 min\n3. Factuur september versturen · 5 min\nWaar begin je mee?' },
     { direction: 'in', body: 'eerst de offerte' },

@@ -1,4 +1,5 @@
 // Buttons, choices and action links are handled without an AI call (BOUWPLAN.md, 9.4, 10.1).
+import type { ClaudeClient } from '../ai/claude.js';
 import type { Database } from '../db/client.js';
 import { setPausedUntil } from '../core/settings.js';
 import { carryOver, getTask, listOpenTasks, moveTask, setTaskStatus } from '../core/tasks.js';
@@ -41,6 +42,7 @@ export interface ButtonContext {
   userId: number;
   timezone: string;
   now: Date;
+  claude?: Pick<ClaudeClient, 'callWithTools'> | undefined;
 }
 
 /** A later step can take over a button kind (session in 1.4, review in 1.7). */

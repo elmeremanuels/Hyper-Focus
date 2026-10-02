@@ -9,6 +9,7 @@ import { handleButton, HELP_MESSAGE, type ButtonContext, type ButtonExtension } 
 import { loadContext, renderContext } from './context.js';
 import type { Router } from './router.js';
 import { getState, type ConversationMode, type ConversationStateRow } from './state.js';
+import { sessionButtons, sessionModeHandler, SESSION_TOOLS, type SessionData } from './session.js';
 import { CORE_TOOLS, runTool, toAnthropicTools, type ToolDefinition, type ToolOutcome } from './tools.js';
 import type { Button, InboundMessage, InboundSource, OutboundMessage } from './types.js';
 import { focusView, parkingMessage, SHOW_TODAY } from './views.js';
@@ -31,6 +32,9 @@ export interface AssistantDeps {
   log?: Pick<Console, 'error' | 'warn'>;
 }
 
+/** All tools the router offers Claude. */
+export const ROUTER_TOOLS: ToolDefinition[] = [...CORE_TOOLS, ...SESSION_TOOLS];
+
 /** Tool rounds per message; after that the reply goes out as it is. */
 export const MAX_TOOL_ROUNDS = 3;
 
@@ -51,7 +55,12 @@ const FIXED: Record<string, 'today' | 'parking' | 'help'> = {
 };
 
 export function createAssistantRouter(deps: AssistantDeps): Router {
-  const tools = deps.tools ?? CORE_TOOLS;
+  const tools = deps.tools ?? ROUTER_TOOLS;
+  const buttonExtensions = [sessionButtons(), ...(deps.buttonExtensions ?? [])];
+  const modeHandlers: Partial<Record<ConversationMode, ModeHandler>> = {
+    session: (message, state, ctx) => sessionModeHandler(message.text, state.data as SessionData, ctx),
+    ...deps.modeHandlers,
+  };
   const anthropicTools = toAnthropicTools(tools);
   const now = deps.now ?? (() => new Date());
   const log = deps.log ?? console;
@@ -59,16 +68,27 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
   return async (message) => {
     const profile = await getProfile(deps.db, message.userId);
     if (!profile) return [{ text: TEXTS.unknownUser }];
-    const ctx: ButtonContext = { db: deps.db, userId: profile.id, timezone: profile.timezone, now: now() };
+    const ctx: ButtonContext = {
+      db: deps.db,
+      userId: profile.id,
+      timezone: profile.timezone,
+      now: now(),
+      claude: deps.claude,
+    };
 
     if (message.kind === 'button') {
-      return handleButton(message.buttonId, ctx, deps.buttonExtensions);
+      return handleButton(message.buttonId, ctx, buttonExtensions);
     }
 
     const state = await getState(deps.db, profile.id, ctx.now);
     if (state.mode !== 'idle') {
-      const handler = deps.modeHandlers?.[state.mode];
-      const handled = handler ? await handler(message, state, ctx) : undefined;
+      const handler = modeHandlers[state.mode];
+      let handled: OutboundMessage[] | undefined;
+      try {
+        handled = handler ? await handler(message, state, ctx) : undefined;
+      } catch (error) {
+        log.error(`Mode ${state.mode} failed:`, error);
+      }
       if (handled) return handled;
     }
 
@@ -113,9 +133,11 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
       if (result.toolCalls.length === 0 || round === MAX_TOOL_ROUNDS) break;
 
       const results: Anthropic.ToolResultBlockParam[] = [];
+      const roundOutcomes: ToolOutcome[] = [];
       for (const call of result.toolCalls) {
         const outcome = await safeRunTool(call, { ...ctx, source });
         outcomes.push(outcome);
+        roundOutcomes.push(outcome);
         results.push({
           type: 'tool_result',
           tool_use_id: call.id,
@@ -123,8 +145,9 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
           ...(outcome.isError && { is_error: true }),
         });
       }
-      // A fixed reply ends the turn; Claude does not need to see the result.
+      // Fixed replies end the turn; Claude does not need to see the result.
       if (outcomes.some((outcome) => outcome.exclusive)) break;
+      if (roundOutcomes.every((outcome) => outcome.reply && !outcome.isError)) break;
       messages.push({ role: 'assistant', content: result.message.content }, { role: 'user', content: results });
     }
 

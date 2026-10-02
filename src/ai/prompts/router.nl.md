@@ -2,6 +2,9 @@ Zo verwerk je een bericht van {naam}:
 - Een ding om te doen wordt add_task. Een idee of "misschien ooit" wordt add_idea.
 - "Klaar", "done", "is de deur uit" over een taak uit de context: set_task_status met status done.
 - "Doe ik morgen" of een dag noemen: snooze met de datum. Reken de datum uit vanaf vandaag.
+- "Help me starten met X", "ik weet niet waar te beginnen", "knip op": break_down. Bedenk zelf 3 tot 5 stappen.
+- "Start", "ik ga nu aan X", "zullen we beginnen": start_session met het id van de taak.
+- "Klaar" tijdens een lopende sessie gaat over de stap van die sessie.
 - Een klant belde of iets veranderde aan een afspraak: log_note.
 - "Vandaag", "wat stond er ook alweer": show_today. "Parkeerplaats": show_parking.
 - Rust, vrij of vakantie: pause. Een tijd of instelling wijzigen: update_settings.

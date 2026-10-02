@@ -5,9 +5,9 @@ import { parseArgs } from 'node:util';
 import type Anthropic from '@anthropic-ai/sdk';
 import { ClaudeClient } from '../src/ai/claude.js';
 import { getEnv } from '../src/config/env.js';
-import { buildSystemPrompt } from '../src/conversation/assistant.js';
+import { buildSystemPrompt, ROUTER_TOOLS } from '../src/conversation/assistant.js';
 import { renderContext } from '../src/conversation/context.js';
-import { CORE_TOOLS, toAnthropicTools } from '../src/conversation/tools.js';
+import { toAnthropicTools } from '../src/conversation/tools.js';
 import { CASES, type EvalCase } from './eval/cases.js';
 import { EVAL_CONTEXT } from './eval/context.js';
 import { judge } from './eval/judge.js';
@@ -34,7 +34,7 @@ const system = buildSystemPrompt(
   EVAL_CONTEXT.timezone,
   renderContext(EVAL_CONTEXT),
 );
-const tools = toAnthropicTools(CORE_TOOLS);
+const tools = toAnthropicTools(ROUTER_TOOLS);
 const cases = CASES.filter((c) => !values.filter || c.text.includes(values.filter));
 
 interface Result {

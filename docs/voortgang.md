@@ -250,6 +250,25 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 - **Op de VPS na de merge:** als gebruiker `app`: `npm run build`, dan `pm2 start dist/worker.js --name hyperfocus-worker && pm2 save`.
 - **Open:** het ochtendbericht gebruikt nog geen slim model (zie `docs/later.md`).
 
+## Stap 1.4 — Opknippen en body-double
+
+- **Datum:** 2026-10-02
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - Tool `break_down` (`conversation/session.ts`): 3 tot 5 microstappen. De eerste stap duurt hooguit 10 minuten (5 min); zod weigert anders en Claude krijgt de fout terug. Werkt op een bestaande taak (`task_id`) of maakt een nieuwe aan (`title`, eventueel `client_name`).
+  - Microstappen zijn subtaken. Bij *Vastgelopen* wordt de stap zelf weer opgeknipt; zo ontstaat een kleine boom. De volgende stap is altijd het eerste open blad. Zijn alle stappen af, dan is de taak erboven ook af.
+  - Knop *Opknippen* (`t:{id}:split`): roept het snelle model aan met een vaste tool (`forceTool`) en prompt `opknippen.nl.md`. Bestaan er al stappen, dan toont hij die.
+  - Tool `start_session` en knop *Start* (`t:{id}:start`): noemt één stap, zet de modus op `session` en plant een check-in na `session_minutes`. Een hoofdtaak van meer dan 60 minuten zonder stappen wordt eerst opgeknipt.
+  - Check-in *"Hoe ging het met …?"* met *Gedaan · Nog 10 min · Vastgelopen* (`sess:`). Na de derde sessie op een dag volgt een compliment en de vraag of het tijd is voor pauze.
+  - Check-ins gaan ook tijdens een pauze uit: de gebruiker startte de sessie zelf.
+  - De context voor Claude noemt de lopende sessie. De router stopt na tools met een vaste tekst (lijsten, opknippen), zonder extra Claude-aanroep.
+  - Evaluatieset: 6 nieuwe gevallen voor `break_down` en `start_session` (61 in totaal).
+- **Controle (Definition of Done):**
+  - *"Help me starten met X" levert 3–5 stappen op met een eerste stap van ≤ 10 minuten:* `tests/session.integration.test.ts` (opbouw en weigering van een te lange eerste stap). Of het model dat ook echt doet, meet `npm run eval` op de VPS.
+  - *De check-in komt na de ingestelde minuten:* integratietest: niets om 08:54, de check-in om 08:55 na een start om 08:30 (25 minuten).
+  - `npm test`: 186 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
+- **Open:** geen.
+
 ## Volgende stap
 
-1.4 Opknippen en body-double (11.4).
+1.5 Vangrails, escalatieladder, herstart, overbelasting (11.5–11.6).

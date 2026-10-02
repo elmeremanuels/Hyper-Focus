@@ -34,6 +34,8 @@ export interface GenerateOptions {
 
 export interface ToolCallOptions extends GenerateOptions {
   tools: Anthropic.Tool[];
+  /** Forces one tool; default lets Claude choose. */
+  forceTool?: string;
 }
 
 export interface ToolCallResult {
@@ -71,7 +73,7 @@ export class ClaudeClient {
 
   /** Tool use with a fixed schema, for everything that touches the database. */
   async callWithTools(options: ToolCallOptions): Promise<ToolCallResult> {
-    const message = await this.create(options, options.tools);
+    const message = await this.create(options, options.tools, options.forceTool);
     return {
       text: extractText(message),
       toolCalls: message.content.filter(
@@ -82,14 +84,21 @@ export class ClaudeClient {
     };
   }
 
-  private async create(options: GenerateOptions, tools?: Anthropic.Tool[]): Promise<Anthropic.Message> {
+  private async create(
+    options: GenerateOptions,
+    tools?: Anthropic.Tool[],
+    forceTool?: string,
+  ): Promise<Anthropic.Message> {
     const model = this.resolveModel(options.tier);
     const message = await this.client.messages.create({
       model,
       max_tokens: options.maxTokens ?? 4096,
       messages: options.messages,
       ...(options.system !== undefined && { system: options.system }),
-      ...(tools !== undefined && { tools, tool_choice: { type: 'auto' as const } }),
+      ...(tools !== undefined && {
+        tools,
+        tool_choice: forceTool ? { type: 'tool' as const, name: forceTool } : { type: 'auto' as const },
+      }),
     });
 
     await this.recordUsage({
