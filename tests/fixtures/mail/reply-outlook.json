@@ -1,13 +1,37 @@
 {
-  "to": "taken@in.hyper-focus.invalid",
-  "charsets": "{\"to\":\"UTF-8\",\"from\":\"UTF-8\",\"subject\":\"UTF-8\",\"text\":\"UTF-8\"}",
-  "envelope": "{\"to\":[\"taken@in.hyper-focus.invalid\"],\"from\":\"sam@voorbeeld.invalid\"}",
-  "spam_score": "0.1",
-  "attachments": "0",
-  "from": "Sam <sam@voorbeeld.invalid>",
-  "subject": "Re: Bericht van Hyper&Focus",
-  "headers": "Message-ID: <AM0PR-outlook-2@eurprd.outlook.com>\n",
-  "SPF": "pass",
-  "dkim": "{@voorbeeld.invalid : pass}",
-  "text": "Help\r\n\r\nVerzonden vanuit Outlook voor iOS\r\n________________________________\r\nVan: Hyper&Focus <hallo@hyper-focus.invalid>\r\nVerzonden: woensdag 1 oktober 2026 08:30\r\nAan: Sam <sam@voorbeeld.invalid>\r\nOnderwerp: Bericht van Hyper&Focus\r\n\r\nZal ik je focus voor vandaag laten zien?\r\n"
+  "Uuid": [
+    "7a3c1f2e-0000-4000-8000-000000000001"
+  ],
+  "MessageId": "<AM0PR-outlook-2@eurprd.outlook.com>",
+  "InReplyTo": null,
+  "From": {
+    "Name": "Sam",
+    "Address": "sam@voorbeeld.invalid"
+  },
+  "To": [
+    {
+      "Name": null,
+      "Address": "taken@in.hyper-focus.invalid"
+    }
+  ],
+  "Recipients": [
+    "taken@in.hyper-focus.invalid"
+  ],
+  "Cc": null,
+  "ReplyTo": null,
+  "SentAtDate": "Wed, 1 Oct 2026 10:30:00 +0200",
+  "Subject": "Re: Bericht van Hyper&Focus",
+  "Attachments": [],
+  "Headers": {
+    "Message-ID": "<AM0PR-outlook-2@eurprd.outlook.com>",
+    "From": "Sam <sam@voorbeeld.invalid>",
+    "Subject": "Re: Bericht van Hyper&Focus",
+    "Date": "Wed, 1 Oct 2026 10:30:00 +0200",
+    "Authentication-Results": "mx.brevo.invalid; spf=pass smtp.mailfrom=voorbeeld.invalid; dkim=pass header.d=voorbeeld.invalid header.s=s1; dmarc=pass header.from=voorbeeld.invalid"
+  },
+  "SpamScore": 0.1,
+  "RawTextBody": "Help\r\n\r\nVerzonden vanuit Outlook voor iOS\r\n________________________________\r\nVan: Hyper&Focus <hallo@hyper-focus.invalid>\r\nVerzonden: woensdag 1 oktober 2026 08:30\r\nAan: Sam <sam@voorbeeld.invalid>\r\nOnderwerp: Bericht van Hyper&Focus\r\n\r\nZal ik je focus voor vandaag laten zien?\r\n",
+  "RawHtmlBody": null,
+  "ExtractedMarkdownMessage": "Help\r\n\r\nVerzonden vanuit Outlook voor iOS\r\n________________________________\r\nVan: Hyper&Focus <hallo@hyper-focus.invalid>\r\nVerzonden: woensdag 1 oktober 2026 08:30\r\nAan: Sam <sam@voorbeeld.invalid>\r\nOnderwerp: Bericht van Hyper&Focus\r\n\r\nZal ik je focus voor vandaag laten zien?\r\n",
+  "ExtractedMarkdownSignature": null
 }

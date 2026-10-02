@@ -1,13 +1,37 @@
 {
-  "to": "taken@in.hyper-focus.invalid",
-  "charsets": "{\"to\":\"UTF-8\",\"from\":\"UTF-8\",\"subject\":\"UTF-8\",\"text\":\"UTF-8\"}",
-  "envelope": "{\"to\":[\"taken@in.hyper-focus.invalid\"],\"from\":\"sam@voorbeeld.invalid\"}",
-  "spam_score": "0.1",
-  "attachments": "0",
-  "from": "Sam <sam@voorbeeld.invalid>",
-  "subject": "Re: Bericht van Hyper&Focus",
-  "headers": "Received: from mail.voorbeeld.invalid\nMessage-ID: <CAGmail-1@mail.gmail.com>\nIn-Reply-To: <out-1@hyper-focus.invalid>\nFrom: Sam <sam@voorbeeld.invalid>\nSubject: Re: Bericht van Hyper&Focus\n",
-  "SPF": "pass",
-  "dkim": "{@voorbeeld.invalid : pass}",
-  "text": "vandaag\n\nOp wo 1 okt 2026 om 08:30 schreef Hyper&Focus <\nhallo@hyper-focus.invalid>:\n\n> Zal ik je focus voor vandaag laten zien?\n> Laat zien: https://hyper-focus.invalid/a/abc\n"
+  "Uuid": [
+    "7a3c1f2e-0000-4000-8000-000000000001"
+  ],
+  "MessageId": "<CAGmail-1@mail.gmail.com>",
+  "InReplyTo": "<out-1@hyper-focus.invalid>",
+  "From": {
+    "Name": "Sam",
+    "Address": "sam@voorbeeld.invalid"
+  },
+  "To": [
+    {
+      "Name": null,
+      "Address": "taken@in.hyper-focus.invalid"
+    }
+  ],
+  "Recipients": [
+    "taken@in.hyper-focus.invalid"
+  ],
+  "Cc": null,
+  "ReplyTo": null,
+  "SentAtDate": "Wed, 1 Oct 2026 10:30:00 +0200",
+  "Subject": "Re: Bericht van Hyper&Focus",
+  "Attachments": [],
+  "Headers": {
+    "Message-ID": "<CAGmail-1@mail.gmail.com>",
+    "From": "Sam <sam@voorbeeld.invalid>",
+    "Subject": "Re: Bericht van Hyper&Focus",
+    "Date": "Wed, 1 Oct 2026 10:30:00 +0200",
+    "Authentication-Results": "mx.brevo.invalid; spf=pass smtp.mailfrom=voorbeeld.invalid; dkim=pass header.d=voorbeeld.invalid header.s=s1; dmarc=pass header.from=voorbeeld.invalid"
+  },
+  "SpamScore": 0.1,
+  "RawTextBody": "vandaag\n\nOp wo 1 okt 2026 om 08:30 schreef Hyper&Focus <\nhallo@hyper-focus.invalid>:\n\n> Zal ik je focus voor vandaag laten zien?\n> Laat zien: https://hyper-focus.invalid/a/abc\n",
+  "RawHtmlBody": null,
+  "ExtractedMarkdownMessage": "vandaag",
+  "ExtractedMarkdownSignature": null
 }

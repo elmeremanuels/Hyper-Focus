@@ -6,7 +6,7 @@ import { createApp } from '../src/app.js';
 import { createDelivery } from '../src/channels/channel.js';
 import { EmailChannel } from '../src/channels/email/channel.js';
 import { createMailProcessor, type MailOutcome } from '../src/channels/email/processor.js';
-import { EmailSender, type MailTransport } from '../src/channels/email/send.js';
+import { EmailSender } from '../src/channels/email/send.js';
 import { TelegramChannel } from '../src/channels/telegram/channel.js';
 import { TelegramClient } from '../src/channels/telegram/client.js';
 import { createLinkCode } from '../src/channels/telegram/link.js';
@@ -21,6 +21,7 @@ import { events, messages, users } from '../src/db/schema/index.js';
 import example from '../src/db/seed/example.js';
 import { loadSeed } from '../src/db/seed/load.js';
 import { fixture } from './helpers/fixtures.js';
+import { fakeBrevoFetch } from './helpers/brevo.js';
 import { fakeTelegramFetch, SAM_TELEGRAM_ID } from './helpers/memory.js';
 import { startServer, type RunningServer } from './helpers/server.js';
 
@@ -35,7 +36,8 @@ describe.skipIf(!adminUrl)('Telegram and mail end to end (integration)', () => {
   let server: RunningServer;
   let userId: number;
   const telegram = fakeTelegramFetch();
-  const mails: Array<Parameters<MailTransport['send']>[0]> = [];
+  const brevo = fakeBrevoFetch();
+  const mails = brevo.sent;
   const telegramResults: TelegramOutcome[] = [];
   const mailResults: MailOutcome[] = [];
 
@@ -61,17 +63,13 @@ describe.skipIf(!adminUrl)('Telegram and mail end to end (integration)', () => {
     const messageStore = createDbMessageStore(connection.db);
     const router = createRouter(createDbRouterDeps(connection.db));
     const client = new TelegramClient('test-token', telegram.fetchImpl);
-    const transport: MailTransport = {
-      setApiKey: () => undefined,
-      send: async (mail) => {
-        mails.push(mail);
-        return [{ headers: { 'x-message-id': `sg-${mails.length}` } }, {}];
-      },
-    };
     const delivery = createDelivery({
       telegram: new TelegramChannel(client, messageStore),
       email: new EmailChannel(
-        new EmailSender({ apiKey: 'key', from: 'hallo@hyper-focus.invalid', replyTo: 'taken@in.hyper-focus.invalid' }, transport),
+        new EmailSender(
+          { apiKey: 'key', from: 'hallo@hyper-focus.invalid', replyTo: 'taken@in.hyper-focus.invalid' },
+          brevo.fetchImpl,
+        ),
         messageStore,
         { actionLinkSecret: ACTION_SECRET, baseUrl: 'https://hyper-focus.invalid' },
       ),
@@ -134,11 +132,13 @@ describe.skipIf(!adminUrl)('Telegram and mail end to end (integration)', () => {
     return { status: response.status, ms, outcome: telegramResults[before] };
   }
 
-  async function postMail(fields: Record<string, string>) {
+  async function postMail(item: unknown) {
     const before = mailResults.length;
-    const form = new FormData();
-    for (const [name, value] of Object.entries(fields)) form.append(name, value);
-    const response = await fetch(`${server.baseUrl}/webhooks/mail/${MAIL_SECRET}`, { method: 'POST', body: form });
+    const response = await fetch(`${server.baseUrl}/webhooks/mail/${MAIL_SECRET}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ items: [item] }),
+    });
     await vi.waitFor(() => expect(mailResults.length).toBe(before + 1));
     return { status: response.status, outcome: mailResults[before] };
   }
@@ -206,9 +206,9 @@ describe.skipIf(!adminUrl)('Telegram and mail end to end (integration)', () => {
     expect(status).toBe(200);
     expect(outcome).toBe('processed');
 
-    const reply = mails.at(-1) as unknown as { text: string; subject: string };
-    expect(reply.subject).toBe('Re: Bericht van Hyper&Focus');
-    const link = /Start 1: (https:\/\/hyper-focus\.invalid\/a\/\S+)/.exec(reply.text)?.[1];
+    const reply = mails.at(-1)?.body;
+    expect(reply?.subject).toBe('Re: Bericht van Hyper&Focus');
+    const link = /Start 1: (https:\/\/hyper-focus\.invalid\/a\/\S+)/.exec(reply?.textContent ?? '')?.[1];
     expect(link).toBeDefined();
 
     const path = new URL(link!).pathname;

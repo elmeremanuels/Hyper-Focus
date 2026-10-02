@@ -175,6 +175,22 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - Transcriptie van spraak volgt in 1.6. Een spraakbericht krijgt nu een kort antwoord.
   - Zie `docs/later.md`: de knop *Meer* bij lange lijsten en de wekelijkse herkoppelvraag.
 
+
+## Stap 1.1 — aanvulling: Brevo in plaats van SendGrid
+
+- **Datum:** 2026-10-02
+- **Besluit (Elmer):** SendGrid wordt Brevo, voor versturen en inkomende mail. Bouwplan v1.4, beslissing 11.
+- **Gebouwd:**
+  - `email/send.ts`: Brevo-API (`POST /v3/smtp/email`) via `fetch`, met `Reply-To` en threading-headers. `@sendgrid/mail` en `busboy` zijn verwijderd.
+  - `email/inbound.ts`: Brevo Inbound Parsing (JSON met `items`).
+  - SPF en DKIM komen uit de headers `Authentication-Results` en `Received-SPF`; Brevo levert daar geen aparte velden voor. Zonder die headers wordt de mail genegeerd.
+  - `npm run brevo:inbound -- --domain …` maakt de inbound-webhook aan.
+  - Env: `SENDGRID_API_KEY` wordt `BREVO_API_KEY`.
+- **Controle:** `npm test`: 111 groen en 17 overgeslagen zonder database; 128 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
+- **Open:**
+  - Live controleren dat Brevo de headers `Authentication-Results` of `Received-SPF` doorgeeft. Zo niet, dan negeert de app elke mail met "SPF not pass" in de log.
+  - `docs/kanalen.md` gebruikt nu `hyperfocus` als PM2-naam, onder gebruiker `app`.
+
 ## Volgende stap
 
 1.2 Gesprekslaag met tools (hoofdstuk 10).

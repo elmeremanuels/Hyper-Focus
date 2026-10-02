@@ -2,19 +2,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app.js';
 import { createDelivery } from '../src/channels/channel.js';
 import { EmailChannel } from '../src/channels/email/channel.js';
-import { extractAddress, parseInboundMail, type InboundFields } from '../src/channels/email/inbound.js';
+import {
+  authResults,
+  extractAddress,
+  parseInboundMail,
+  type InboundItem,
+} from '../src/channels/email/inbound.js';
 import { createMailProcessor, EMPTY_REPLY, replySubject } from '../src/channels/email/processor.js';
 import { detectForward, extractReply } from '../src/channels/email/parse-reply.js';
-import { EmailSender, type EmailMessage, type MailTransport } from '../src/channels/email/send.js';
+import { BREVO_SEND_URL, EmailSender } from '../src/channels/email/send.js';
 import { createMemoryRouterDeps } from '../src/conversation/deps.js';
 import { createRouter } from '../src/conversation/router.js';
 import { fixture } from './helpers/fixtures.js';
 import { MemoryMessageStore, MemoryUserStore, sam } from './helpers/memory.js';
+import { fakeBrevoFetch } from './helpers/brevo.js';
 import { startServer, type RunningServer } from './helpers/server.js';
 
 describe('extractReply', () => {
   it('cuts a Gmail reply at "Op … schreef …:" across a wrapped line', () => {
-    const text = (fixture<InboundFields>('mail', 'reply-gmail').text ?? '');
+    const text = (fixture<InboundItem>('mail', 'reply-gmail').RawTextBody ?? '');
     expect(extractReply(text)).toBe('vandaag');
   });
 
@@ -23,7 +29,7 @@ describe('extractReply', () => {
   });
 
   it('cuts an Outlook reply at the separator and drops the mobile footer', () => {
-    const text = fixture<InboundFields>('mail', 'reply-outlook').text ?? '';
+    const text = fixture<InboundItem>('mail', 'reply-outlook').RawTextBody ?? '';
     expect(extractReply(text)).toBe('Help');
   });
 
@@ -49,8 +55,8 @@ describe('extractReply', () => {
 
 describe('detectForward', () => {
   it('reads the note, original sender and subject from a forwarded mail', () => {
-    const mail = fixture<InboundFields>('mail', 'forward');
-    const forward = detectForward(mail.subject ?? '', mail.text ?? '');
+    const mail = fixture<InboundItem>('mail', 'forward');
+    const forward = detectForward(mail.Subject ?? '', mail.RawTextBody ?? '');
     expect(forward).toMatchObject({
       note: 'Kun je hier een taak van maken?',
       originalFrom: 'Anna <anna@bakkerij.invalid>',
@@ -70,7 +76,7 @@ describe('detectForward', () => {
 });
 
 describe('parseInboundMail', () => {
-  it('reads sender, Message-ID and passing SPF and DKIM', () => {
+  it('reads sender, Message-ID and passing SPF and DKIM from the Brevo item', () => {
     expect(parseInboundMail(fixture('mail', 'reply-gmail'))).toMatchObject({
       from: 'sam@voorbeeld.invalid',
       subject: 'Re: Bericht van Hyper&Focus',
@@ -80,16 +86,26 @@ describe('parseInboundMail', () => {
     });
   });
 
-  it('fails DKIM when the signature is for another domain', () => {
+  it('fails SPF on softfail and DKIM when the signature is for another domain', () => {
     const mail = parseInboundMail(fixture('mail', 'spf-fail'));
     expect(mail.spfPass).toBe(false);
     expect(mail.dkimPass).toBe(false);
   });
 
+  it('fails both checks when the headers carry no results', () => {
+    const mail = parseInboundMail(fixture('mail', 'no-auth-headers'));
+    expect(mail.spfPass).toBe(false);
+    expect(mail.dkimPass).toBe(false);
+  });
+
   it('falls back to the HTML body and a content hash when fields are missing', () => {
-    const mail = parseInboundMail({ from: 'a@b.nl', subject: 'x', html: '<p>Hallo&nbsp;daar</p>' });
+    const mail = parseInboundMail({ From: { Address: 'a@b.nl' }, Subject: 'x', RawHtmlBody: '<p>Hallo&nbsp;daar</p>' });
     expect(mail.text).toBe('Hallo daar');
     expect(mail.messageId).toMatch(/^sha256:[0-9a-f]{64}$/);
+  });
+
+  it('adds angle brackets to a bare Message-ID', () => {
+    expect(parseInboundMail({ From: { Address: 'a@b.nl' }, MessageId: 'abc@b.nl' }).messageId).toBe('<abc@b.nl>');
   });
 
   it('extracts the address from a display name', () => {
@@ -98,21 +114,36 @@ describe('parseInboundMail', () => {
   });
 });
 
+describe('authResults', () => {
+  it('reads several Authentication-Results headers and Received-SPF', () => {
+    expect(
+      authResults({
+        'authentication-results': [
+          'mx.invalid; dkim=pass header.i=@Mail.Example.nl header.s=k1',
+          'mx.invalid; dkim=fail header.d=other.nl',
+        ],
+        'Received-SPF': 'Pass (mx.invalid: domain of a@example.nl designates 1.2.3.4 as permitted sender)',
+      }),
+    ).toEqual({ spf: true, dkimDomains: ['mail.example.nl'] });
+  });
+
+  it('accepts a DKIM signature of a parent domain', () => {
+    const mail = parseInboundMail({
+      From: { Address: 'sam@mail.voorbeeld.invalid' },
+      Headers: { 'Authentication-Results': 'mx; spf=pass; dkim=pass header.d=voorbeeld.invalid' },
+    });
+    expect(mail.dkimPass).toBe(true);
+  });
+});
+
 function setup() {
-  const sent: Array<Parameters<MailTransport['send']>[0]> = [];
-  const transport: MailTransport = {
-    setApiKey: () => undefined,
-    send: async (message) => {
-      sent.push(message);
-      return [{ headers: { 'x-message-id': `sg-${sent.length}` } }, {}];
-    },
-  };
+  const brevo = fakeBrevoFetch();
   const messages = new MemoryMessageStore();
   const users = new MemoryUserStore([sam()]);
   const email = new EmailChannel(
     new EmailSender(
       { apiKey: 'key', from: 'hallo@hyper-focus.invalid', replyTo: 'taken@in.hyper-focus.invalid' },
-      transport,
+      brevo.fetchImpl,
     ),
     messages,
     { actionLinkSecret: 'k'.repeat(32), baseUrl: 'https://hyper-focus.invalid' },
@@ -130,7 +161,7 @@ function setup() {
     allowedSenders: ['sam@voorbeeld.invalid'],
     log,
   });
-  return { sent, messages, log, process };
+  return { sent: brevo.sent, messages, log, process };
 }
 
 describe('mail processor', () => {
@@ -139,21 +170,24 @@ describe('mail processor', () => {
 
     expect(await process(fixture('mail', 'reply-gmail'))).toBe('processed');
 
-    const [mail] = sent as unknown as Array<EmailMessage & { headers: Record<string, string>; replyTo: string }>;
+    const mail = sent[0]?.body;
     expect(mail).toMatchObject({
-      to: 'sam@voorbeeld.invalid',
+      sender: { name: 'Hyper&Focus', email: 'hallo@hyper-focus.invalid' },
+      to: [{ email: 'sam@voorbeeld.invalid' }],
       subject: 'Re: Bericht van Hyper&Focus',
-      replyTo: 'taken@in.hyper-focus.invalid',
+      replyTo: { email: 'taken@in.hyper-focus.invalid' },
       headers: { 'In-Reply-To': '<CAGmail-1@mail.gmail.com>' },
     });
-    expect(mail?.text).toContain('Vandaag, in deze volgorde');
-    expect(mail?.text).toMatch(/Start 1: https:\/\/hyper-focus\.invalid\/a\/[\w-]+\.[\w-]+/);
-    expect(mail?.html).toContain('href="https://hyper-focus.invalid/a/');
+    expect(mail?.textContent).toContain('Vandaag, in deze volgorde');
+    expect(mail?.textContent).toMatch(/Start 1: https:\/\/hyper-focus\.invalid\/a\/[\w-]+\.[\w-]+/);
+    expect(mail?.htmlContent).toContain('href="https://hyper-focus.invalid/a/');
 
     expect(messages.inbound()).toMatchObject([
       { channel: 'email', externalId: '<CAGmail-1@mail.gmail.com>', body: 'vandaag' },
     ]);
-    expect(messages.outbound()).toMatchObject([{ channel: 'email', externalId: 'sg-1', type: 'email' }]);
+    expect(messages.outbound()).toMatchObject([
+      { channel: 'email', externalId: '<brevo-1@smtp-relay.invalid>', type: 'email' },
+    ]);
     expect(messages.events.map((event) => event.name)).toEqual(['inbound_message', 'email_sent']);
   });
 
@@ -171,14 +205,16 @@ describe('mail processor', () => {
     expect(messages.inbound()[0]?.body).toContain('Kun je hier een taak van maken?');
   });
 
-  it('ignores an unknown sender and a failed SPF check', async () => {
+  it('ignores an unknown sender, a failed SPF check and mail without results', async () => {
     const { sent, messages, log, process } = setup();
     expect(await process(fixture('mail', 'unknown-sender'))).toBe('ignored');
     expect(await process(fixture('mail', 'spf-fail'))).toBe('ignored');
+    expect(await process(fixture('mail', 'no-auth-headers'))).toBe('ignored');
     expect(sent).toHaveLength(0);
     expect(messages.messages).toHaveLength(0);
     expect(log.warn.mock.calls.map((call) => String(call[0]))).toEqual([
       'Ignored inbound mail from i*****@elders.invalid: unknown sender',
+      'Ignored inbound mail from s**@voorbeeld.invalid: SPF not pass',
       'Ignored inbound mail from s**@voorbeeld.invalid: SPF not pass',
     ]);
   });
@@ -186,11 +222,11 @@ describe('mail processor', () => {
   it('asks for text when a reply only holds quoted text', async () => {
     const { sent, process } = setup();
     await process({
-      ...fixture<InboundFields>('mail', 'reply-gmail'),
-      headers: 'Message-ID: <empty@x>\n',
-      text: '> alleen citaat',
+      ...fixture<InboundItem>('mail', 'reply-gmail'),
+      MessageId: '<empty@x>',
+      RawTextBody: '> alleen citaat',
     });
-    expect((sent[0] as unknown as EmailMessage).text).toContain(EMPTY_REPLY.text);
+    expect(sent[0]?.body.textContent).toContain(EMPTY_REPLY.text);
   });
 
   it('builds the reply subject', () => {
@@ -209,39 +245,76 @@ describe('POST /webhooks/mail/:secret', () => {
     server = undefined;
   });
 
-  function form(fields: InboundFields) {
-    const body = new FormData();
-    for (const [name, value] of Object.entries(fields)) body.append(name, value);
-    body.append('attachment1', new Blob(['%PDF-1.4'], { type: 'application/pdf' }), 'factuur.pdf');
-    return body;
-  }
+  const post = (baseUrl: string, path: string, body: unknown) =>
+    fetch(`${baseUrl}/webhooks/mail/${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
 
   it('returns 404 for a wrong path', async () => {
     const onMail = vi.fn(async () => undefined);
     server = await startServer(createApp({ mail: { secret: SECRET, onMail } }));
-    const response = await fetch(`${server.baseUrl}/webhooks/mail/wrong`, { method: 'POST', body: form({ from: 'x' }) });
-    expect(response.status).toBe(404);
+    expect((await post(server.baseUrl, 'wrong', { items: [] })).status).toBe(404);
     expect(onMail).not.toHaveBeenCalled();
   });
 
   it('returns 404 when no secret is configured', async () => {
     server = await startServer(createApp());
-    const response = await fetch(`${server.baseUrl}/webhooks/mail/${SECRET}`, { method: 'POST', body: form({}) });
-    expect(response.status).toBe(404);
+    expect((await post(server.baseUrl, SECRET, { items: [] })).status).toBe(404);
   });
 
-  it('parses the multipart fields, skips attachments and answers 200', async () => {
+  it('returns 400 without an items array', async () => {
+    server = await startServer(createApp({ mail: { secret: SECRET, onMail: vi.fn(async () => undefined) } }));
+    expect((await post(server.baseUrl, SECRET, { nope: true })).status).toBe(400);
+  });
+
+  it('answers 200 and hands every item to the processor', async () => {
     const onMail = vi.fn(async () => undefined);
     server = await startServer(createApp({ mail: { secret: SECRET, onMail } }));
-    const fields = fixture<InboundFields>('mail', 'reply-gmail');
+    const items = [fixture('mail', 'reply-gmail'), fixture('mail', 'forward')];
 
-    const response = await fetch(`${server.baseUrl}/webhooks/mail/${SECRET}`, { method: 'POST', body: form(fields) });
+    const response = await post(server.baseUrl, SECRET, { items });
 
     expect(response.status).toBe(200);
-    await vi.waitFor(() => expect(onMail).toHaveBeenCalled());
-    const received = (onMail.mock.calls[0] as unknown as [InboundFields])[0];
-    expect(received.from).toBe(fields.from);
-    expect(received.text?.replace(/\r\n/g, '\n')).toBe(fields.text);
-    expect(Object.keys(received)).not.toContain('attachment1');
+    await vi.waitFor(() => expect(onMail).toHaveBeenCalledTimes(2));
+    expect((onMail.mock.calls[1] as unknown as [InboundItem])[0].Subject).toBe('Fwd: Banner voor vrijdag');
+  });
+});
+
+describe('EmailSender (Brevo)', () => {
+  it('refuses to send without configuration', async () => {
+    const sender = new EmailSender({ apiKey: undefined, from: undefined, replyTo: undefined });
+    expect(sender.isConfigured()).toBe(false);
+    await expect(
+      sender.send({ to: 'a@example.nl', subject: 'Test', text: 'Hoi', html: '<p>Hoi</p>' }),
+    ).rejects.toThrow(/not configured/);
+  });
+
+  it('posts to the Brevo API with the api-key header', async () => {
+    const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+    const sender = new EmailSender(
+      { apiKey: 'xkeysib-test', from: 'hallo@hyper-focus.invalid', replyTo: undefined },
+      (async (url: string | URL | Request, init?: RequestInit) => {
+        calls.push({ url: String(url), init });
+        return new Response(JSON.stringify({ messageId: '<m1@relay>' }), { status: 201 });
+      }) as typeof fetch,
+    );
+
+    expect(await sender.send({ to: 'a@example.nl', subject: 'Je week', text: 'Hoi', html: '<p>Hoi</p>' })).toEqual({
+      messageId: '<m1@relay>',
+    });
+    expect(calls[0]?.url).toBe(BREVO_SEND_URL);
+    expect((calls[0]?.init?.headers as Record<string, string>)['api-key']).toBe('xkeysib-test');
+    expect(JSON.parse(String(calls[0]?.init?.body))).not.toHaveProperty('replyTo');
+  });
+
+  it('throws with Brevo\'s message on an error status', async () => {
+    const brevo = fakeBrevoFetch();
+    brevo.failWith(401, 'Key not found');
+    const sender = new EmailSender({ apiKey: 'bad', from: 'hallo@hyper-focus.invalid', replyTo: undefined }, brevo.fetchImpl);
+    await expect(sender.send({ to: 'a@b.nl', subject: 's', text: 't', html: 'h' })).rejects.toThrow(
+      'Brevo send failed (401): Key not found',
+    );
   });
 });

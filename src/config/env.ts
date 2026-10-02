@@ -60,7 +60,7 @@ export const envSchema = z.object({
   TELEGRAM_ALLOWED_USER_IDS: telegramUserIds,
 
   // Mail
-  SENDGRID_API_KEY: optionalString,
+  BREVO_API_KEY: optionalString,
   EMAIL_FROM: z.preprocess(emptyToUndefined, z.email().optional()),
   EMAIL_REPLY_TO: z.preprocess(emptyToUndefined, z.email().optional()),
   EMAIL_INBOUND_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),

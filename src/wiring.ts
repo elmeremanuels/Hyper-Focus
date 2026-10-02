@@ -19,7 +19,7 @@ export function buildServices(env: Env, db: Database) {
 
   const telegramClient = env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN) : undefined;
   const sender = new EmailSender({
-    apiKey: env.SENDGRID_API_KEY,
+    apiKey: env.BREVO_API_KEY,
     from: env.EMAIL_FROM,
     replyTo: env.EMAIL_REPLY_TO,
   });
