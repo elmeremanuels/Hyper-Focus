@@ -345,9 +345,10 @@ f:show | f:dayoff | f:adjust
 sess:{taskId}:done | sess:{taskId}:plus10 | sess:{taskId}:stuck
 wr:{step}:{value}
 mv:{taskId}:{projectId} | t:{taskId}:unpark | help
+f:later | f:carry | f:alldone
 ```
 
-`mv:` verplaatst een taak uit *Losse taken* naar een project (10.1). `t:{taskId}:unpark` haalt een taak van de parkeerplaats. `help` toont wat Hyper&Focus kan.
+`mv:` verplaatst een taak uit *Losse taken* naar een project (10.1). `t:{taskId}:unpark` haalt een taak van de parkeerplaats. `help` toont wat Hyper&Focus kan. `f:later` is *Later* bij het middagbericht. `f:carry` (*Alles morgen*) en `f:alldone` (*Alles gedaan*) ronden de dag af.
 
 ---
 

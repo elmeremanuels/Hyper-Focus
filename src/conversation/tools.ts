@@ -21,7 +21,7 @@ import {
 import { projects } from '../db/schema/index.js';
 import { isValidDate, isValidTime, localDate, startOfLocalDate, startOfNextLocalDay } from '../lib/time.js';
 import type { Button, InboundSource, OutboundMessage } from './types.js';
-import { focusMessage, parkingMessage, SHOW_TODAY, todaysFocus } from './views.js';
+import { focusView, parkingMessage, SHOW_TODAY } from './views.js';
 
 export interface ToolContext {
   db: Database;
@@ -273,8 +273,7 @@ const showToday = defineTool({
   description: 'Laat de focus van vandaag zien ("wat stond er ook alweer", "vandaag").',
   input: z.object({}),
   async run(_input, ctx) {
-    const focus = await todaysFocus(ctx.db, ctx.userId, ctx.timezone, ctx.now);
-    return { content: `${focus.length} taken in de focus.`, reply: focusMessage(focus) };
+    return { content: 'Focus getoond.', reply: await focusView(ctx.db, ctx.userId, ctx.timezone, ctx.now) };
   },
 });
 

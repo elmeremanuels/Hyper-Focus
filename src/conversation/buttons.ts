@@ -3,26 +3,28 @@ import type { Database } from '../db/client.js';
 import { setPausedUntil } from '../core/settings.js';
 import { carryOver, getTask, listOpenTasks, moveTask, setTaskStatus } from '../core/tasks.js';
 import { setSuggestionStatus } from '../core/suggestions.js';
-import { startOfNextLocalDay } from '../lib/time.js';
+import { and, eq } from 'drizzle-orm';
+import { dailyFocus } from '../db/schema/index.js';
+import { localDate, startOfNextLocalDay } from '../lib/time.js';
 import type { Button, OutboundMessage } from './types.js';
-import { focusMessage, SHOW_TODAY, todaysFocus } from './views.js';
+import { focusView, openFocusTasks, SHOW_TODAY } from './views.js';
 
 export type ParsedButton =
   | { kind: 'task'; taskId: number; action: 'done' | 'tomorrow' | 'split' | 'park' | 'release' | 'start' | 'unpark' }
   | { kind: 'suggestion'; suggestionId: number; action: 'in_progress' | 'later' | 'done' | 'not_relevant' }
-  | { kind: 'focus'; action: 'show' | 'dayoff' | 'adjust' }
+  | { kind: 'focus'; action: 'show' | 'dayoff' | 'adjust' | 'later' | 'carry' | 'alldone' }
   | { kind: 'session'; taskId: number; action: 'done' | 'plus10' | 'stuck' }
   | { kind: 'review'; step: string; value: string }
   | { kind: 'move'; taskId: number; projectId: number }
   | { kind: 'help' };
 
-/** Parses the button ids from BOUWPLAN.md 9.4, plus `mv:{taskId}:{projectId}`, `t:{id}:unpark` and `help`. */
+/** Parses the button ids from BOUWPLAN.md 9.4. */
 export function parseButtonId(id: string): ParsedButton | undefined {
   let match = /^t:(\d+):(done|tomorrow|split|park|release|start|unpark)$/.exec(id);
   if (match) return { kind: 'task', taskId: Number(match[1]), action: match[2] as never };
   match = /^s:(\d+):(in_progress|later|done|not_relevant)$/.exec(id);
   if (match) return { kind: 'suggestion', suggestionId: Number(match[1]), action: match[2] as never };
-  match = /^f:(show|dayoff|adjust)$/.exec(id);
+  match = /^f:(show|dayoff|adjust|later|carry|alldone)$/.exec(id);
   if (match) return { kind: 'focus', action: match[1] as never };
   match = /^sess:(\d+):(done|plus10|stuck)$/.exec(id);
   if (match) return { kind: 'session', taskId: Number(match[1]), action: match[2] as never };
@@ -71,10 +73,14 @@ export async function handleButton(
       return [HELP_MESSAGE];
 
     case 'focus':
-      if (button.action === 'show') return [focusMessage(await todaysFocus(db, userId, timezone, now))];
+      if (button.action === 'show') return [await focusView(db, userId, timezone, now)];
       if (button.action === 'dayoff') {
         await setPausedUntil(db, userId, startOfNextLocalDay(timezone, now));
         return [{ text: 'Vandaag vrij. Morgen ben ik er weer.' }];
+      }
+      if (button.action === 'later') return [{ text: 'Prima. Ik hou het rustig.' }];
+      if (button.action === 'carry' || button.action === 'alldone') {
+        return [await finishDay(button.action, ctx)];
       }
       return [await adjustMessage(db, userId, now)];
 
@@ -137,6 +143,21 @@ async function handleTaskButton(
     case 'split':
       return { text: 'Opknippen komt er in de volgende versie bij.', buttons: [{ id: `t:${taskId}:start`, title: 'Toch starten' }] };
   }
+}
+
+/** Wrap-up: everything done, or all open focus tasks to tomorrow (BOUWPLAN.md, 11.2). */
+async function finishDay(action: 'carry' | 'alldone', { db, userId, timezone, now }: ButtonContext): Promise<OutboundMessage> {
+  const open = await openFocusTasks(db, userId, timezone, now);
+  for (const task of open) {
+    if (action === 'alldone') await setTaskStatus(db, userId, task.id, 'done', now);
+    else await carryOver(db, userId, task.id, startOfNextLocalDay(timezone, now));
+  }
+  await db
+    .update(dailyFocus)
+    .set({ wrapupDoneAt: now })
+    .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, localDate(timezone, now))));
+  if (action === 'alldone') return { text: 'Alles af ✔ Sterk gedaan. Tot morgen.' };
+  return { text: open.length > 0 ? 'Staat klaar voor morgen. Fijne avond.' : 'Fijne avond.' };
 }
 
 async function adjustMessage(db: Database, userId: number, now: Date): Promise<OutboundMessage> {

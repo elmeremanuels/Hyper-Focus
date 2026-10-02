@@ -11,7 +11,7 @@ import type { Router } from './router.js';
 import { getState, type ConversationMode, type ConversationStateRow } from './state.js';
 import { CORE_TOOLS, runTool, toAnthropicTools, type ToolDefinition, type ToolOutcome } from './tools.js';
 import type { Button, InboundMessage, InboundSource, OutboundMessage } from './types.js';
-import { focusMessage, parkingMessage, SHOW_TODAY, todaysFocus } from './views.js';
+import { focusView, parkingMessage, SHOW_TODAY } from './views.js';
 
 /** Handles a message while a mode is active. Returns undefined to pass it on to Claude. */
 export type ModeHandler = (
@@ -73,7 +73,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     }
 
     const fixed = FIXED[message.text.trim().toLowerCase().replace(/^\//, '')];
-    if (fixed === 'today') return [focusMessage(await todaysFocus(deps.db, profile.id, profile.timezone, ctx.now))];
+    if (fixed === 'today') return [await focusView(deps.db, profile.id, profile.timezone, ctx.now)];
     if (fixed === 'parking') return [await parkingMessage(deps.db, profile.id)];
     if (fixed === 'help') return [HELP_MESSAGE];
 

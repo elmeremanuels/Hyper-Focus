@@ -1,5 +1,6 @@
 /** Fake Brevo transactional API: records every send and returns a message id. */
 export function fakeBrevoFetch() {
+  const run = Math.random().toString(36).slice(2, 8);
   const sent: Array<{
     headers: Record<string, string>;
     body: {
@@ -24,7 +25,7 @@ export function fakeBrevoFetch() {
       headers: init?.headers as Record<string, string>,
       body: JSON.parse(String(init?.body)) as (typeof sent)[number]['body'],
     });
-    return new Response(JSON.stringify({ messageId: `<brevo-${sent.length}@smtp-relay.invalid>` }), {
+    return new Response(JSON.stringify({ messageId: `<brevo-${run}-${sent.length}@smtp-relay.invalid>` }), {
       status: 201,
     });
   };

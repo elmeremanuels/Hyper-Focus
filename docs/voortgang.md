@@ -230,6 +230,26 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - Op de VPS in `.env`: `ANTHROPIC_API_KEY`, `CLAUDE_MODEL_FAST=claude-haiku-4-5-20251001`, `CLAUDE_MODEL_SMART=claude-opus-5-5`. Zonder sleutel beantwoordt de bot alleen knoppen en vaste woorden.
   - Vervalste afzender bij inkomende mail (zonder SPF/DKIM): nog geen keuze gemaakt tussen een moeilijk te raden adres en een geheim woord.
 
+## Stap 1.3 — Dagritme
+
+- **Datum:** 2026-10-02
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - `src/worker.ts` (`npm run worker`): elke minuut een tick met planner en verzender. Draai precies één worker.
+  - `proactive/planner.ts`: per gebruiker vanaf 00:05 lokale tijd één keer per dag de focus (`daily_focus`) en de berichten (`scheduled_nudges`): ochtend, middag (13:30, alleen als de middag aan staat) en afronden. De unieke rij per gebruiker en datum maakt het planner-idempotent. Een tijdzonewissel geldt vanaf de eerstvolgende dag.
+  - `proactive/focus.ts`: score en samenstelling uit 11.3. Maximaal drie taken, één snelle winst (≤ 10 min), een derde alleen binnen 3 uur. *Morgen verder* telt één dag mee en vervalt zodra de taak in een focus staat.
+  - `proactive/sender.ts`: één bericht per transactie met `FOR UPDATE SKIP LOCKED`. Langs de vangrails, dan via het voorkeurskanaal. Is de bot geblokkeerd, dan gaat het per mail. Meer dan 2 uur te laat (worker lag stil) → overgeslagen met `too_late`.
+  - `proactive/guardrails.ts`: in deze stap alleen de pauze. De rest volgt in 1.5.
+  - Berichten (`proactive/messages.ts`) zonder AI-aanroep: ochtend met *Laat zien · Vandaag vrij*; middag alleen als de hoofdtaak nog niet gestart is; afronden met *Morgen verder · Opknippen · Parkeren · Alles morgen · Alles gedaan*.
+  - De focuslijst toont bij een hoofdtaak van meer dan 60 minuten de eerste microstap, en stelt de snelle winst voor als start.
+- **Controle (Definition of Done):**
+  - *Ochtend en afronden op lokale tijd in beide tijdzones:* `tests/proactive.integration.test.ts`. Amsterdam 08:30 = 06:30 UTC, na de klokwissel van 25 oktober 07:30 UTC. Bali 08:30 = 00:30 UTC. Na een verhuizing volgt de volgende dag de nieuwe tijdzone.
+  - *Maximaal drie taken met één snelle winst:* `tests/focus.test.ts` en de integratietest op de voorbeelddata.
+  - *Geblokkeerde bot → mail:* integratietest: Telegram geeft 403, het afrondbericht gaat per mail.
+  - `npm test`: 179 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
+- **Op de VPS na de merge:** als gebruiker `app`: `npm run build`, dan `pm2 start dist/worker.js --name hyperfocus-worker && pm2 save`.
+- **Open:** het ochtendbericht gebruikt nog geen slim model (zie `docs/later.md`).
+
 ## Volgende stap
 
-1.3 Dagritme (11.1–11.3).
+1.4 Opknippen en body-double (11.4).
