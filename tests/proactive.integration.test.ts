@@ -60,7 +60,9 @@ describe.skipIf(!adminUrl)('daily rhythm (integration)', () => {
 
     // Winter time in Amsterdam from 25 October: 08:30 is 07:30 UTC.
     await planDay(db(), t.userId, 'Europe/Amsterdam', new Date('2026-10-25T23:10:00Z'));
-    expect((await nudgesFor(t.userId, '2026-10-26'))[0]).toMatchObject({ at: '2026-10-26T07:30:00.000Z' });
+    const monday = await nudgesFor(t.userId, '2026-10-26');
+    expect(monday.find((n) => n.kind === 'morning')).toMatchObject({ at: '2026-10-26T07:30:00.000Z' });
+    expect(monday.find((n) => n.kind === 'weekly_review')).toMatchObject({ at: '2026-10-26T07:00:00.000Z' });
 
     // The Bali user moves to the Netherlands: the next day follows the new timezone.
     await db().update(users).set({ timezone: 'Europe/Amsterdam' }).where(eq(users.id, bali));

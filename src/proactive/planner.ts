@@ -11,6 +11,7 @@ import { composeFocus, type ComposedFocus, type FocusCandidate } from './focus.j
 
 export const PLANNER_TIME = '00:05';
 export const MIDDAY_TIME = '13:30';
+export const WEEKLY_MAIL_TIME = '08:00';
 /** Messages whose time passed longer ago than this are not planned (e.g. after downtime). */
 const MAX_LATE_MS = 2 * 60 * 60 * 1000;
 
@@ -94,8 +95,16 @@ export async function planDay(
     }
     add('wrapup', settings.wrapupTime);
 
-    const escalation = await pickEscalation(tx, userId, focus.taskIds, today, timezone, now);
-    if (escalation) add('escalation', ESCALATION_TIME, escalation);
+    // Weekly review on the chosen day; the overview mail on Monday (BOUWPLAN.md, 11.7).
+    const weekday = localNow(timezone, now).weekday;
+    if (weekday === settings.weeklyReviewDay) add('weekly_review', settings.weeklyReviewTime, { part: 'review' });
+    if (weekday === 1) add('weekly_review', WEEKLY_MAIL_TIME, { part: 'mail' });
+
+    // No escalation on the review day, so the review stays within the daily limit.
+    if (weekday !== settings.weeklyReviewDay) {
+      const escalation = await pickEscalation(tx, userId, focus.taskIds, today, timezone, now);
+      if (escalation) add('escalation', ESCALATION_TIME, escalation);
+    }
 
     // Day 7 of silence: one restart message, in Telegram and by mail (BOUWPLAN.md, 11.6).
     const [user] = await tx.select({ lastInboundAt: users.lastInboundAt }).from(users).where(eq(users.id, userId));

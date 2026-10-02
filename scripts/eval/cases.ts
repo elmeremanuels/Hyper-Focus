@@ -109,6 +109,17 @@ export const CASES: EvalCase[] = [
   { text: 'ik ga nu aan de banner', tools: one('start_session'), check: { tool: 'start_session', task_id: 12 } },
   { text: 'zullen we beginnen met de factuur', tools: one('start_session'), check: { tool: 'start_session', task_id: 15 } },
 
+  // forwarded mail (step 1.7)
+  {
+    text: 'Doorgestuurde mail van Anna <anna@bakkerijdevries.nl>, onderwerp "Banner voor vrijdag".\n\nKun je hier een taak van maken?\n\nHoi Sam, kun je voor vrijdag een banner maken voor de herfstactie? Groet, Anna',
+    tools: one('add_task'),
+    check: { tool: 'add_task', project: 1 },
+  },
+  {
+    text: 'Doorgestuurde mail van Mo <mo@boho-interieur.nl>, onderwerp "Nieuwe openingstijden".\n\nVanaf november zijn we op maandag gesloten.',
+    tools: [['log_note'], ['add_task']],
+  },
+
   // more than one thing
   {
     text: 'factuur is verstuurd en zet op de lijst: offerte voor boho maken',

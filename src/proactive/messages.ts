@@ -19,7 +19,14 @@ export interface NudgeContext {
 
 /** The composed message, or a reason to skip it. */
 export type Composed =
-  | { message: OutboundMessage; subject: string; /** Also send by mail when it went by Telegram. */ alsoByMail?: boolean }
+  | {
+      message: OutboundMessage;
+      subject: string;
+      /** Also send by mail when it went by Telegram. */
+      alsoByMail?: boolean;
+      /** Send by mail only. */
+      mailOnly?: boolean;
+    }
   | { skip: string };
 
 /** After this many silent days the first message is a soft restart (BOUWPLAN.md, 11.6). */

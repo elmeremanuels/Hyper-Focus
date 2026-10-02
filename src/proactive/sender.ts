@@ -9,6 +9,7 @@ import type { UserStore } from '../core/users.js';
 import type { Database } from '../db/client.js';
 import { events, scheduledNudges, users } from '../db/schema/index.js';
 import { localDate, localNow } from '../lib/time.js';
+import { composeWeeklyMail, reviewStart } from '../conversation/review.js';
 import { composeCheckin } from '../conversation/session.js';
 import { checkGuardrails, silentDays, USER_STARTED_KINDS, type GuardrailInput, type GuardrailVerdict } from './guardrails.js';
 import { composeEscalation } from './escalation.js';
@@ -26,6 +27,10 @@ export const DEFAULT_COMPOSERS: Partial<Record<NudgeRow['kind'], Composer>> = {
     composeCheckin(ctx, { taskId: Number(nudge.payload.taskId), stepId: Number(nudge.payload.stepId) }),
   escalation: (ctx, nudge) => composeEscalation(ctx, Number(nudge.payload.taskId), Number(nudge.payload.level)),
   reentry: (ctx) => composeReentry(ctx),
+  weekly_review: async (ctx, nudge) =>
+    nudge.payload.part === 'mail'
+      ? { ...(await composeWeeklyMail(ctx)), mailOnly: true }
+      : { subject: 'Weekreview', message: await reviewStart(ctx) },
 };
 
 export interface SenderDeps {
@@ -121,7 +126,10 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
     const composed = await composer(ctx, nudge);
     if ('skip' in composed) return { status: 'skipped', reason: composed.skip };
 
-    const via = await deps.delivery.send(user, composed.message, { context: { subject: composed.subject } });
+    const via = await deps.delivery.send(user, composed.message, {
+      ...(composed.mailOnly && { via: 'email' as const }),
+      context: { subject: composed.subject },
+    });
     if (composed.alsoByMail && via !== 'email') {
       await deps.delivery.send(user, composed.message, { via: 'email', context: { subject: composed.subject } });
     }
@@ -146,6 +154,8 @@ async function guardrailInput(
     eq(scheduledNudges.userId, nudge.userId),
     eq(scheduledNudges.status, 'sent'),
     ne(scheduledNudges.kind, 'session_checkin'),
+    // The Monday mail does not count against Telegram messages.
+    sql`not (${scheduledNudges.kind} = 'weekly_review' and ${scheduledNudges.payload}->>'part' = 'mail')`,
   );
 
   const [today, [last], overwhelm] = await Promise.all([
@@ -177,5 +187,6 @@ async function guardrailInput(
     lastProactiveAt: last?.at ?? null,
     silentDays: silent,
     overwhelmedYesterday: overwhelm.length > 0,
+    mailOnly: nudge.kind === 'weekly_review' && nudge.payload.part === 'mail',
   };
 }

@@ -5,6 +5,7 @@ Zo verwerk je een bericht van {naam}:
 - "Help me starten met X", "ik weet niet waar te beginnen", "knip op": break_down. Bedenk zelf 3 tot 5 stappen.
 - "Start", "ik ga nu aan X", "zullen we beginnen": start_session met het id van de taak.
 - "Klaar" tijdens een lopende sessie gaat over de stap van die sessie.
+- Een doorgestuurde mail met een vraag of opdracht: add_task. Herken de klant aan de naam of het maildomein van de afzender en geef client_name. Staat er alleen informatie in: log_note.
 - Een klant belde of iets veranderde aan een afspraak: log_note.
 - "Vandaag", "wat stond er ook alweer": show_today. "Parkeerplaats": show_parking.
 - Rust, vrij of vakantie: pause. Een tijd of instelling wijzigen: update_settings.

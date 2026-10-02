@@ -306,6 +306,30 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 - **Op de VPS:** in `.env` `OPENAI_API_KEY` en `TRANSCRIBE_MODEL` invullen (bijvoorbeeld `gpt-4o-mini-transcribe`; controleer de actuele naam bij OpenAI). Daarna `pm2 restart hyperfocus`.
 - **Open:** Telegram bewaart het spraakbestand zelf op zijn servers; dat kunnen wij niet verwijderen. Hoort in de privacyverklaring (BOUWPLAN 14, beslissing over Telegram vóór fase 3).
 
+## Stap 1.7 — Ideeënbak, weekreview, weekoverzicht
+
+- **Datum:** 2026-10-02
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - Ideeën staan in `ideas` en komen nooit in de focus: de planner kiest alleen uit `tasks`.
+  - Weekreview (`conversation/review.ts`) op `weekly_review_day` om `weekly_review_time` (standaard zondag 19:30), of met het woord *weekreview*:
+    1. Wat er deze week af is en "Wat ging goed?": één tik of een paar woorden.
+    2. Keuzelijst met projecten → `is_weekly_focus`.
+    3. Keuzelijst met ideeën → hooguit één promotie per week tot project. Daarna krijgen alle ideeën `reviewed_at`.
+  - Op de reviewdag plant de planner geen escalatie, zodat de review binnen de daglimiet valt.
+  - Weekoverzicht op maandag 08:00, alleen per mail: wat er af is, het focusproject en open suggesties met actielinks. Telt niet mee voor de daglimiet en de adempauze van Telegram. Een antwoord op de mail gaat naar de router.
+  - Doorgestuurde mail: de mailverwerking herkende al afzender en onderwerp. De router maakt er nu een taak van onder de klant (op naam of maildomein) of legt een notitie vast. Twee nieuwe gevallen in de evaluatieset (63 in totaal).
+- **Controle (Definition of Done):**
+  - *Ideeën nooit in de focus:* `tests/review.integration.test.ts`, `never puts ideas in the focus`.
+  - *Weekreview in maximaal drie tikken:* dezelfde testfile, `runs the weekly review in three taps`.
+  - *De maandagmail komt binnen:* `sends the Monday overview by mail only`. Live: maandag 08:00 de inbox controleren.
+  - *Doorgestuurde mail → taak onder de juiste klant:* `turns a forwarded mail into a task under the right client` (met de echte Brevo-fixture). Of het model de klant herkent, meet `npm run eval`.
+  - `npm test`: 218 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
+- **Keuze om na te lezen:** het weekoverzicht gebruikt `scheduled_nudges.kind = weekly_review` met `payload.part = 'mail'`. Een eigen enumwaarde (`weekly_mail`) is een datamodelwijziging; zie `docs/later.md`.
+- **Open:** geen.
+
+→ **Start eigen gebruik** (BOUWPLAN 16) zodra 1.2 t/m 1.7 op de VPS staan en de evaluatieset ≥ 90% haalt.
+
 ## Volgende stap
 
-1.7 Ideeënbak, weekreview, weekoverzicht (11.7).
+1.8 Agendakoppeling (11.8).

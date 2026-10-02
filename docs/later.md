@@ -9,3 +9,4 @@ Ideeën en extra's die buiten de huidige bouwstap vallen.
 - Telegram-fallback: één keer per week de vraag om Telegram opnieuw te koppelen als berichten per mail gaan (9, fallback). Hoort bij de proactieve laag (1.3/1.5).
 - Ochtendbericht: nu een vaste tekst zonder AI. Het slimme model (10.4) kan de groet persoonlijker maken, bijvoorbeeld samen met het agenda-overzicht (1.8). Eerst kijken of de vaste tekst werkt.
 - Middagbericht: de tijd (13:30) staat vast in de code. Een instelling `midday_time` vraagt een datamodelwijziging.
+- Database: enumwaarde `weekly_mail` voor `nudge_kind`, zodat het weekoverzicht geen `payload.part` nodig heeft (1.7).
