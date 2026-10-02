@@ -191,6 +191,20 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - Live controleren dat Brevo de headers `Authentication-Results` of `Received-SPF` doorgeeft. Zo niet, dan negeert de app elke mail met "SPF not pass" in de log.
   - `docs/kanalen.md` gebruikt nu `hyperfocus` als PM2-naam, onder gebruiker `app`.
 
+
+## Stap 1.1 — aanvulling: inkomende mail via Brevo werkt zonder SPF/DKIM-headers
+
+- **Datum:** 2026-10-02
+- **Probleem (live, Elmer):** elke inkomende mail werd geweigerd met "SPF not pass". Brevo stuurt geen `Authentication-Results` of `Received-SPF` mee.
+- **Bevestiging:** een echte, geanonimiseerde Brevo-payload (uit de tests van django-anymail, juli 2023) bevat in `Headers` alleen `Received`, `DKIM-Signature` en de gewone mailheaders, en de spamscore als `SpamScore` op het hoogste niveau. Op de VPS logt de app nu bij de eerste mail na een herstart eenmalig de headernamen (zonder waarden). Die regel uit `pm2 logs hyperfocus` is de bevestiging voor ons eigen account.
+- **Nieuwe regel** (BOUWPLAN 9.3 en 14 bijgewerkt):
+  - Basis: geheim webhookpad plus `EMAIL_ALLOWED_SENDERS` en een bekende gebruiker.
+  - SPF/DKIM tellen alleen als die headers er zijn; een uitslag anders dan *pass* wijst af.
+  - Nieuwe variabele `EMAIL_MAX_SPAM_SCORE` (standaard 5): een hogere `SpamScore` wijst af. `Spam.Score` uit Brevo's documentatie wordt ook gelezen.
+- **Fixtures:** `tests/fixtures/mail/` volgt nu de structuur van die echte payload (`Uuid` als lijst, `Received` als lijst, `DKIM-Signature`, `SpamScore`, CRLF-regeleinden). Nieuw: `spam` en `auth-headers-fail`.
+- **Controle:** `npm test`: 134 groen met `TEST_DATABASE_URL`; zonder database 117 groen en 17 overgeslagen. Typecheck, lint en build groen.
+- **Open:** na de deploy één mail sturen, de headerregel in de log bekijken en het antwoord per mail controleren.
+
 ## Volgende stap
 
 1.2 Gesprekslaag met tools (hoofdstuk 10).

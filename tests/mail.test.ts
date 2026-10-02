@@ -76,32 +76,50 @@ describe('detectForward', () => {
 });
 
 describe('parseInboundMail', () => {
-  it('reads sender, Message-ID and passing SPF and DKIM from the Brevo item', () => {
+  it('reads sender, Message-ID and spam score from an actual-format Brevo item', () => {
     expect(parseInboundMail(fixture('mail', 'reply-gmail'))).toMatchObject({
       from: 'sam@voorbeeld.invalid',
       subject: 'Re: Bericht van Hyper&Focus',
       messageId: '<CAGmail-1@mail.gmail.com>',
-      spfPass: true,
-      dkimPass: true,
+      spamScore: 1.2,
     });
   });
 
-  it('fails SPF on softfail and DKIM when the signature is for another domain', () => {
-    const mail = parseInboundMail(fixture('mail', 'spf-fail'));
-    expect(mail.spfPass).toBe(false);
-    expect(mail.dkimPass).toBe(false);
+  it('reports SPF and DKIM as absent: Brevo sends no results', () => {
+    const mail = parseInboundMail(fixture('mail', 'reply-gmail'));
+    expect(mail.spf).toBe('absent');
+    expect(mail.dkim).toBe('absent');
+    expect(mail.headerNames).toEqual([
+      'Content-Type',
+      'DKIM-Signature',
+      'Date',
+      'From',
+      'In-Reply-To',
+      'MIME-Version',
+      'Message-ID',
+      'Received',
+      'References',
+      'Subject',
+      'To',
+    ]);
   });
 
-  it('fails both checks when the headers carry no results', () => {
-    const mail = parseInboundMail(fixture('mail', 'no-auth-headers'));
-    expect(mail.spfPass).toBe(false);
-    expect(mail.dkimPass).toBe(false);
+  it('reads failing results when a server did add Authentication-Results', () => {
+    const mail = parseInboundMail(fixture('mail', 'auth-headers-fail'));
+    expect(mail.spf).toBe('fail');
+    expect(mail.dkim).toBe('fail');
   });
 
-  it('falls back to the HTML body and a content hash when fields are missing', () => {
-    const mail = parseInboundMail({ From: { Address: 'a@b.nl' }, Subject: 'x', RawHtmlBody: '<p>Hallo&nbsp;daar</p>' });
-    expect(mail.text).toBe('Hallo daar');
-    expect(mail.messageId).toMatch(/^sha256:[0-9a-f]{64}$/);
+  it('reads the documented Spam.Score as well', () => {
+    expect(parseInboundMail({ From: { Address: 'a@b.nl' }, Spam: { Score: 3.1 } }).spamScore).toBe(3.1);
+    expect(parseInboundMail({ From: { Address: 'a@b.nl' } }).spamScore).toBeUndefined();
+  });
+
+  it('falls back to the HTML body, then to the Uuid or a content hash', () => {
+    const html = parseInboundMail({ From: { Address: 'a@b.nl' }, Subject: 'x', RawHtmlBody: '<p>Hallo&nbsp;daar</p>' });
+    expect(html.text).toBe('Hallo daar');
+    expect(html.messageId).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(parseInboundMail({ From: { Address: 'a@b.nl' }, Uuid: ['u-1'] }).messageId).toBe('uuid:u-1');
   });
 
   it('adds angle brackets to a bare Message-ID', () => {
@@ -115,6 +133,13 @@ describe('parseInboundMail', () => {
 });
 
 describe('authResults', () => {
+  it('returns absent without Authentication-Results or Received-SPF', () => {
+    expect(authResults({ 'DKIM-Signature': 'v=1; d=voorbeeld.invalid' })).toEqual({
+      spf: 'absent',
+      dkimDomains: undefined,
+    });
+  });
+
   it('reads several Authentication-Results headers and Received-SPF', () => {
     expect(
       authResults({
@@ -124,7 +149,11 @@ describe('authResults', () => {
         ],
         'Received-SPF': 'Pass (mx.invalid: domain of a@example.nl designates 1.2.3.4 as permitted sender)',
       }),
-    ).toEqual({ spf: true, dkimDomains: ['mail.example.nl'] });
+    ).toEqual({ spf: 'pass', dkimDomains: ['mail.example.nl'] });
+  });
+
+  it('reports fail for a non-pass SPF result', () => {
+    expect(authResults({ 'Received-SPF': 'softfail (domain does not designate)' }).spf).toBe('fail');
   });
 
   it('accepts a DKIM signature of a parent domain', () => {
@@ -132,11 +161,11 @@ describe('authResults', () => {
       From: { Address: 'sam@mail.voorbeeld.invalid' },
       Headers: { 'Authentication-Results': 'mx; spf=pass; dkim=pass header.d=voorbeeld.invalid' },
     });
-    expect(mail.dkimPass).toBe(true);
+    expect(mail.dkim).toBe('pass');
   });
 });
 
-function setup() {
+function setup(options: { maxSpamScore?: number } = {}) {
   const brevo = fakeBrevoFetch();
   const messages = new MemoryMessageStore();
   const users = new MemoryUserStore([sam()]);
@@ -159,6 +188,7 @@ function setup() {
       ]),
     ),
     allowedSenders: ['sam@voorbeeld.invalid'],
+    ...(options.maxSpamScore !== undefined && { maxSpamScore: options.maxSpamScore }),
     log,
   });
   return { sent: brevo.sent, messages, log, process };
@@ -205,18 +235,41 @@ describe('mail processor', () => {
     expect(messages.inbound()[0]?.body).toContain('Kun je hier een taak van maken?');
   });
 
-  it('ignores an unknown sender, a failed SPF check and mail without results', async () => {
+  it('accepts mail without SPF/DKIM results from an allowed sender', async () => {
+    const { log, process } = setup();
+    expect(await process(fixture('mail', 'reply-outlook'))).toBe('processed');
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
+  it('ignores an unknown sender, reported auth failures and spam', async () => {
     const { sent, messages, log, process } = setup();
     expect(await process(fixture('mail', 'unknown-sender'))).toBe('ignored');
-    expect(await process(fixture('mail', 'spf-fail'))).toBe('ignored');
-    expect(await process(fixture('mail', 'no-auth-headers'))).toBe('ignored');
+    expect(await process(fixture('mail', 'auth-headers-fail'))).toBe('ignored');
+    expect(await process(fixture('mail', 'spam'))).toBe('ignored');
     expect(sent).toHaveLength(0);
     expect(messages.messages).toHaveLength(0);
     expect(log.warn.mock.calls.map((call) => String(call[0]))).toEqual([
       'Ignored inbound mail from i*****@elders.invalid: unknown sender',
-      'Ignored inbound mail from s**@voorbeeld.invalid: SPF not pass',
-      'Ignored inbound mail from s**@voorbeeld.invalid: SPF not pass',
+      'Ignored inbound mail from s**@voorbeeld.invalid: SPF fail',
+      'Ignored inbound mail from s**@voorbeeld.invalid: spam score 9.5 above 5',
     ]);
+  });
+
+  it('honours a custom spam limit', async () => {
+    const { process } = setup({ maxSpamScore: 10 });
+    expect(await process(fixture('mail', 'spam'))).toBe('processed');
+  });
+
+  it('logs the header names of the first mail once, without values', async () => {
+    const { log, process } = setup();
+    await process(fixture('mail', 'reply-gmail'));
+    await process(fixture('mail', 'forward'));
+
+    const lines = log.info.mock.calls.map((call) => String(call[0]));
+    expect(lines).toEqual([
+      'Brevo inbound header names: Content-Type, DKIM-Signature, Date, From, In-Reply-To, MIME-Version, Message-ID, Received, References, Subject, To; SpamScore present',
+    ]);
+    expect(lines[0]).not.toContain('voorbeeld.invalid');
   });
 
   it('asks for text when a reply only holds quoted text', async () => {

@@ -65,6 +65,8 @@ export const envSchema = z.object({
   EMAIL_REPLY_TO: z.preprocess(emptyToUndefined, z.email().optional()),
   EMAIL_INBOUND_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
   EMAIL_ALLOWED_SENDERS: emailList,
+  /** Inbound mail with a higher Brevo SpamScore is ignored. */
+  EMAIL_MAX_SPAM_SCORE: z.preprocess(emptyToUndefined, z.coerce.number().min(0).default(5)),
   ACTION_LINK_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
 
   // Research

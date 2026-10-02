@@ -38,6 +38,7 @@ openssl rand -hex 24   # voor TELEGRAM_WEBHOOK_SECRET, EMAIL_INBOUND_SECRET en A
 | `EMAIL_REPLY_TO` | `taken@in.hyper-focus.pro` |
 | `EMAIL_INBOUND_SECRET` | willekeurig |
 | `EMAIL_ALLOWED_SENDERS` | je eigen mailadres |
+| `EMAIL_MAX_SPAM_SCORE` | optioneel; standaard 5 |
 | `ACTION_LINK_SECRET` | willekeurig, 32+ tekens; ondertekent actielinks en Telegram-koppelcodes |
 
 Herstart daarna: `pm2 restart hyperfocus`.
@@ -69,4 +70,9 @@ Open de koppellink op je telefoon en tik op *Start*. De bot antwoordt met "Gekop
 | Mail-antwoord binnen 1 minuut | antwoord op een mail van Hyper&Focus met "vandaag" |
 | Actielink werkt één keer | tik in die mail op een knop, daarna nog eens: "Deze link is al gebruikt." |
 
-Komt een mail-antwoord niet door, kijk dan in `pm2 logs hyperfocus`. Staat er "SPF not pass" of "DKIM not pass", dan zet Brevo de headers `Authentication-Results` of `Received-SPF` niet zoals verwacht. Meld dat; de controle staat in `src/channels/email/inbound.ts` (`authResults`).
+Komt een mail-antwoord niet door, kijk dan in `pm2 logs hyperfocus`:
+
+- Bij de eerste inkomende mail na een herstart logt de app eenmalig de headernamen die Brevo meestuurt (`Brevo inbound header names: …`), zonder waarden.
+- "unknown sender" of "sender not allowed": het afzenderadres staat niet in `users.email` of `EMAIL_ALLOWED_SENDERS`.
+- "spam score … above …": verhoog zo nodig `EMAIL_MAX_SPAM_SCORE` in `.env`.
+- "SPF fail" of "DKIM fail": alleen als er toch een `Authentication-Results`- of `Received-SPF`-header met een foute uitslag in de mail staat.

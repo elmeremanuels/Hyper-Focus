@@ -8,7 +8,10 @@ import { safeEqual } from '../../lib/secrets.js';
 
 const mailbox = z.looseObject({ Name: z.string().nullish(), Address: z.string().nullish() });
 
+// Field names follow an actual Brevo payload: the spam score arrives as `SpamScore`,
+// although Brevo documents `Spam.Score`; both are read.
 const item = z.looseObject({
+  Uuid: z.array(z.string()).nullish(),
   MessageId: z.string().nullish(),
   InReplyTo: z.string().nullish(),
   From: mailbox.nullish(),
@@ -17,19 +20,26 @@ const item = z.looseObject({
   RawHtmlBody: z.string().nullish(),
   ExtractedMarkdownMessage: z.string().nullish(),
   Headers: z.record(z.string(), z.union([z.string(), z.array(z.string())])).nullish(),
+  SpamScore: z.number().nullish(),
+  Spam: z.looseObject({ Score: z.number().nullish() }).nullish(),
 });
 
 export type InboundItem = z.infer<typeof item>;
 
 const payload = z.looseObject({ items: z.array(z.unknown()) });
 
+/** `absent` when the mail carries no result for the check (Brevo adds none itself). */
+export type AuthResult = 'pass' | 'fail' | 'absent';
+
 export interface InboundMail {
   from: string | undefined;
   subject: string;
   text: string;
   messageId: string;
-  spfPass: boolean;
-  dkimPass: boolean;
+  spf: AuthResult;
+  dkim: AuthResult;
+  spamScore: number | undefined;
+  headerNames: string[];
 }
 
 export interface MailWebhookConfig {
@@ -82,18 +92,28 @@ export function parseInboundMail(mail: InboundItem): InboundMail {
       : (mail.ExtractedMarkdownMessage ?? '');
   const messageId =
     normalizeMessageId(mail.MessageId) ??
+    (mail.Uuid?.[0] ? `uuid:${mail.Uuid[0]}` : undefined) ??
     `sha256:${crypto.createHash('sha256').update(`${from}\n${subject}\n${text}`).digest('hex')}`;
 
-  const { spf, dkimDomains } = authResults(mail.Headers ?? {});
+  const headers = mail.Headers ?? {};
+  const { spf, dkimDomains } = authResults(headers);
   const domain = from?.split('@')[1];
+  const dkim: AuthResult =
+    dkimDomains === undefined
+      ? 'absent'
+      : domain !== undefined && dkimDomains.some((d) => domain === d || domain.endsWith(`.${d}`))
+        ? 'pass'
+        : 'fail';
 
   return {
     from,
     subject,
     text,
     messageId,
-    spfPass: spf,
-    dkimPass: domain !== undefined && dkimDomains.some((d) => domain === d || domain.endsWith(`.${d}`)),
+    spf,
+    dkim,
+    spamScore: mail.SpamScore ?? mail.Spam?.Score ?? undefined,
+    headerNames: Object.keys(headers).sort(),
   };
 }
 
@@ -110,12 +130,13 @@ function normalizeMessageId(value: string | null | undefined): string | undefine
 }
 
 /**
- * Reads SPF and DKIM results from the Authentication-Results and Received-SPF headers
- * that the receiving server adds. Brevo does not send separate fields for them.
+ * Reads SPF and DKIM results from Authentication-Results and Received-SPF, when present.
+ * An actual Brevo payload carries neither header, so both results are usually absent.
+ * `dkimDomains` is undefined when no header reports a DKIM result.
  */
 export function authResults(headers: Record<string, string | string[]>): {
-  spf: boolean;
-  dkimDomains: string[];
+  spf: AuthResult;
+  dkimDomains: string[] | undefined;
 } {
   const values = (name: string): string[] => {
     const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name);
@@ -124,15 +145,20 @@ export function authResults(headers: Record<string, string | string[]>): {
   };
 
   const results = values('authentication-results');
-  const spf =
-    results.some((result) => /\bspf=pass\b/i.test(result)) ||
-    values('received-spf').some((result) => /^\s*pass\b/i.test(result));
+  const spfResults = [
+    ...results.flatMap((result) => [...result.matchAll(/\bspf=(\w+)/gi)].map(([, r = '']) => r.toLowerCase())),
+    ...values('received-spf').map((result) => /^\s*(\w+)/.exec(result)?.[1]?.toLowerCase() ?? ''),
+  ];
+  const spf: AuthResult = spfResults.length === 0 ? 'absent' : spfResults.includes('pass') ? 'pass' : 'fail';
 
-  const dkimDomains = results.flatMap((result) =>
-    [...result.matchAll(/\bdkim=pass\b[^;]*?\bheader\.(?:d|i)=@?([\w.-]+)/gi)].map(([, d = '']) =>
-      d.toLowerCase(),
-    ),
-  );
+  const reportsDkim = results.some((result) => /\bdkim=\w+/i.test(result));
+  const dkimDomains = reportsDkim
+    ? results.flatMap((result) =>
+        [...result.matchAll(/\bdkim=pass\b[^;]*?\bheader\.(?:d|i)=@?([\w.-]+)/gi)].map(([, d = '']) =>
+          d.toLowerCase(),
+        ),
+      )
+    : undefined;
 
   return { spf, dkimDomains };
 }

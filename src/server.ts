@@ -40,6 +40,7 @@ if (env.DATABASE_URL) {
       delivery: services.delivery,
       router: services.router,
       allowedSenders: env.EMAIL_ALLOWED_SENDERS,
+      maxSpamScore: env.EMAIL_MAX_SPAM_SCORE,
     }),
   };
 
