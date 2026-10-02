@@ -18,9 +18,19 @@ export interface TelegramProcessorDeps {
   router: Router;
   allowedUserIds: readonly number[];
   linkSecret: string | undefined;
+  /** Without a configured transcriber, voice messages get a short reply. */
+  transcriber?: VoiceTranscriber | undefined;
   log?: Pick<Console, 'info' | 'warn' | 'error'>;
   now?: () => Date;
 }
+
+export interface VoiceTranscriber {
+  isConfigured(): boolean;
+  transcribe(audio: Buffer, filename: string, mimeType: string): Promise<string>;
+}
+
+/** Longer voice messages are not transcribed (cost and the 8-second target). */
+export const MAX_VOICE_SECONDS = 300;
 
 export type TelegramOutcome = 'processed' | 'duplicate' | 'ignored' | 'linked';
 
@@ -30,7 +40,9 @@ export const TEXTS = {
   linkInvalid: 'Deze koppellink is verlopen of al gebruikt. Vraag een nieuwe aan.',
   linkTaken: 'Dit Telegram-account is al aan een ander account gekoppeld.',
   linked: 'Gekoppeld. Vanaf nu stuur ik je berichten hier. Zal ik je focus voor vandaag laten zien?',
-  voice: 'Spraakberichten lees ik nog niet. Wil je het typen?',
+  voice: 'Spraakberichten lees ik nu niet. Wil je het typen?',
+  voiceTooLong: 'Dat spraakbericht is langer dan 5 minuten. Stuur je het in kortere stukken?',
+  voiceFailed: 'Dat spraakbericht kon ik niet verstaan. Probeer het nog eens of typ het.',
   unsupported: 'Dit soort bericht lees ik nog niet. Stuur tekst of tik op een knop.',
 } as const;
 
@@ -98,7 +110,7 @@ export function createTelegramProcessor(deps: TelegramProcessorDeps) {
       type: update.content.kind,
     });
 
-    for (const reply of await route(update, user)) {
+    for (const reply of await route(update, user, externalId)) {
       await deps.delivery.send(withChat(user, update.chatId), reply, { via: 'telegram' });
     }
     return 'processed';
@@ -139,7 +151,7 @@ export function createTelegramProcessor(deps: TelegramProcessorDeps) {
     return 'linked';
   }
 
-  async function route(update: TelegramUpdate, user: LinkableUser): Promise<OutboundMessage[]> {
+  async function route(update: TelegramUpdate, user: LinkableUser, externalId: string): Promise<OutboundMessage[]> {
     const { content } = update;
     let inbound: InboundMessage;
     switch (content.kind) {
@@ -163,13 +175,39 @@ export function createTelegramProcessor(deps: TelegramProcessorDeps) {
           source: 'telegram',
         };
         break;
-      case 'voice':
-        // Transcription follows in step 1.6.
-        return [{ text: TEXTS.voice }];
+      case 'voice': {
+        const text = await transcribe(update, content.fileId, content.durationSeconds, externalId);
+        if (typeof text !== 'string') return [text];
+        inbound = { kind: 'text', userId: user.id, text, source: 'voice' };
+        break;
+      }
       case 'unsupported':
         return [{ text: TEXTS.unsupported }];
     }
     return deps.router(inbound);
+  }
+
+  /** Downloads, transcribes and stores the transcript; the audio only lives in memory. */
+  async function transcribe(
+    update: TelegramUpdate,
+    fileId: string,
+    seconds: number,
+    externalId: string,
+  ): Promise<string | OutboundMessage> {
+    if (!deps.transcriber?.isConfigured()) return { text: TEXTS.voice };
+    if (seconds > MAX_VOICE_SECONDS) return { text: TEXTS.voiceTooLong };
+    await quietly(() => deps.client.sendChatAction(update.chatId));
+    try {
+      // The audio stays in this buffer only; it is never stored (BOUWPLAN.md, 14).
+      const audio = await deps.client.downloadFile(fileId);
+      const text = (await deps.transcriber.transcribe(audio, 'voice.ogg', 'audio/ogg')).trim();
+      if (!text) return { text: TEXTS.voiceFailed };
+      await deps.messages.setTranscript('telegram', externalId, text);
+      return text;
+    } catch (error) {
+      log.error('Voice transcription failed:', error);
+      return { text: TEXTS.voiceFailed };
+    }
   }
 
   async function quietly(action: () => Promise<unknown>): Promise<void> {

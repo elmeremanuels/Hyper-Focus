@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { events, messages, users } from '../db/schema/index.js';
 import type { EventName } from '../db/schema/metrics.js';
@@ -23,6 +23,8 @@ export interface MessageStore {
   recordInbound(record: MessageRecord & { externalId: string }): Promise<boolean>;
   recordOutbound(record: MessageRecord & { deliveryStatus: 'sent' | 'failed' }): Promise<void>;
   touchLastInbound(userId: number, at: Date): Promise<void>;
+  /** Stores the transcript of a voice message on its inbound row. */
+  setTranscript(channel: MessageChannel, externalId: string, transcript: string): Promise<void>;
   recordEvent(userId: number, name: EventName, props?: Record<string, unknown>): Promise<void>;
 }
 
@@ -41,6 +43,13 @@ export function createDbMessageStore(db: Database): MessageStore {
       await db
         .insert(messages)
         .values({ ...record, subject: record.subject ?? null, direction: 'out' });
+    },
+
+    async setTranscript(channel, externalId, transcript) {
+      await db
+        .update(messages)
+        .set({ transcript })
+        .where(and(eq(messages.channel, channel), eq(messages.externalId, externalId)));
     },
 
     async touchLastInbound(userId, at) {

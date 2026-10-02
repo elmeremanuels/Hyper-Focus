@@ -291,6 +291,21 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - Na een crisismarkering hervat je handmatig: `update users set status = 'active' where id = …;`
 - **Open:** geen.
 
+## Stap 1.6 — Spraakberichten
+
+- **Datum:** 2026-10-02
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - Telegram-processor: een spraakbericht wordt opgehaald (`getFile` + download, alleen in het geheugen), getranscribeerd (`Transcriber`, OpenAI, `TRANSCRIBE_MODEL`, taal `nl`) en als tekst met bron `voice` door de router gestuurd. Tijdens het transcriberen toont Telegram "aan het typen…".
+  - Het transcript komt in `messages.transcript` bij het binnenkomende bericht. `body` blijft leeg. De audio wordt nergens opgeslagen.
+  - Langer dan 5 minuten → vraag om kortere stukken. Mislukt de transcriptie, of staat hij niet ingesteld, dan volgt de vraag om te typen.
+  - Taken en ideeën uit een spraakbericht krijgen bron `voice`.
+- **Controle (Definition of Done):**
+  - *Binnen 8 seconden een taak of idee, met transcript opgeslagen en audio verwijderd:* `tests/voice.integration.test.ts` (spraak → taak onder Boho, bron `voice`, transcript in de database, `body` leeg) en `tests/telegram-processor.test.ts`. De 8 seconden zijn hier gemeten met nep-diensten. Live meten op de VPS: een spraakbericht van 30 seconden sturen en de tijd tot het antwoord opnemen.
+  - `npm test`: 213 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
+- **Op de VPS:** in `.env` `OPENAI_API_KEY` en `TRANSCRIBE_MODEL` invullen (bijvoorbeeld `gpt-4o-mini-transcribe`; controleer de actuele naam bij OpenAI). Daarna `pm2 restart hyperfocus`.
+- **Open:** Telegram bewaart het spraakbestand zelf op zijn servers; dat kunnen wij niet verwijderen. Hoort in de privacyverklaring (BOUWPLAN 14, beslissing over Telegram vóór fase 3).
+
 ## Volgende stap
 
-1.6 Spraakberichten (9.2).
+1.7 Ideeënbak, weekreview, weekoverzicht (11.7).

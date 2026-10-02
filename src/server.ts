@@ -1,4 +1,5 @@
 import { createApp, type AppOptions } from './app.js';
+import { Transcriber } from './ai/transcribe.js';
 import { createMailProcessor } from './channels/email/processor.js';
 import { createTelegramProcessor } from './channels/telegram/processor.js';
 import { getEnv } from './config/env.js';
@@ -26,6 +27,7 @@ if (env.DATABASE_URL) {
         router: services.router,
         allowedUserIds: env.TELEGRAM_ALLOWED_USER_IDS,
         linkSecret: env.ACTION_LINK_SECRET,
+        transcriber: new Transcriber({ apiKey: env.OPENAI_API_KEY, model: env.TRANSCRIBE_MODEL }),
       }),
     };
   } else {

@@ -70,6 +70,24 @@ export class TelegramClient {
     });
   }
 
+  /** Shows "typing…" while a reply is on its way (for example during transcription). */
+  async sendChatAction(chatId: number, action: 'typing' = 'typing'): Promise<void> {
+    await this.call('sendChatAction', { chat_id: chatId, action });
+  }
+
+  /**
+   * Downloads a file (such as a voice message) into memory. It is never written to disk;
+   * the caller drops the buffer after use (BOUWPLAN.md, 14).
+   */
+  async downloadFile(fileId: string, maxBytes = 20 * 1024 * 1024): Promise<Buffer> {
+    const file = await this.call<{ file_path?: string; file_size?: number }>('getFile', { file_id: fileId });
+    if (!file.file_path) throw new TelegramApiError('getFile', 400, 'No file_path');
+    if ((file.file_size ?? 0) > maxBytes) throw new TelegramApiError('getFile', 413, 'File too large');
+    const response = await this.fetchImpl(`https://api.telegram.org/file/bot${this.token}/${file.file_path}`);
+    if (!response.ok) throw new TelegramApiError('downloadFile', response.status, response.statusText);
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   async setWebhook(url: string, secretToken: string): Promise<void> {
     await this.call('setWebhook', {
       url,
