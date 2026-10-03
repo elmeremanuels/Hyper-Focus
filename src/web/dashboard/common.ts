@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import type { ButtonContext } from '../../conversation/buttons.js';
 import { getProfile } from '../../core/profile.js';
+import type { ClaudeClient } from '../../ai/claude.js';
 import type { Database } from '../../db/client.js';
 import type { CalendarService } from '../../integrations/calendar/service.js';
 import { LOGIN_TEXTS } from '../../texts/dashboard.nl.js';
@@ -12,6 +13,8 @@ export interface DashboardRoutesConfig {
   dashboardBaseUrl: string;
   /** For the connect link and revoking access; the calendar settings show "not available" without it. */
   calendar?: CalendarService | undefined;
+  /** For the assistant (step 2a.7); without it the assistant says it is off. */
+  claude?: Pick<ClaudeClient, 'callWithTools'> | undefined;
   now?: () => Date;
 }
 

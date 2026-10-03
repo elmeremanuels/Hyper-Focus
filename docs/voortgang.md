@@ -805,6 +805,28 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - In Chromium op telefoon en desktop, met de tool-editor en de verwijderbevestiging open: geen fouten.
   - `npm test`: 386 groen.
 
+## Stap 2a.7 — Assistent (Kiki)
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code. Nog niet getest met het echte model (geen API-sleutel in de cloud).
+- **Gebouwd:**
+  - `POST /api/assistant/plan`: het slimme model (`CLAUDE_MODEL_SMART`) maakt van een braindump een voorstel met taken, notities en ideeën. Er wordt dan nog niets opgeslagen.
+  - `POST /api/assistant/apply`: slaat op wat je bevestigt, met dezelfde tools als de Telegram-bot (`add_task`, `log_note`, `add_idea`). Een item dat niet lukt, komt terug als fout. De rest wordt wel opgeslagen.
+  - De items in het voorstel volgen precies de invoer van die tools. Ongeldige items vallen weg.
+  - Grenzen:
+    - een braindump mag hooguit 6000 tekens zijn;
+    - een voorstel heeft hooguit 15 items;
+    - je krijgt hooguit 20 voorstellen per uur, daarna een 429. Die telling staat in `events`.
+  - Welzijn: bij signalen van wanhoop komt eerst de vaste crisistekst met 113, zonder modelcall. Geeft het model zelf zo'n signaal, dan gebeurt hetzelfde. In beide gevallen wordt alles stilgezet, net als in de bot.
+  - De braindump gaat als eigen gebruikersbericht naar het model, los van de instructies.
+  - De prompt staat in `src/ai/prompts/braindump.nl.md`. De naam staat alleen in `src/texts/kiki.nl.ts`.
+  - Op het dashboard staat een knop *Braindump* in de kop. Die opent een paneel met een tekstvak. Na *Ordenen* zie je elk item en kun je het bewerken en aan- of uitvinken.
+  - Publicato bekeken (alleen lezen): de assistent daar is een chat met platte tekst, zonder tools en zonder bevestigstap. Het idee van een limiet per gebruiker met een 429 is overgenomen.
+- **Controle:**
+  - `tests/dashboard-assistant.integration.test.ts` (6 tests): voorstel zonder opslaan, opslaan met de router-tools, een fout per item, grenzen, crisis, en uit zonder Claude.
+  - In Chromium met een nep-model: braindump, voorstel en opslaan op telefoon en desktop. Geen fouten.
+  - `npm test`: 392 groen.
+
 ## Volgende stap
 
-Stap 2a.7: assistent (Kiki).
+Kiki testen op de VPS met een paar echte braindumps. Daarna stap 2a.8: demoweek. Daarvoor is de inhoud van Elmer nodig.

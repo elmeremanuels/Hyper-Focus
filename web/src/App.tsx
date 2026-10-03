@@ -1,6 +1,7 @@
 // The dashboard (fase 2a). A small router on the History API: four screens, no library.
 import { useCallback, useEffect, useState } from 'react';
-import type { Battery, Me } from './api';
+import type { Battery, KikiInfo, Me } from './api';
+import { Kiki } from './components/Kiki';
 import { Card, ROUTES, Shell, type Route } from './components/Shell';
 import { Parking } from './pages/Parking';
 import { Projects } from './pages/Projects';
@@ -16,6 +17,10 @@ export function App() {
   const me = useApi<Me>('/api/me');
   // The battery refreshes once a minute, no faster (1.12 A4).
   const battery = useApi<Battery>('/api/battery', 60_000);
+  const kiki = useApi<KikiInfo>('/api/assistant');
+  const [kikiOpen, setKikiOpen] = useState(false);
+  // Pages reload when the assistant saved something.
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     const onPop = () => setRoute(routeFor(window.location.pathname));
@@ -43,11 +48,34 @@ export function App() {
   if (!me.data) return <p className="p-4 text-muted">{T.loading}</p>;
 
   return (
-    <Shell route={route} go={go} battery={battery.data}>
-      {route === 'today' && <Today onChange={() => void battery.reload()} />}
-      {route === 'projects' && <Projects />}
-      {route === 'parking' && <Parking />}
-      {route === 'settings' && <Settings />}
+    <Shell
+      route={route}
+      go={go}
+      battery={battery.data}
+      assistant={
+        kiki.data?.available && (
+          <button type="button" onClick={() => setKikiOpen(true)} className="rounded-xl border-2 border-ink bg-accent px-3 py-1.5 text-sm font-semibold text-white">
+            {T.kiki.open}
+          </button>
+        )
+      }
+    >
+      {kikiOpen && kiki.data && (
+        <Kiki
+          info={kiki.data}
+          onClose={() => setKikiOpen(false)}
+          onSaved={() => {
+            setVersion((v) => v + 1);
+            void battery.reload();
+          }}
+        />
+      )}
+      <div key={version} className="contents">
+        {route === 'today' && <Today onChange={() => void battery.reload()} />}
+        {route === 'projects' && <Projects />}
+        {route === 'parking' && <Parking />}
+        {route === 'settings' && <Settings />}
+      </div>
     </Shell>
   );
 }
