@@ -58,8 +58,8 @@ export async function reviewStart(ctx: Pick<ButtonContext, 'db' | 'userId' | 'no
   await setState(ctx.db, ctx.userId, 'weekly_review', { step: 1 }, new Date(ctx.now.getTime() + REVIEW_TTL_MS));
   const intro =
     done.length === 0
-      ? 'Tijd voor de weekreview, drie korte stappen.'
-      : `Tijd voor de weekreview, drie korte stappen. Deze week af: ${listTitles(done.map((t) => t.title))} ✔`;
+      ? 'Weekreview, drie tikken.'
+      : `Weekreview, drie tikken. Af deze week: ${listTitles(done.map((t) => t.title))}.`;
   // The week's yield in work (step 1.12): windows, hours of deep work, what went out.
   const timezone = (await getProfile(ctx.db, ctx.userId))?.timezone ?? 'Europe/Amsterdam';
   const yieldLines = await weekYield(ctx.db, ctx.userId, timezone, ctx.now);
@@ -70,9 +70,9 @@ export async function reviewStart(ctx: Pick<ButtonContext, 'db' | 'userId' | 'no
   return {
     text: `${intro}${yieldText}${energy}\nWat ging goed? Tik of stuur een paar woorden.`,
     buttons: [
-      { id: 'wr:good:focus', title: 'Focus hield ik vast' },
+      { id: 'wr:good:focus', title: 'Focus vastgehouden' },
       { id: 'wr:good:clients', title: 'Klanten blij' },
-      { id: 'wr:good:hard', title: 'Was een zware week' },
+      { id: 'wr:good:hard', title: 'Zware week' },
     ],
   };
 }

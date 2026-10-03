@@ -6,7 +6,9 @@ import { Router, type Request } from 'express';
 import { DateTime } from 'luxon';
 import { validateInitData } from '../channels/telegram/webapp.js';
 import { activeBlock } from '../conversation/blocks.js';
+import { getSettings } from '../core/settings.js';
 import { getTask } from '../core/tasks.js';
+import { isWorkday } from '../focus/workweek.js';
 import type { Database } from '../db/client.js';
 import { focusBlocks, rhythmProfiles, tasks, users } from '../db/schema/index.js';
 import { batteryState, type BatteryEvent, type BatteryInput } from '../focus/battery.js';
@@ -92,10 +94,14 @@ export async function batteryInput(db: Database, userId: number, timezone: strin
     confidence = profile?.confidence ?? null;
   }
 
-  const tomorrow = DateTime.fromISO(today).plus({ days: 1 }).toISODate() ?? today;
-  const planned = await windowFor(db, userId, tomorrow);
-  const choice = planned ? undefined : chooseWindow(await windowInput(db, userId, tomorrow));
-  const nextStart = planned?.startsAt ?? localTimeOnDate(timezone, tomorrow, choice?.start ?? '10:30');
+  // The next window is on the next work day (step 1.12).
+  const { workDays } = await getSettings(db, userId);
+  let next = DateTime.fromISO(today).plus({ days: 1 });
+  for (let i = 0; i < 7 && !isWorkday(workDays, next.weekday); i++) next = next.plus({ days: 1 });
+  const nextDate = next.toISODate() ?? today;
+  const planned = await windowFor(db, userId, nextDate);
+  const choice = planned ? undefined : chooseWindow(await windowInput(db, userId, nextDate));
+  const nextStart = planned?.startsAt ?? localTimeOnDate(timezone, nextDate, choice?.start ?? '10:30');
   const nextWindow = { startsAt: nextStart, endsAt: planned?.endsAt ?? new Date(nextStart.getTime() + (choice?.minutes ?? 90) * 60_000) };
 
   const active = await activeBlock(db, userId, now);

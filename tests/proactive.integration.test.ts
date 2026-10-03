@@ -81,7 +81,7 @@ describe.skipIf(!adminUrl)('daily rhythm (integration)', () => {
     const morning = await sendDueNudges(deps, new Date('2026-10-07T06:30:30Z'));
     expect(morning.sent).toBeGreaterThanOrEqual(1);
     const sam = telegram.sent().find((call) => call.body.chat_id === 4242);
-    expect(sam?.body.text).toBe('Goedemorgen Sam. Je focus voor vandaag staat klaar.\nJe focusvenster vandaag: 10:30–12:00. Daar zet ik offerte bakkerij afmaken.');
+    expect(sam?.body.text).toBe('Goedemorgen. Dit zijn je drie.\nJe focusvenster vandaag: 10:30–12:00. Daar zet ik offerte bakkerij afmaken.');
 
     // The heads-up with sound, the missed window without (step 1.12).
     await sendDueNudges(deps, new Date('2026-10-07T08:15:30Z'));

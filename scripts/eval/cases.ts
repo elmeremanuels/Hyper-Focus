@@ -138,6 +138,10 @@ export const CASES: EvalCase[] = [
     check: { tool: 'move_focus_window', fields: { date: '2026-10-08', time: undefined } },
   },
 
+  // work week (step 1.12)
+  { text: 'ik werk ma t/m do van 8 tot 15', tools: one('set_work_week'), check: { tool: 'set_work_week', fields: { start: '08:00', end: '15:00' } } },
+  { text: 'mijn werkweek', tools: one('set_work_week'), check: { tool: 'set_work_week', fields: { days: undefined, start: undefined, end: undefined } } },
+
   // day review (step 1.11)
   { text: 'afsluiten om 17:30', tools: one('update_settings'), check: { tool: 'update_settings', fields: { wrapup_time: '17:30' } } },
   { text: 'energie was vandaag laag', tools: one('set_day_energy'), check: { tool: 'set_day_energy', fields: { energy: 'low' } } },

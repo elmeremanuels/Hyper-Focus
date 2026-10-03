@@ -67,7 +67,7 @@ export function focusMessage(tasks: TaskSummary[], extras: FocusExtras = {}): Ou
   });
   const quickWin = focus.length > 1 ? focus.find((task) => task.id === extras.quickWinTaskId) : undefined;
   const question = quickWin
-    ? `Beginnen met ${lowerFirst(quickWin.title)}? Een snelle winst om op te warmen.`
+    ? `Eerst ${lowerFirst(quickWin.title)}. Snelle winst, daarna je venster.`
     : 'Waar begin je mee?';
   return {
     text: `Vandaag, in deze volgorde:\n${lines.join('\n')}\n${question}`,

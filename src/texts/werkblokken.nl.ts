@@ -3,10 +3,10 @@
 
 export const BLOCK_TEXTS = {
   askDuration: 'Hoe lang ga je aan {taak}?',
-  started: 'Top. {n} minuten voor {taak}. Ik meld me aan het eind.',
-  end: 'Je {n} minuten zitten erop. Hoe ging het?',
-  hyperfocus: 'Je bent al een uur bezig. Tijd voor water en even bewegen.',
-  rewardsOff: 'Beloningen staan uit. Je werkblokken en pauzes lopen gewoon door.',
+  started: '{n} minuten voor {taak}. Ik meld me aan het eind.',
+  end: '{n} minuten erop. Hoe staat {taak} ervoor?',
+  hyperfocus: '{n} minuten diep werk. Tijd voor een pitstop.',
+  rewardsOff: 'Beloningen uit. Blokken en pitstops lopen door.',
   // Step 1.12 (aanpasplan 3 oktober 2026): pitstop, return and the focus log, word for word.
   pitstopDone: '{n} minuten, {taak} af. Pitstop: {opdracht}. Telefoon blijft liggen. Om {tijd} zie ik je terug.',
   backOnTime: 'Terug op tijd. Opgeladen.',
@@ -21,20 +21,20 @@ export const BLOCK_TEXTS = {
   weekBest: 'Beste venster: {dag} {tijd}, {n} minuten.',
   miniAppEnd: 'Je minuut zit erop. Terug naar je werk.',
   firstStep: 'Eerste stap: {stap}.',
-  extended: 'Prima, nog 15 minuten.',
-  extendedBy: 'Prima, nog {n} minuten.',
+  extended: 'Nog 15 minuten. Ik meld me.',
+  extendedBy: 'Nog {n} minuten. Ik meld me.',
   stopped: 'Gestopt.',
   rewardsOn: 'Beloningen staan weer aan.',
 } as const;
 
 export const BLOCK_BUTTONS = {
   stop: 'Stoppen',
-  done: 'Afgerond',
+  done: 'Af',
   plus15: 'Nog 15 min',
   back: 'Ik ben terug',
   reward: 'Je minuut',
   nextBlock: 'Volgende blok',
-  takeBreak: 'Pauze nemen',
+  takeBreak: 'Pitstop nemen',
   rewardsOnAgain: 'Weer aanzetten',
   rewardsOffHelp: 'Beloningen uit',
   rewardsOnHelp: 'Beloningen aan',

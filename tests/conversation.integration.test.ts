@@ -70,7 +70,7 @@ describe.skipIf(!adminUrl)('conversation layer (integration)', () => {
 
   it('keeps ideas out of tasks', async () => {
     const outcome = await runTool(CORE_TOOLS, 'add_idea', { text: 'Workshop voor bakkers' }, ctx());
-    expect(outcome.reply?.text).toBe('Staat in je ideeënbak. Zondag kijken we ernaar.');
+    expect(outcome.reply?.text).toBe('Staat in je ideeënbak. Vrijdag kijken we ernaar.');
     const rows = await t.connection.db.select().from(ideas).where(eq(ideas.text, 'Workshop voor bakkers'));
     expect(rows).toHaveLength(1);
     expect(await t.connection.db.select().from(tasks).where(eq(tasks.title, 'Workshop voor bakkers'))).toHaveLength(0);
@@ -94,7 +94,7 @@ describe.skipIf(!adminUrl)('conversation layer (integration)', () => {
     const task = await taskByTitle('Factuur september versturen');
 
     const [reply] = await router({ kind: 'button', userId: t.userId, buttonId: `t:${task.id}:done`, title: 'Gedaan' });
-    expect(reply?.text).toBe('✔ Factuur september versturen is af.');
+    expect(reply?.text).toBe('Factuur september versturen is af.');
     expect((await taskByTitle('Factuur september versturen')).status).toBe('done');
 
     await router({ kind: 'button', userId: t.userId, buttonId: 'f:show', title: 'Laat zien' });

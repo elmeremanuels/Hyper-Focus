@@ -28,6 +28,7 @@ import { firstFreeSlot } from '../proactive/daycalendar.js';
 import { todaysEvents } from '../proactive/calendar-messages.js';
 import { fill } from '../texts/werkblokken.nl.js';
 import { WEEKDAY_NAMES, WINDOW_BUTTONS, WINDOW_TEXTS } from '../texts/focusvenster.nl.js';
+import { normalizeDays } from '../focus/workweek.js';
 import type { ButtonContext, ButtonExtension, ParsedButton } from './buttons.js';
 import { getState, setState } from './state.js';
 import { defineTool, type ToolDefinition } from './tools.js';
@@ -319,7 +320,8 @@ export async function rhythmProposalMessage(ctx: NudgeCtx): Promise<OutboundMess
   if (!proposal) return undefined;
   await recordEvent(ctx.db, ctx.userId, 'rhythm_proposed', { asked: true, ...proposal }, ctx.now);
   const names = proposal.weekdays.map((d) => WEEKDAY_NAMES[d - 1] ?? '');
-  const dagen = names.length === 5 && proposal.weekdays.join('') === '12345' ? 'werkdagen' : joinDutch(names);
+  const { workDays } = await getSettings(ctx.db, ctx.userId);
+  const dagen = proposal.weekdays.join() === normalizeDays(workDays).join() ? 'werkdagen' : joinDutch(names);
   return {
     text: fill(WINDOW_TEXTS.learned, { dagen, tijd: proposal.start }),
     buttons: [

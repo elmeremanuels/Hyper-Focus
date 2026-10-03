@@ -30,6 +30,7 @@ export type ParsedButton =
   | { kind: 'window'; windowId: number; action: 'start' | 'move' | 'shift' | 'tomorrow' | 'yes' | 'no' | 'skip'; value?: string }
   | { kind: 'rhythm'; action: 'yes'; start: string; weekdays: number[] }
   | { kind: 'rhythm'; action: 'keep' }
+  | { kind: 'workweek'; action: 'ask' | 'other' | 'days' | 'hours'; value: string }
   | { kind: 'tools'; action: 'start' | 'missing' | 'pick' | 'skip' | 'other' | 'paste' | 'keep' | 'edit' | 'del'; workType?: string; toolKey?: string }
   | { kind: 'help' };
 
@@ -74,6 +75,11 @@ export function parseButtonId(id: string): ParsedButton | undefined {
     return { kind: 'rhythm', action: 'yes', start: `${time.slice(0, 2)}:${time.slice(2)}`, weekdays: [...(match[2] ?? '')].map(Number) };
   }
   if (id === 'rh:keep') return { kind: 'rhythm', action: 'keep' };
+  if (id === 'ww:ask' || id === 'ww:other') return { kind: 'workweek', action: id === 'ww:ask' ? 'ask' : 'other', value: '' };
+  match = /^ww:d:([1-7]{1,7})$/.exec(id);
+  if (match) return { kind: 'workweek', action: 'days', value: match[1] ?? '' };
+  match = /^ww:h:((?:[01]\d|2[0-3])[0-5]\d-(?:[01]\d|2[0-3])[0-5]\d)$/.exec(id);
+  if (match) return { kind: 'workweek', action: 'hours', value: match[1] ?? '' };
   if (id === 'rw:on' || id === 'rw:off') return { kind: 'rewards', enabled: id === 'rw:on' };
   if (id === 'tl:start' || id === 'tl:missing') return { kind: 'tools', action: id === 'tl:start' ? 'start' : 'missing' };
   match = /^tl:([a-z]+):pick:([a-z_]+)$/.exec(id);
@@ -111,8 +117,8 @@ export async function helpMessage(ctx: Pick<ButtonContext, 'db' | 'userId'>): Pr
 
 export const HELP_MESSAGE: OutboundMessage = {
   text:
-    'Stuur me wat je moet doen, een idee of een vraag in gewone woorden. "Vandaag" laat je focus zien. ' +
-    '"Mijn tools" zet knoppen klaar die je direct naar je eigen tools brengen.',
+    'Stuur een taak, idee of vraag in gewone woorden. "Vandaag" toont je focus. ' +
+    '"Mijn tools" zet je werkplek-knoppen klaar. "Mijn ritme" zet je focusvenster. "Mijn werkweek" zet je werkdagen en -tijden.',
   buttons: [SHOW_TODAY, { id: 'tl:start', title: 'Tools instellen' }],
 };
 
@@ -182,6 +188,7 @@ export async function handleButton(
     case 'pref':
     case 'window':
     case 'rhythm':
+    case 'workweek':
     case 'plan':
       return [UNKNOWN];
   }
@@ -198,7 +205,7 @@ async function handleTaskButton(
   switch (action) {
     case 'done':
       await setTaskStatus(db, userId, taskId, 'done', now);
-      return { text: `✔ ${task.title} is af.`, buttons: [SHOW_TODAY] };
+      return { text: `${task.title} is af.`, buttons: [SHOW_TODAY] };
     case 'tomorrow':
       await carryOver(db, userId, taskId, startOfNextLocalDay(timezone, now));
       return { text: `${task.title} staat klaar voor morgen.` };
@@ -230,7 +237,7 @@ async function finishDay(action: 'carry' | 'alldone', { db, userId, timezone, no
     .update(dailyFocus)
     .set({ wrapupDoneAt: now })
     .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, localDate(timezone, now))));
-  if (action === 'alldone') return { text: 'Alles af ✔ Sterk gedaan. Tot morgen.' };
+  if (action === 'alldone') return { text: 'Alles af. Tot morgen.' };
   return { text: open.length > 0 ? 'Staat klaar voor morgen. Fijne avond.' : 'Fijne avond.' };
 }
 

@@ -67,7 +67,7 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
 
     // The block end makes a sound.
     expect((await send(at('08:45:10'))).sent).toBe(1);
-    expect(lastSent()?.text).toBe('Je 15 minuten zitten erop. Hoe ging het?');
+    expect(lastSent()?.text).toBe('15 minuten erop. Hoe staat banner voor de feestdagen ervoor?');
     expect(lastSent()?.disable_notification).toBeUndefined();
     const blockId = blockIdFrom(lastSent(), 'done');
 
@@ -144,27 +144,27 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     await tap(at('10:15:10'), `blk:${blockIdFrom(lastSent(), 'done')}:done`);
     await tap(at('10:16:00'), `blk:t${banner}:m25`);
     await send(at('10:41:05'));
-    expect(lastSent()?.text).toBe('Je 25 minuten zitten erop. Hoe ging het?');
+    expect(lastSent()?.text).toBe('25 minuten erop. Hoe staat banner voor de feestdagen ervoor?');
     await tap(at('10:41:10'), `blk:${blockIdFrom(lastSent(), 'done')}:done`);
     await tap(at('10:42:00'), `blk:t${banner}:m25`);
 
     const before = deliveryKit!.telegram.sent().length;
     await send(at('11:07:05'));
     expect(deliveryKit!.telegram.sent()).toHaveLength(before + 1);
-    expect(lastSent()?.text).toBe('Je bent al een uur bezig. Tijd voor water en even bewegen.');
-    expect(JSON.stringify(lastSent()?.reply_markup)).toContain('Pauze nemen');
+    expect(lastSent()?.text).toBe('65 minuten diep werk. Tijd voor een pitstop.');
+    expect(JSON.stringify(lastSent()?.reply_markup)).toContain('Pitstop nemen');
     expect(lastSent()?.disable_notification).toBeUndefined();
     const blockId = blockIdFrom(lastSent(), 'plus15');
 
     await tap(at('11:08:00'), `blk:${blockId}:plus15`);
     await send(at('11:23:05'));
-    expect(lastSent()?.text).toBe('Je bent al een uur bezig. Tijd voor water en even bewegen.');
+    expect(lastSent()?.text).toMatch(/^\d+ minuten diep werk\. Tijd voor een pitstop\.$/);
     expect(deliveryKit!.telegram.sent()).toHaveLength(before + 2);
 
     // Third time: no more insisting, only the normal question.
     await tap(at('11:24:00'), `blk:${blockId}:plus15`);
     await send(at('11:39:05'));
-    expect(lastSent()?.text).toBe('Je 15 minuten zitten erop. Hoe ging het?');
+    expect(lastSent()?.text).toBe('15 minuten erop. Hoe staat banner voor de feestdagen ervoor?');
     expect(deliveryKit!.telegram.sent()).toHaveLength(before + 3);
   });
 
@@ -191,7 +191,7 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     const [help] = await say(at('11:59:00'), 'help');
     expect(help?.buttons?.map((b) => b.title)).toContain('Beloningen uit');
     const [off] = await say(at('12:00:00'), 'zet beloningen uit');
-    expect(off?.text).toBe('Beloningen staan uit. Je werkblokken en pauzes lopen gewoon door.');
+    expect(off?.text).toBe('Beloningen uit. Blokken en pitstops lopen door.');
     const banner = await taskId('Banner voor de feestdagen');
     const [started] = await tap(at('12:00:00'), `blk:t${banner}:m15`);
     const blockId = Number(/blk:(\d+):stop/.exec(started!.buttons![0]!.id)?.[1]);
@@ -212,7 +212,7 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     const offerte = await taskId('Offerte bakkerij afmaken');
     const claude = scriptedClaude([{ tools: [{ name: 'start_session', input: { task_id: offerte, minutes: 40 } }] }, { text: 'Komt goed.' }]);
     const replies = await say(at('13:00:00'), 'even 40 min aan de offerte', claude);
-    expect(replies[0]?.text).toContain('Top. 45 minuten voor offerte bakkerij afmaken.');
+    expect(replies[0]?.text).toContain('45 minuten voor offerte bakkerij afmaken.');
     const [block] = await db().select().from(focusBlocks).where(eq(focusBlocks.userId, t.userId));
     expect(block?.plannedMinutes).toBe(45);
   });
@@ -287,12 +287,12 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     const hf = sent.filter((m) => !m.user && m.at >= at('11:00:00') && m.at < at('12:30:00'));
     expect(hf.map((m) => `${m.silent ? 'stil' : 'geluid'}: ${m.text.split('.')[0]}`)).toEqual([
       'geluid: Hoe lang ga je aan factuur september versturen?',
-      'geluid: Top',
-      'geluid: Je 25 minuten zitten erop',
+      'geluid: 25 minuten voor factuur september versturen',
+      'geluid: 25 minuten erop',
       'stil: 30 minuten gewerkt',
       'stil: Terug op tijd',
-      'geluid: Top',
-      'geluid: Je 15 minuten zitten erop',
+      'geluid: 15 minuten voor factuur september versturen',
+      'geluid: 15 minuten erop',
       'stil: 20 minuten gewerkt',
       'geluid: Pitstop voorbij',
       'stil: Welkom terug',

@@ -26,6 +26,7 @@ import type { Button, InboundSource, OutboundMessage } from './types.js';
 import { focusView, parkingMessage, SHOW_TODAY } from './views.js';
 import { weeklyToolQuestion, workplaceButton } from './workplace.js';
 import { WORK_TYPES } from '../tools/catalog.js';
+import { dayName, lastWorkday } from '../focus/workweek.js';
 
 export interface ToolContext {
   db: Database;
@@ -196,9 +197,11 @@ const addIdeaTool = defineTool({
   input: z.object({ text: z.string().min(2).max(1000) }),
   async run(input, ctx) {
     await addIdea(ctx.db, ctx.userId, input.text, ctx.source === 'web' ? 'web' : ctx.source);
+    // The weekly review falls on the last work day (step 1.12).
+    const day = dayName(lastWorkday((await getSettings(ctx.db, ctx.userId)).workDays));
     return {
       content: 'Idee opgeslagen in de ideeënbak.',
-      reply: { text: 'Staat in je ideeënbak. Zondag kijken we ernaar.' },
+      reply: { text: `Staat in je ideeënbak. ${day.charAt(0).toUpperCase()}${day.slice(1)} kijken we ernaar.` },
     };
   },
 });
@@ -329,7 +332,9 @@ const pause = defineTool({
 
 const updateSettingsTool = defineTool({
   name: 'update_settings',
-  description: 'Wijzig een instelling, bijv. "stuur \'s ochtends pas om 9 uur" (morning_time 09:00). Tijden als HH:MM.',
+  description:
+    'Wijzig een instelling, bijv. "stuur \'s ochtends pas om 9 uur" (morning_time 09:00). Tijden als HH:MM. ' +
+    'Werkdagen, werktijden en de dag van de weekreview gaan via set_work_week.',
   input: z.object({
     morning_time: time.optional(),
     wrapup_time: time.optional(),
@@ -338,8 +343,6 @@ const updateSettingsTool = defineTool({
     quiet_end: time.optional(),
     max_proactive_per_day: z.number().int().min(1).max(8).optional(),
     session_minutes: z.number().int().min(10).max(90).optional(),
-    weekly_review_day: z.number().int().min(1).max(7).optional().describe('1 = maandag … 7 = zondag.'),
-    weekly_review_time: time.optional(),
   }),
   async run(input, ctx) {
     const patch: SettingsPatch = {
@@ -350,8 +353,6 @@ const updateSettingsTool = defineTool({
       ...(input.quiet_end && { quietEnd: input.quiet_end }),
       ...(input.max_proactive_per_day !== undefined && { maxProactivePerDay: input.max_proactive_per_day }),
       ...(input.session_minutes !== undefined && { sessionMinutes: input.session_minutes }),
-      ...(input.weekly_review_day !== undefined && { weeklyReviewDay: input.weekly_review_day }),
-      ...(input.weekly_review_time && { weeklyReviewTime: input.weekly_review_time }),
     };
     if (Object.keys(patch).length === 0) return { content: 'Geen instelling opgegeven.', isError: true };
     await updateSettings(ctx.db, ctx.userId, patch);

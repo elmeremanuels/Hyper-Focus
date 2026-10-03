@@ -7,6 +7,7 @@ import { getProfile, type UserProfile } from '../core/profile.js';
 import type { Database } from '../db/client.js';
 import { handleButton, helpMessage, type ButtonContext, type ButtonExtension } from './buttons.js';
 import { dayReviewButtons, dayReviewModeHandler, DAY_REVIEW_TOOLS } from './day-review.js';
+import { DAYS_QUESTION, workWeekButtons, WORK_WEEK_TOOLS } from './work-week.js';
 import { FOCUS_WINDOW_TOOLS, focusWindowButtons, landingModeHandler, PREF_QUESTION } from './focus-window.js';
 import { askDuration, blockButtons, BLOCK_TOOLS, pauseModeHandler, planBlockMinutes, setRewards, startBlock, type DefaultBlockMinutes } from './blocks.js';
 import { loadContext, renderContext } from './context.js';
@@ -54,6 +55,7 @@ export const ROUTER_TOOLS: ToolDefinition[] = [
   ...BLOCK_TOOLS,
   ...DAY_REVIEW_TOOLS,
   ...FOCUS_WINDOW_TOOLS,
+  ...WORK_WEEK_TOOLS,
   ...CALENDAR_TOOLS,
   ...WORKPLACE_TOOLS,
   crisisTool,
@@ -71,8 +73,9 @@ export const TEXTS = {
 } as const;
 
 // Fixed words that never need an AI call (the Telegram commands map to these).
-const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools' | 'rewards_off' | 'rewards_on' | 'rhythm'> = {
+const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools' | 'rewards_off' | 'rewards_on' | 'rhythm' | 'workweek'> = {
   'mijn ritme': 'rhythm',
+  'mijn werkweek': 'workweek',
   'zet beloningen uit': 'rewards_off',
   'zet beloningen aan': 'rewards_on',
   'mijn tools': 'tools',
@@ -89,6 +92,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     blockButtons(deps.defaultBlockMinutes),
     dayReviewButtons(),
     focusWindowButtons((c, taskId) => askDuration(c, taskId)),
+    workWeekButtons(),
     sessionButtons(),
     reviewButtons(),
     planSessionButton(),
@@ -162,6 +166,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     if (fixed === 'review') return [await reviewStart(ctx)];
     if (fixed === 'tools') return [await toolsOverview(ctx)];
     if (fixed === 'rhythm') return [PREF_QUESTION];
+    if (fixed === 'workweek') return [DAYS_QUESTION];
 
     if (!deps.claude) return [{ text: TEXTS.noAi, buttons: [SHOW_TODAY] }];
 

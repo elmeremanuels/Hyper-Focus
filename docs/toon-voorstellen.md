@@ -9,7 +9,7 @@ Alle bot-teksten nagelopen op de toonregels uit het aanpasplan. Daar gaat het om
 - zonder medische claims;
 - zonder kinderpraat of emoji.
 
-Dit zijn voorstellen. Er is nog niets veranderd. Keur per regel goed (✔) of af (✗); de goedgekeurde regels zet ik in een aparte PR door.
+Status: alle 21 voorstellen goedgekeurd op 3 oktober 2026 en doorgevoerd in stap 1.12 D. Bij #1 komt het aantal mee: "Dit zijn je drie.", "Dit zijn je twee." of "Eén taak vandaag.".
 
 De teksten uit het aanpasplan zelf staan al letterlijk in de code en zijn hier weggelaten. Dat geldt ook voor de crisistekst (113 en de huisarts): die blijft zoals hij is.
 

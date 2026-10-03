@@ -263,11 +263,11 @@ export async function handleSessionButton(
   let reply: OutboundMessage;
   if (!top || top.id === taskId || step.id === taskId) {
     const main = await getTask(ctx.db, ctx.userId, taskId);
-    reply = { text: `✔ ${main?.title ?? step.title} is af.`, buttons: [SHOW_TODAY] };
+    reply = { text: `${main?.title ?? step.title} is af.`, buttons: [SHOW_TODAY] };
   } else {
     const next = await nextStep(ctx.db, ctx.userId, taskId);
     reply = {
-      text: `✔ Stap af. Volgende stap: ${lowerFirst(next?.title ?? '')}. Doorgaan?`,
+      text: `Stap af. Volgende: ${lowerFirst(next?.title ?? '')}. Doorgaan?`,
       buttons: [
         { id: `t:${taskId}:start`, title: 'Doorgaan' },
         { id: 'f:later', title: 'Pauze' },

@@ -78,7 +78,7 @@ export async function composeEscalation(ctx: NudgeContext, taskId: number, level
     return {
       subject: 'Op je parkeerplaats',
       message: {
-        text: `Ik heb ${title} in je parkeerplaats gezet. Dan hoeft hij niet meer door je hoofd te spoken. Je haalt hem terug met "parkeerplaats".`,
+        text: `${title} staat op je parkeerplaats. Terughalen kan altijd.`,
         buttons: [{ id: `t:${taskId}:unpark`, title: 'Terughalen' }],
       },
     };
@@ -87,7 +87,7 @@ export async function composeEscalation(ctx: NudgeContext, taskId: number, level
     return {
       subject: task.title,
       message: {
-        text: `${task.title} blijft liggen. Vaak is hij dan te groot of te vaag. Wat helpt?`,
+        text: `${task.title} blijft liggen. Te groot of te vaag?`,
         buttons: [
           { id: `t:${taskId}:split`, title: 'Opknippen' },
           { id: `t:${taskId}:park`, title: 'Parkeren' },
@@ -99,7 +99,7 @@ export async function composeEscalation(ctx: NudgeContext, taskId: number, level
   return {
     subject: task.title,
     message: {
-      text: `Zal ik ${title} opknippen? Met een kleine eerste stap is beginnen makkelijker.`,
+      text: `Zal ik ${title} opknippen? Een kleine eerste stap helpt.`,
       buttons: [
         { id: `t:${taskId}:split`, title: 'Opknippen' },
         { id: `t:${taskId}:tomorrow`, title: 'Morgen' },

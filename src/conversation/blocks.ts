@@ -257,9 +257,9 @@ function windowEndButtons(blockId: number): Button[] {
   ];
 }
 
-function hyperfocusMessage(blockId: number): OutboundMessage {
+function hyperfocusMessage(blockId: number, minutes: number): OutboundMessage {
   return {
-    text: BLOCK_TEXTS.hyperfocus,
+    text: fill(BLOCK_TEXTS.hyperfocus, { n: Math.round(minutes) }),
     buttons: [
       { id: `blk:${blockId}:break`, title: BLOCK_BUTTONS.takeBreak },
       { id: `blk:${blockId}:plus15`, title: BLOCK_BUTTONS.plus15 },
@@ -274,9 +274,10 @@ export async function composeBlockEnd(ctx: { db: Database; userId: number; now: 
   await schedule(ctx.db, ctx.userId, 'pause_close', new Date(ctx.now.getTime() + CLOSE_AFTER_MINUTES * 60_000), { blockId, phase: 'block' });
 
   const threshold = block.inWindow ? WINDOW_HYPERFOCUS_MINUTES : HYPERFOCUS_MINUTES;
-  if (block.hyperfocusPrompts === 0 && (await chainMinutes(ctx.db, ctx.userId, block, ctx.now)) >= threshold) {
+  const chain = await chainMinutes(ctx.db, ctx.userId, block, ctx.now);
+  if (block.hyperfocusPrompts === 0 && chain >= threshold) {
     await updateBlock(ctx.db, block.id, { hyperfocusPrompts: 1 });
-    return { subject: 'Tijd voor een pauze', message: hyperfocusMessage(block.id) };
+    return { subject: 'Tijd voor een pitstop', message: hyperfocusMessage(block.id, chain) };
   }
   if (block.inWindow) {
     const task = block.taskId ? await getTask(ctx.db, ctx.userId, block.taskId) : undefined;
@@ -287,7 +288,11 @@ export async function composeBlockEnd(ctx: { db: Database; userId: number; now: 
     };
   }
   const n = block.extendedMinutes > 0 ? EXTEND_MINUTES : block.plannedMinutes;
-  return { subject: 'Je blok zit erop', message: { text: fill(BLOCK_TEXTS.end, { n }), buttons: endButtons(block.id) } };
+  const task = block.taskId ? await getTask(ctx.db, ctx.userId, block.stepId ?? block.taskId) : undefined;
+  return {
+    subject: 'Je blok zit erop',
+    message: { text: fill(BLOCK_TEXTS.end, { n, taak: lowerFirst(task?.title ?? 'je taak') }), buttons: endButtons(block.id) },
+  };
 }
 
 /** hyperfocus_break: the second and last pause message after "Nog 15 min". */
@@ -296,7 +301,7 @@ export async function composeHyperfocusBreak(ctx: { db: Database; userId: number
   if (!block || block.endedAt) return { skip: 'block_closed' };
   await updateBlock(ctx.db, block.id, { hyperfocusPrompts: 2 });
   await schedule(ctx.db, ctx.userId, 'pause_close', new Date(ctx.now.getTime() + CLOSE_AFTER_MINUTES * 60_000), { blockId, phase: 'block' });
-  return { subject: 'Tijd voor een pauze', message: hyperfocusMessage(block.id) };
+  return { subject: 'Tijd voor een pitstop', message: hyperfocusMessage(block.id, await chainMinutes(ctx.db, ctx.userId, block, ctx.now)) };
 }
 
 /** return_reminder: once, with sound, when the pause time ran out. */

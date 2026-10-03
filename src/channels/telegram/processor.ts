@@ -163,6 +163,8 @@ export function createTelegramProcessor(deps: TelegramProcessorDeps) {
     try {
       const [pref] = await deps.router({ kind: 'button', userId: user.id, buttonId: 'fp:ask', title: 'Mijn ritme', source: 'telegram' });
       if (pref) await deps.delivery.send(linkedUser, pref, { via: 'telegram' });
+      const [week] = await deps.router({ kind: 'button', userId: user.id, buttonId: 'ww:ask', title: 'Mijn werkweek', source: 'telegram' });
+      if (week) await deps.delivery.send(linkedUser, week, { via: 'telegram' });
     } catch (error) {
       log.error('Asking the focus preference failed:', error);
     }
