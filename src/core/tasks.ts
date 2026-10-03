@@ -90,6 +90,16 @@ export async function getTask(db: Database, userId: number, taskId: number): Pro
   return row;
 }
 
+/** Tasks by id, in the given order, one query at a time. Missing ids are left out. */
+export async function getTasksInOrder(db: Database, userId: number, taskIds: number[]): Promise<TaskSummary[]> {
+  const found: TaskSummary[] = [];
+  for (const id of taskIds) {
+    const task = await getTask(db, userId, id);
+    if (task) found.push(task);
+  }
+  return found;
+}
+
 export interface NewTask {
   userId: number;
   projectId: number;

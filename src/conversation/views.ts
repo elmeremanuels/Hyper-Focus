@@ -2,7 +2,7 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { dailyFocus, tasks } from '../db/schema/index.js';
-import { getTask, listOpenTasks, listParkedTasks, type TaskSummary } from '../core/tasks.js';
+import { getTasksInOrder, listOpenTasks, listParkedTasks, type TaskSummary } from '../core/tasks.js';
 import { getSettings } from '../core/settings.js';
 import { eventsBetween } from '../integrations/calendar/sync.js';
 import { localDate, localNow } from '../lib/time.js';
@@ -18,7 +18,7 @@ export async function todaysFocus(db: Database, userId: number, timezone: string
     .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, localDate(timezone, now))));
 
   if (planned && planned.taskIds.length > 0) {
-    const found = await Promise.all(planned.taskIds.map((id) => getTask(db, userId, id)));
+    const found = await getTasksInOrder(db, userId, planned.taskIds);
     const open = found.filter(
       (task): task is TaskSummary => task !== undefined && (task.status === 'open' || task.status === 'in_progress'),
     );
@@ -44,7 +44,7 @@ export async function openFocusTasks(db: Database, userId: number, timezone: str
     .from(dailyFocus)
     .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, localDate(timezone, now))));
   if (!planned) return [];
-  const found = await Promise.all(planned.taskIds.map((id) => getTask(db, userId, id)));
+  const found = await getTasksInOrder(db, userId, planned.taskIds);
   return found.filter(
     (task): task is TaskSummary => task !== undefined && (task.status === 'open' || task.status === 'in_progress'),
   );
