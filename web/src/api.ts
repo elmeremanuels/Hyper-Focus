@@ -114,3 +114,20 @@ export interface Settings {
 
 export const put = <T = { ok: true }>(path: string, body: unknown) => api<T>(path, { method: 'PUT', body: JSON.stringify(body) });
 export const del = <T = { ok: true }>(path: string) => api<T>(path, { method: 'DELETE' });
+
+export type KikiItem =
+  | { kind: 'task'; title: string; estimated_minutes: number; project_id?: number; client_name?: string; due_date?: string; notes?: string; work_type?: string; where?: string | null }
+  | { kind: 'note'; note: string; project_id?: number; client_name?: string; due_date?: string; where?: string | null }
+  | { kind: 'idea'; text: string; where?: string | null };
+
+export interface KikiPlan {
+  reply: string;
+  items: KikiItem[];
+  crisis?: boolean;
+}
+
+export interface KikiInfo {
+  name: string;
+  available: boolean;
+  maxChars: number;
+}

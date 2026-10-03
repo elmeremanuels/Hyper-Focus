@@ -38,6 +38,8 @@ export const EVENT_NAMES = [
   'work_week_set',
   'login_link_sent',
   'login',
+  'assistant_planned',
+  'assistant_applied',
   'overwhelm',
   'nudge_skipped',
 ] as const;

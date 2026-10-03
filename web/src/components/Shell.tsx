@@ -8,7 +8,7 @@ import { Battery } from './Battery';
 export type Route = 'today' | 'projects' | 'parking' | 'settings';
 export const ROUTES: Record<Route, string> = { today: '/', projects: '/projecten', parking: '/parkeerplaats', settings: '/instellingen' };
 
-export function Shell({ route, go, battery, children }: { route: Route; go: (r: Route) => void; battery: BatteryData | undefined; children: ReactNode }) {
+export function Shell({ route, go, battery, assistant, children }: { route: Route; go: (r: Route) => void; battery: BatteryData | undefined; assistant?: ReactNode; children: ReactNode }) {
   const tabs = (Object.keys(ROUTES) as Route[]).map((r) => (
     <a
       key={r}
@@ -30,7 +30,10 @@ export function Shell({ route, go, battery, children }: { route: Route; go: (r: 
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 pb-24 sm:pb-8">
       <header className="flex items-center justify-between py-4">
         <span className="font-display text-xl font-bold tracking-tight">{T.appName}</span>
-        <Battery battery={battery} />
+        <div className="flex items-center gap-3">
+          {assistant}
+          <Battery battery={battery} />
+        </div>
       </header>
       <nav className="mb-6 hidden gap-2 rounded-xl border-2 border-ink bg-card p-1 shadow-hard sm:flex">{tabs}</nav>
       <main className="flex-1">{children}</main>
