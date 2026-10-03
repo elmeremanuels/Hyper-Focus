@@ -284,8 +284,16 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - De evaluatiecontext is eenduidig en accepteert het tweede goede antwoord.
   - Klaar voor Sonnet 5.5 en Opus 5.5: die weigeren een afgedwongen tool. De client biedt bij opknippen alleen `break_down` aan, met `tool_choice: auto` en de opdracht in de prompt. Nieuwe optionele variabelen `CLAUDE_EFFORT_FAST` en `CLAUDE_EFFORT_SMART`. `max_tokens` van de router naar 4096, voor denkstappen.
   - `npm run eval -- --model … --effort …` vergelijkt modellen zonder `.env` te wijzigen, en toont de tijd per bericht en de tokens.
-- **Controle:** `npm test` 187 groen. De eval moet opnieuw op de VPS draaien.
-- **Open:** de keuze van het model na de vergelijking op de VPS.
+- **Controle:** `npm test` 187 groen.
+- **Meting op de VPS (2026-10-03, `afc7003`):**
+
+  | Model | Score | Mediaan | Traagste 10% | Input per bericht |
+  |---|---|---|---|---|
+  | Haiku 4.5 | 58/61 (95%) | 1,0 s | 1,7 s | 4.680 tokens |
+  | Sonnet 5.5, effort low | 60/61 (98%) | 1,6 s | 2,6 s | 5.715 tokens |
+
+- **Besluit:** Haiku blijft het snelle model; `CLAUDE_EFFORT_FAST` blijft leeg. Definition of Done van 1.2 (≥ 90%) is gehaald.
+- **Restmissers Haiku:** "boho vraagt om een extra mailing" (notitie in plaats van taak), een spraakachtige zin over Jansen (geen tool), "help me starten met de jaarplanning" (geen tool). Die laatste raakt 1.4: live controleren of opknippen in Telegram werkt. Lukt het daar vaak niet, dan is Sonnet 5.5 met effort low de terugvaloptie (`.env` aanpassen, geen code).
 
 ## Volgende stap
 
