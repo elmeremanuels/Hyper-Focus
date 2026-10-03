@@ -41,6 +41,9 @@ export const envSchema = z.object({
   ANTHROPIC_API_KEY: optionalString,
   CLAUDE_MODEL_FAST: optionalString,
   CLAUDE_MODEL_SMART: optionalString,
+  /** Optional: low | medium | high | xhigh | max. Leave empty for Haiku 4.5. */
+  CLAUDE_EFFORT_FAST: z.preprocess(emptyToUndefined, z.enum(['low', 'medium', 'high', 'xhigh', 'max']).optional()),
+  CLAUDE_EFFORT_SMART: z.preprocess(emptyToUndefined, z.enum(['low', 'medium', 'high', 'xhigh', 'max']).optional()),
 
   // Transcription
   OPENAI_API_KEY: optionalString,

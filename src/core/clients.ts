@@ -5,7 +5,7 @@ import { bestWordMatch, normalizeName } from '../lib/match.js';
 
 export async function listActiveClients(db: Database, userId: number) {
   return db
-    .select({ id: clients.id, name: clients.name, notes: clients.notes })
+    .select({ id: clients.id, name: clients.name, contactName: clients.contactName, notes: clients.notes })
     .from(clients)
     .where(and(eq(clients.userId, userId), eq(clients.status, 'active')))
     .orderBy(asc(clients.name));

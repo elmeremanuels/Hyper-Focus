@@ -41,12 +41,12 @@ export const EVAL_CONTEXT: ContextData = {
     { id: 3, title: 'Onderhoud Fietsenmaker Jansen', clientName: 'Fietsenmaker Jansen' },
     { id: 4, title: 'Losse taken', clientName: null },
   ],
-  clients: ['Bakkerij De Vries', 'Boho Interieur', 'Fietsenmaker Jansen'],
+  clients: ['Bakkerij De Vries (Anna)', 'Boho Interieur (Mo)', 'Fietsenmaker Jansen (Kees)'],
   suggestions: [{ id: 3, title: 'Knop "Kom proeven" op de homepage van de bakkerij', status: 'in_progress' }],
   session: null,
   recentMessages: [
     { direction: 'out', body: 'Vandaag, in deze volgorde:\n1. Offerte bakkerij afmaken · 60 min\n2. Onderwerpregels nieuwsbrief kiezen · 15 min\n3. Factuur september versturen · 5 min\nWaar begin je mee?' },
-    { direction: 'in', body: 'eerst de offerte' },
-    { direction: 'out', body: 'Top. Begin met de offerte. Daarna de banner voor de feestdagen?' },
+    { direction: 'in', body: 'de offerte loopt al, die pak ik vanmiddag verder' },
+    { direction: 'out', body: 'Prima. Zullen we nu de banner voor de feestdagen doen? Dat is 30 minuten.' },
   ],
 };

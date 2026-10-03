@@ -19,7 +19,12 @@ const one = (tool: string) => [[tool]];
 
 export const CASES: EvalCase[] = [
   // add_task, with the client's project where there is one
-  { text: 'bakkerij wil een nieuwe banner voor de kerst, uiterlijk vrijdag', tools: one('add_task'), check: { tool: 'add_task', project: 1 } },
+  // "Banner voor de feestdagen" exists, so a deadline note on task 12 is also right.
+  {
+    text: 'bakkerij wil een nieuwe banner voor de kerst, uiterlijk vrijdag',
+    tools: [['add_task'], ['log_note']],
+    check: { tool: 'add_task', project: 1 },
+  },
   { text: 'boho vraagt om een extra mailing in november', tools: one('add_task'), check: { tool: 'add_task', project: 2 } },
   { text: 'Kees van de fietsenmaker wil zijn prijslijst online', tools: one('add_task'), check: { tool: 'add_task', project: 3 } },
   { text: 'nog even de btw aangifte doen', tools: one('add_task') },
@@ -55,7 +60,7 @@ export const CASES: EvalCase[] = [
   },
   {
     text: 'ben nu met de banner bezig',
-    tools: [['set_task_status'], ['start_session']],
+    tools: [['set_task_status'], ['start_session'], ['set_task_status', 'start_session']],
     check: { tool: 'set_task_status', task_id: 12, status: 'in_progress' },
   },
 
