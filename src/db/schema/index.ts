@@ -5,3 +5,4 @@ export * from './engine.js';
 export * from './messaging.js';
 export * from './calendar.js';
 export * from './metrics.js';
+export * from './auth.js';

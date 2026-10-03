@@ -20,7 +20,7 @@ export function buildServices(env: Env, db: Database) {
   const messages = createDbMessageStore(db);
   const claude = buildClaude(env, db);
   const calendar = buildCalendarService(env);
-  const router = createAssistantRouter({ db, claude, calendar, appBaseUrl: env.APP_BASE_URL });
+  const router = createAssistantRouter({ db, claude, calendar, appBaseUrl: env.APP_BASE_URL, dashboardBaseUrl: env.DASHBOARD_BASE_URL });
   const isQuiet = (userId: number) => isFocusQuiet(db, userId, new Date());
 
   const telegramClient = env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN) : undefined;

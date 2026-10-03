@@ -5,6 +5,7 @@ import { createTelegramProcessor } from './channels/telegram/processor.js';
 import { getEnv } from './config/env.js';
 import { connect } from './db/client.js';
 import { buildServices } from './wiring.js';
+import { LOGIN_TEXTS } from './texts/dashboard.nl.js';
 
 const env = getEnv();
 const options: AppOptions = {
@@ -56,7 +57,28 @@ if (env.DATABASE_URL) {
   };
 
   options.reward = { db, botToken: env.TELEGRAM_BOT_TOKEN };
-  if (env.DASHBOARD_API === 'on') options.dashboardApi = { db, botToken: env.TELEGRAM_BOT_TOKEN };
+  if (env.DASHBOARD_BASE_URL) {
+    const dashboardBaseUrl = env.DASHBOARD_BASE_URL;
+    options.dashboardApi = { db, botToken: env.TELEGRAM_BOT_TOKEN };
+    options.auth = {
+      db,
+      dashboardBaseUrl,
+      findUserByEmail: async (email) => {
+        const user = await services.users.findByEmail(email);
+        return user ? { id: user.id } : undefined;
+      },
+      // The login link always goes by mail, also when Telegram is the usual channel.
+      sendLoginMail: async (userId, url) => {
+        const user = await services.users.findById(userId);
+        if (!user) return;
+        await services.delivery.send(
+          user,
+          { text: LOGIN_TEXTS.mailText, buttons: [{ id: 'login', title: LOGIN_TEXTS.mailButton, url }] },
+          { via: 'email', context: { subject: LOGIN_TEXTS.mailSubject } },
+        );
+      },
+    };
+  }
 
   if (services.calendar) {
     options.calendar = {

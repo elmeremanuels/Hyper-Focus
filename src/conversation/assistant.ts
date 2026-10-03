@@ -7,6 +7,7 @@ import { getProfile, type UserProfile } from '../core/profile.js';
 import type { Database } from '../db/client.js';
 import { handleButton, helpMessage, type ButtonContext, type ButtonExtension } from './buttons.js';
 import { dayReviewButtons, dayReviewModeHandler, DAY_REVIEW_TOOLS } from './day-review.js';
+import { dashboardButtons, dashboardLink } from './dashboard.js';
 import { DAYS_QUESTION, workWeekButtons, WORK_WEEK_TOOLS } from './work-week.js';
 import { FOCUS_WINDOW_TOOLS, focusWindowButtons, landingModeHandler, PREF_QUESTION } from './focus-window.js';
 import { askDuration, blockButtons, BLOCK_TOOLS, pauseModeHandler, planBlockMinutes, setRewards, startBlock, type DefaultBlockMinutes } from './blocks.js';
@@ -37,6 +38,8 @@ export interface AssistantDeps {
   claude: Pick<ClaudeClient, 'callWithTools'> | undefined;
   /** Calendar providers and secrets, when set up (step 1.8). */
   calendar?: CalendarService | undefined;
+  /** DASHBOARD_BASE_URL, for login links from Telegram (step 2a.1). */
+  dashboardBaseUrl?: string | undefined;
   /** APP_BASE_URL, for the reward mini-app (step 1.9). */
   appBaseUrl?: string | undefined;
   /** Length of a block when none is chosen; step 1.11 makes it follow the day review. */
@@ -73,9 +76,10 @@ export const TEXTS = {
 } as const;
 
 // Fixed words that never need an AI call (the Telegram commands map to these).
-const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools' | 'rewards_off' | 'rewards_on' | 'rhythm' | 'workweek'> = {
+const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools' | 'rewards_off' | 'rewards_on' | 'rhythm' | 'workweek' | 'dashboard'> = {
   'mijn ritme': 'rhythm',
   'mijn werkweek': 'workweek',
+  dashboard: 'dashboard',
   'zet beloningen uit': 'rewards_off',
   'zet beloningen aan': 'rewards_on',
   'mijn tools': 'tools',
@@ -93,6 +97,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     dayReviewButtons(),
     focusWindowButtons((c, taskId) => askDuration(c, taskId)),
     workWeekButtons(),
+    dashboardButtons(deps.dashboardBaseUrl),
     sessionButtons(),
     reviewButtons(),
     planSessionButton(),
@@ -167,6 +172,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     if (fixed === 'tools') return [await toolsOverview(ctx)];
     if (fixed === 'rhythm') return [PREF_QUESTION];
     if (fixed === 'workweek') return [DAYS_QUESTION];
+    if (fixed === 'dashboard') return [await dashboardLink(ctx, deps.dashboardBaseUrl)];
 
     if (!deps.claude) return [{ text: TEXTS.noAi, buttons: [SHOW_TODAY] }];
 
