@@ -784,6 +784,27 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - `npm test`: 379 groen, drie keer achter elkaar.
   - Fix in de testhulp: een database opruimen kreeg soms "permission denied to terminate process", waarschijnlijk door autovacuum. Het opruimen probeert het nu tot vijf keer.
 
+## Stap 2a.6 — Instellingen
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - API onder sessie:
+    - `GET` en `PATCH /api/settings` voor naam, tijdzone, werkweek, dagtijden, stille uren, beloningen en de meldingen bij afspraken. Een werkdag die eindigt voor het begin geeft 400, net als een onbekende tijdzone;
+    - `POST /api/settings/rhythm` voor de voorkeur, een eigen begintijd en de lengte van het venster (45, 60, 90 of 120 minuten);
+    - `POST /api/settings/calendar/connect` geeft de persoonlijke koppellink, `/disconnect` trekt de toegang in;
+    - `PUT` en `DELETE /api/settings/tools/:soort` voor een tool uit de catalogus of een eigen https-link;
+    - `GET /api/export` downloadt alles als JSON. Agendatokens, sessies en inloglinks gaan niet mee;
+    - `POST /api/account/delete` met het woord "verwijder". Trekt de agendatoegang in en verwijdert de gebruiker. Alle tabellen gaan mee via cascade, ook `events` en `ai_usage`.
+  - `src/core/privacy.ts` (export en verwijderen) en `disconnectCalendars` in `src/conversation/calendar.ts`. De bot gebruikt die laatste nu ook.
+  - Een DELETE mag zonder JSON-body, omdat een browser daar altijd een preflight voor doet.
+  - Het scherm toont Ritme, Werkweek (met de dag van de weekreview), Dagtijden met stille uren, Beloningen, Agenda, Tools, Profiel, Je gegevens en Uitloggen. Elke kaart slaat apart op.
+- **Om te weten:** verwijderen wist ook de metadata in `events` en `ai_usage`. Het bouwplan bewaart die 12 maanden, maar bij een verwijderverzoek gaat alles weg. Wil je dat anders, zeg het dan.
+- **Controle:**
+  - `tests/dashboard-settings.integration.test.ts` (7 tests).
+  - In Chromium op telefoon en desktop, met de tool-editor en de verwijderbevestiging open: geen fouten.
+  - `npm test`: 386 groen.
+
 ## Volgende stap
 
-Stap 2a.6: Instellingen.
+Stap 2a.7: assistent (Kiki).

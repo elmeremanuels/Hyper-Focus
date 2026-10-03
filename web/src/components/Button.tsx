@@ -1,10 +1,12 @@
 import type { ButtonHTMLAttributes } from 'react';
 
-type Variant = 'primary' | 'plain' | 'quiet';
+type Variant = 'primary' | 'plain' | 'quiet' | 'strong';
 const STYLES: Record<Variant, string> = {
   primary: 'bg-accent text-white border-ink',
   plain: 'bg-card text-ink border-ink',
   quiet: 'bg-transparent text-ink border-transparent underline underline-offset-4',
+  /** For an action that cannot be undone. */
+  strong: 'bg-ink text-paper border-ink',
 };
 
 export function Button({ variant = 'plain', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {

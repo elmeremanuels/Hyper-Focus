@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { z } from 'zod';
 import { getSettings } from '../core/settings.js';
 import { getTask } from '../core/tasks.js';
+import type { Database } from '../db/client.js';
 import { scheduledNudges } from '../db/schema/index.js';
 import type { CalendarService } from '../integrations/calendar/service.js';
 import { calendarFile } from '../integrations/calendar/ics.js';
@@ -23,6 +24,21 @@ export const CALENDAR_TEXTS = {
 export function connectUrl(service: CalendarService, userId: number, now: Date): string | undefined {
   if (!service.linkSecret || !service.baseUrl) return undefined;
   return `${service.baseUrl.replace(/\/$/, '')}/agenda/koppel/${createConnectToken(userId, service.linkSecret, now)}`;
+}
+
+/** Revokes access where the provider allows it, then deletes tokens and events. Returns what was connected. */
+export async function disconnectCalendars(db: Database, userId: number, service: CalendarService | undefined) {
+  const connections = await listConnections(db, userId);
+  for (const connection of connections) {
+    const provider = service?.[connection.provider];
+    try {
+      if (provider) await provider.revoke(credentialsOf(connection, service?.encryptionKey));
+    } catch (error) {
+      console.error('Revoking calendar access failed:', error instanceof Error ? error.message : error);
+    }
+  }
+  if (connections.length > 0) await deleteConnections(db, userId);
+  return connections;
 }
 
 const connectCalendar = defineTool({
@@ -46,17 +62,8 @@ const disconnectCalendar = defineTool({
   description: 'Ontkoppel de agenda: trek de toegang in en verwijder tokens en afspraken ("ontkoppel agenda").',
   input: z.object({}),
   async run(_input, ctx) {
-    const connections = await listConnections(ctx.db, ctx.userId);
+    const connections = await disconnectCalendars(ctx.db, ctx.userId, ctx.calendar);
     if (connections.length === 0) return { content: 'Geen koppeling.', reply: { text: 'Er is geen agenda gekoppeld.' } };
-    for (const connection of connections) {
-      const provider = ctx.calendar?.[connection.provider];
-      try {
-        if (provider) await provider.revoke(credentialsOf(connection, ctx.calendar?.encryptionKey));
-      } catch (error) {
-        console.error('Revoking calendar access failed:', error instanceof Error ? error.message : error);
-      }
-    }
-    await deleteConnections(ctx.db, ctx.userId);
     const apple = connections.some((c) => c.provider === 'apple');
     const ics = connections.some((c) => c.provider === 'ics');
     return {

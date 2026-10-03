@@ -98,3 +98,19 @@ export interface Parking {
   ideas: Array<{ id: number; text: string; date: string }>;
   canPromote: boolean;
 }
+
+export type FocusPref = 'morning' | 'afternoon' | 'evening' | 'unknown';
+
+export interface Settings {
+  profile: { name: string; email: string | null; timezone: string; telegram: boolean };
+  rhythm: { pref: FocusPref | null; start: string | null; prefStart: string; prefStarts: Record<FocusPref, string>; minutes: number; lengths: number[]; learned: Array<{ weekday: number; start: string }> };
+  workWeek: { days: number[]; start: string; end: string; reviewDay: number };
+  day: { morningTime: string; middayEnabled: boolean; wrapupTime: string };
+  quiet: { start: string; end: string };
+  rewardsEnabled: boolean;
+  calendar: { available: boolean; connections: Array<{ provider: string; status: string; lastSyncedAt: string | null }>; meetingHeadsUp: boolean; meetingFollowup: boolean };
+  tools: Array<{ workType: string; label: string; current: { key: string; label: string; url: string } | null; options: Array<{ key: string; label: string; needsLink: boolean }> }>;
+}
+
+export const put = <T = { ok: true }>(path: string, body: unknown) => api<T>(path, { method: 'PUT', body: JSON.stringify(body) });
+export const del = <T = { ok: true }>(path: string) => api<T>(path, { method: 'DELETE' });
