@@ -1,11 +1,12 @@
 // Projecten & klanten (step 2a.4): lists, add and edit, and moving tasks between projects.
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ESTIMATES, patch, post, type Client, type Project, type Projects as ProjectsData, type ProjectTask } from '../api';
 import { Button } from '../components/Button';
-import { Badge, Field, Input, Select, Textarea } from '../components/Form';
+import { Badge, Field, FormActions, Input, Select, Textarea } from '../components/Form';
 import { Card } from '../components/Shell';
 import { T } from '../texts';
 import { useApi } from '../useApi';
+import { useSubmit } from '../useSubmit';
 
 const t = T.projects;
 
@@ -52,42 +53,6 @@ export function Projects() {
           ))}
         </>
       )}
-    </>
-  );
-}
-
-/** Actions that send once, show a short error and close the form on success. */
-function useSubmit(done: () => void) {
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const run = (action: () => Promise<unknown>) => async (e?: FormEvent) => {
-    e?.preventDefault();
-    setBusy(true);
-    setFailed(false);
-    try {
-      await action();
-      done();
-    } catch {
-      setFailed(true);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return { busy, failed, run };
-}
-
-function FormActions({ busy, failed, onCancel, label = t.save }: { busy: boolean; failed: boolean; onCancel: () => void; label?: string }) {
-  return (
-    <>
-      {failed && <p className="text-sm font-semibold">{T.error}</p>}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" variant="primary" disabled={busy}>
-          {label}
-        </Button>
-        <Button variant="quiet" onClick={onCancel}>
-          {t.cancel}
-        </Button>
-      </div>
     </>
   );
 }

@@ -92,3 +92,9 @@ export interface Projects {
 }
 
 export const ESTIMATES = [5, 15, 30, 60, 120] as const;
+
+export interface Parking {
+  parked: Array<{ id: number; title: string; project: string; client: string | null; minutes: number | null }>;
+  ideas: Array<{ id: number; text: string; date: string }>;
+  canPromote: boolean;
+}

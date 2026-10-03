@@ -765,6 +765,25 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - In Chromium bekeken op telefoon- en desktopformaat, met de lijst, een open project, een open taak en een open klant: geen fouten.
   - `npm test`: 376 groen.
 
+## Stap 2a.5 — Parkeerplaats en ideeënbak
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - API onder sessie, alleen JSON:
+    - `GET /api/parking` geeft de geparkeerde taken, de ideeën in de bak en of er deze week nog een idee een project mag worden;
+    - `POST /api/tasks/:id/unpark` en `/release` werken alleen op een geparkeerde taak;
+    - `POST /api/ideas` en `PATCH /api/ideas/:id` om een idee op te schrijven en te bewerken;
+    - `POST /api/ideas/:id/archive`;
+    - `POST /api/ideas/:id/promote` maakt een project met lage prioriteit. Een tweede promotie binnen zeven dagen geeft 409, zoals in de weekreview (11.7).
+  - De promotielogica staat nu in `src/core/ideas.ts`. De weekreview en het dashboard gebruiken dezelfde code.
+  - Het scherm heeft de parkeerplaats bovenaan (Terughalen, en Loslaten met een bevestiging) en de ideeënbak eronder (opschrijven, Maak project, Bewerk, Archiveren).
+- **Controle:**
+  - `tests/dashboard-parking.integration.test.ts` (3 tests). De weekreview-tests blijven groen.
+  - In Chromium op telefoon en desktop: een taak geparkeerd vanuit Projecten, gezien op de parkeerplaats en teruggehaald. Geen fouten.
+  - `npm test`: 379 groen, drie keer achter elkaar.
+  - Fix in de testhulp: een database opruimen kreeg soms "permission denied to terminate process", waarschijnlijk door autovacuum. Het opruimen probeert het nu tot vijf keer.
+
 ## Volgende stap
 
-Stap 2a.5: Parkeerplaats en ideeënbak.
+Stap 2a.6: Instellingen.

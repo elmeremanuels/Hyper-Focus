@@ -1,6 +1,7 @@
 // The weekly review in three taps and the Monday overview by mail (BOUWPLAN.md, 11.7).
 import { and, desc, eq, gte, isNull, ne } from 'drizzle-orm';
 import { recordEvent } from '../core/events.js';
+import { inboxIdeas, promoteIdea, promotedThisWeek } from '../core/ideas.js';
 import { weekYield } from '../focus/log.js';
 import { energyWeekLine } from './day-review.js';
 import { rhythmProposalMessage } from './focus-window.js';
@@ -40,14 +41,6 @@ async function activeProjects(db: Database, userId: number) {
     .where(and(eq(projects.userId, userId), eq(projects.status, 'active'), ne(projects.title, 'Losse taken')))
     .orderBy(desc(projects.isWeeklyFocus), projects.priority, projects.id)
     .limit(MAX_CHOICES);
-}
-
-async function inboxIdeas(db: Database, userId: number) {
-  return db
-    .select({ id: ideas.id, text: ideas.text })
-    .from(ideas)
-    .where(and(eq(ideas.userId, userId), eq(ideas.status, 'inbox')))
-    .orderBy(desc(ideas.createdAt));
 }
 
 // ---------------------------------------------------------------------------
@@ -108,11 +101,7 @@ async function setFocus(ctx: ButtonContext, projectId: number): Promise<string> 
 
 async function askIdea(ctx: ButtonContext, prefix: string): Promise<OutboundMessage[]> {
   const list = await inboxIdeas(ctx.db, ctx.userId);
-  const promotedThisWeek = await ctx.db
-    .select({ id: ideas.id })
-    .from(ideas)
-    .where(and(eq(ideas.userId, ctx.userId), eq(ideas.status, 'promoted'), gte(ideas.reviewedAt, new Date(ctx.now.getTime() - WEEK_MS))));
-  if (list.length === 0 || promotedThisWeek.length > 0) return finish(ctx, prefix);
+  if (list.length === 0 || (await promotedThisWeek(ctx.db, ctx.userId, ctx.now))) return finish(ctx, prefix);
 
   await setState(ctx.db, ctx.userId, 'weekly_review', { step: 3 }, new Date(ctx.now.getTime() + REVIEW_TTL_MS));
   const count = list.length === 1 ? 'staat 1 idee' : `staan ${list.length} ideeën`;
@@ -123,22 +112,9 @@ async function askIdea(ctx: ButtonContext, prefix: string): Promise<OutboundMess
   return [{ text: `${prefix}In je ideeënbak ${count}. Eén promoveren tot project, of laten staan?`, choices }];
 }
 
-async function promoteIdea(ctx: ButtonContext, ideaId: number): Promise<string> {
-  const [idea] = await ctx.db
-    .select({ id: ideas.id, text: ideas.text, businessId: ideas.businessId })
-    .from(ideas)
-    .where(and(eq(ideas.userId, ctx.userId), eq(ideas.id, ideaId), eq(ideas.status, 'inbox')));
-  if (!idea) return '';
-  const title = idea.text.length <= 80 ? idea.text : `${idea.text.slice(0, 79)}…`;
-  const [project] = await ctx.db
-    .insert(projects)
-    .values({ userId: ctx.userId, businessId: idea.businessId, title, goal: idea.text, priority: 3 })
-    .returning({ id: projects.id });
-  await ctx.db
-    .update(ideas)
-    .set({ status: 'promoted', promotedToProjectId: project?.id ?? null, reviewedAt: ctx.now })
-    .where(eq(ideas.id, idea.id));
-  return `"${title}" is nu een project. `;
+async function promoteInReview(ctx: ButtonContext, ideaId: number): Promise<string> {
+  const promoted = await promoteIdea(ctx.db, ctx.userId, ideaId, ctx.now);
+  return promoted ? `"${promoted.title}" is nu een project. ` : '';
 }
 
 async function finish(ctx: ButtonContext, prefix: string): Promise<OutboundMessage[]> {
@@ -170,7 +146,7 @@ export function reviewButtons(): ButtonExtension {
     if (button.step === 'good') return askFocus(ctx, GOOD_REPLIES[button.value] ?? 'Mooi. ');
     if (button.step === 'focus') return askIdea(ctx, await setFocus(ctx, Number(button.value)));
     if (button.step === 'idea') {
-      const prefix = button.value === 'none' ? '' : await promoteIdea(ctx, Number(button.value));
+      const prefix = button.value === 'none' ? '' : await promoteInReview(ctx, Number(button.value));
       return finish(ctx, prefix);
     }
     return undefined;
