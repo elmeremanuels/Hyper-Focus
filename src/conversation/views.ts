@@ -1,5 +1,5 @@
 // Deterministic messages shared by buttons and tools (BOUWPLAN.md, 13).
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { dailyFocus, tasks } from '../db/schema/index.js';
 import { getTasksInOrder, listOpenTasks, listParkedTasks, type TaskSummary } from '../core/tasks.js';
@@ -20,8 +20,18 @@ export async function todaysFocus(db: Database, userId: number, timezone: string
 
   if (planned && planned.taskIds.length > 0) {
     const found = await getTasksInOrder(db, userId, planned.taskIds);
+    // A task moved to tomorrow leaves today's focus.
+    const snoozed = new Set(
+      (
+        await db
+          .select({ id: tasks.id })
+          .from(tasks)
+          .where(and(eq(tasks.userId, userId), inArray(tasks.id, planned.taskIds), gt(tasks.snoozedUntil, now)))
+      ).map((r) => r.id),
+    );
     const open = found.filter(
-      (task): task is TaskSummary => task !== undefined && (task.status === 'open' || task.status === 'in_progress'),
+      (task): task is TaskSummary =>
+        task !== undefined && (task.status === 'open' || task.status === 'in_progress') && !snoozed.has(task.id),
     );
     if (open.length > 0) return open;
   }

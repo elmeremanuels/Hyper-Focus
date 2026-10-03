@@ -726,6 +726,26 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - In Chromium bekeken op telefoon- en desktopformaat: geen fouten, en de labels passen.
   - `npm test`: 366 groen.
 
+## Stap 2a.3 — Vandaag
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - API onder sessie, alleen JSON: `GET /api/today`, `POST /api/tasks/:id/{done,tomorrow,start}` en `POST /api/window`. Een fout in de invoer geeft 400, een taak van een ander 404.
+  - Het scherm Vandaag toont:
+    - de dag en het aantal taken;
+    - het focusvenster als donkere kaart, met een knop om het te verschuiven;
+    - de focus in de volgorde van de bot: snelle winst en stappen eerst, de taak van het venster als laatste;
+    - per taak de eerste stap, de werkplek-link en de knoppen Start, Af en Morgen;
+    - een lopend blok of een pitstop als melding bovenaan;
+    - het focuslog van vandaag.
+  - Start vraagt hoe lang: 45, 60 of 90 minuten in het venster en 15, 25 of 45 erbuiten. Het blok loopt daarna als een blok uit Telegram: het einde en de pitstop komen in Telegram.
+  - Fix in de bot: een taak die je naar morgen zet, verdwijnt uit de focus van vandaag. Dat gold ook voor "Vandaag" in Telegram.
+- **Controle:**
+  - `tests/dashboard-today.integration.test.ts` (5 tests).
+  - In Chromium bekeken op telefoon- en desktopformaat, met en zonder venster: geen fouten.
+  - `npm test`: 371 groen.
+
 ## Volgende stap
 
-1.12 ronde 3 live testen (werkweek). Daarna fase 2a, stap 2a.1, zodra het datamodel en de brief er zijn.
+Stap 2a.4: Projecten en klanten.
