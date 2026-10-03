@@ -47,6 +47,5 @@ Details staan in BOUWPLAN.md.
 
 Aangemaakt in stap 0.2 en daarna actueel gehouden.
 
-- Nu beschikbaar: `npm run dev` · `npm test` · `npm run lint` · `npm run typecheck` · `npm run build` · `npm start` · `npm run worker` (`worker:dev` in development) · `npm run db:generate` · `npm run db:migrate` · `npm run db:seed` · `npm run sim` · `npm run link:telegram` · `npm run telegram:webhook` · `npm run brevo:inbound` · `npm run eval` (op de VPS, vraagt `ANTHROPIC_API_KEY`)
+- Nu beschikbaar: `npm run dev` · `npm test` · `npm run lint` · `npm run typecheck` · `npm run build` · `npm start` · `npm run worker` (`worker:dev` in development) · `npm run db:generate` · `npm run db:migrate` · `npm run db:seed` · `npm run sim` · `npm run link:telegram` · `npm run telegram:webhook` · `npm run brevo:inbound` · `npm run eval` (op de VPS, vraagt `ANTHROPIC_API_KEY`) · `npm run sim:day`
 - Databasetests draaien alleen met `TEST_DATABASE_URL` (rol met CREATEDB).
-- Volgt in een latere stap: `npm run sim:day` (1.5)

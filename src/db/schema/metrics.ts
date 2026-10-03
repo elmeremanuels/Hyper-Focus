@@ -15,6 +15,8 @@ export const EVENT_NAMES = [
   'session_started',
   'session_completed',
   'reentry',
+  'escalation',
+  'crisis_flagged',
   'overwhelm',
   'nudge_skipped',
 ] as const;

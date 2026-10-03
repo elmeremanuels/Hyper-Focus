@@ -296,6 +296,28 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 - **Later (fase 3):** Haiku eerst met Sonnet als vangnet bij berichten zonder tool, als de kosten per klant tellen (`docs/later.md`).
 - **Restmissers Haiku:** "boho vraagt om een extra mailing" (notitie in plaats van taak), een spraakachtige zin over Jansen (geen tool), "help me starten met de jaarplanning" (geen tool). Sonnet 5.5 miste alleen "boho belde: ze willen de nieuwsbrief in een andere kleur" (taak in plaats van notitie).
 
+## Stap 1.5 — Vangrails, escalatieladder, herstart, overbelasting
+
+- **Datum:** 2026-10-02
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - `proactive/guardrails.ts` (puur): pauze · stille uren in lokale tijd · maximaal `max_proactive_per_day` · minimaal 45 minuten tussen twee berichten (het bericht schuift op) · terugtrekken bij stilte · na overbelasting de volgende dag één bericht. Sessie-check-ins zijn vrijgesteld.
+  - Terugtrekken: 2 dagen stil → alleen de ochtend · 4 dagen → stil · dag 7 → één herstartbericht in Telegram én per mail · daarna stil tot de gebruiker schrijft.
+  - Zachte herstart: na ≥ 3 stille dagen is het eerstvolgende bericht een welkom terug met één kleinste taak. Taken die ≥ 14 dagen stilstonden gaan eerst naar de parkeerplaats.
+  - `proactive/escalation.ts`: de ladder uit 11.5. De klok (`stuck_since`) start als een taak in de focus komt of een deadline heeft; starten of afronden zet hem terug. Om 11:00 maximaal één escalatie per dag, over één taak. Niveau 3 parkeert de taak.
+  - Crisis (`conversation/wellbeing.ts`): een vast patroon (werkt ook zonder Claude) en de tool `crisis`. Zet `users.status` op `paused`, annuleert openstaande berichten, logt een waarschuwing en het event `crisis_flagged`. Antwoord met zorg, 113, 0800-0113, 113.nl, de huisarts en 112.
+  - `npm run sim:day -- --date 2026-10-06 [--days 7] [--silent]`: speelt dagen versneld af in een transactie die altijd wordt teruggedraaid. Er wordt niets opgeslagen of verstuurd.
+- **Controle (Definition of Done):**
+  - *Alle unit tests groen:* `tests/guardrails.test.ts` (vangrails, stille uren in Bali, klokwissel, ladderniveaus, crisispatronen) en `tests/focus.test.ts`.
+  - *7 dagen stilte geeft precies het afgesproken patroon:* `tests/wellbeing.integration.test.ts`. Dag 1 normaal, dag 2 alleen ochtend, dag 3 ochtend als zachte herstart, dag 4–6 niets, dag 7 herstart in Telegram en per mail, dag 8 niets. Handmatig: `npm run sim:day -- --date 2026-10-06 --days 8 --silent`.
+  - *Een overbelastingszin zet de dag stil:* test uit 1.2 (`stills the day on overwhelm`) plus de test dat de volgende dag één bericht komt.
+  - `npm test`: 209 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
+- **Keuzes om na te lezen:**
+  - Deadlinetaken doen mee met de ladder als de deadline binnen 14 dagen valt. Anders zou een taak met een deadline over drie maanden na een week geparkeerd worden.
+  - Een bericht in de stille uren vervalt (het schuift niet op).
+  - Na een crisismarkering hervat je handmatig: `update users set status = 'active' where id = …;`
+- **Open:** geen.
+
 ## Volgende stap
 
-1.5 Vangrails, escalatieladder, herstart, overbelasting (11.5–11.6).
+1.6 Spraakberichten (9.2).
