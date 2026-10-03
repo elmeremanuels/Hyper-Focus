@@ -9,6 +9,7 @@ import { handleButton, HELP_MESSAGE, type ButtonContext, type ButtonExtension } 
 import { loadContext, renderContext } from './context.js';
 import type { Router } from './router.js';
 import { getState, type ConversationMode, type ConversationStateRow } from './state.js';
+import { reviewButtons, reviewModeHandler, reviewStart } from './review.js';
 import { sessionButtons, sessionModeHandler, SESSION_TOOLS, type SessionData } from './session.js';
 import { CRISIS_REPLY, crisisTool, flagCrisis, looksLikeCrisis } from './wellbeing.js';
 import { CORE_TOOLS, runTool, toAnthropicTools, type ToolDefinition, type ToolOutcome } from './tools.js';
@@ -48,7 +49,8 @@ export const TEXTS = {
 } as const;
 
 // Fixed words that never need an AI call (the Telegram commands map to these).
-const FIXED: Record<string, 'today' | 'parking' | 'help'> = {
+const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review'> = {
+  weekreview: 'review',
   vandaag: 'today',
   focus: 'today',
   parkeerplaats: 'parking',
@@ -57,9 +59,10 @@ const FIXED: Record<string, 'today' | 'parking' | 'help'> = {
 
 export function createAssistantRouter(deps: AssistantDeps): Router {
   const tools = deps.tools ?? ROUTER_TOOLS;
-  const buttonExtensions = [sessionButtons(), ...(deps.buttonExtensions ?? [])];
+  const buttonExtensions = [sessionButtons(), reviewButtons(), ...(deps.buttonExtensions ?? [])];
   const modeHandlers: Partial<Record<ConversationMode, ModeHandler>> = {
     session: (message, state, ctx) => sessionModeHandler(message.text, state.data as SessionData, ctx),
+    weekly_review: (message, state, ctx) => reviewModeHandler(message.text, state.data, ctx),
     ...deps.modeHandlers,
   };
   const anthropicTools = toAnthropicTools(tools);
@@ -102,6 +105,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     if (fixed === 'today') return [await focusView(deps.db, profile.id, profile.timezone, ctx.now)];
     if (fixed === 'parking') return [await parkingMessage(deps.db, profile.id)];
     if (fixed === 'help') return [HELP_MESSAGE];
+    if (fixed === 'review') return [await reviewStart(ctx)];
 
     if (!deps.claude) return [{ text: TEXTS.noAi, buttons: [SHOW_TODAY] }];
 

@@ -25,6 +25,8 @@ export interface GuardrailInput {
   silentDays: number;
   /** The user signalled overwhelm on the previous local day. */
   overwhelmedYesterday: boolean;
+  /** Goes by mail only (the Monday overview): no daily limit or breathing room. */
+  mailOnly?: boolean;
 }
 
 export type GuardrailVerdict =
@@ -46,6 +48,8 @@ export function checkGuardrails(input: GuardrailInput): GuardrailVerdict {
   } else if (input.silentDays >= 2 && input.kind !== 'morning') {
     return { send: false, reason: 'silence_morning_only' };
   }
+
+  if (input.mailOnly) return { send: true };
 
   const limit = input.overwhelmedYesterday ? 1 : settings.maxProactivePerDay;
   if (input.sentToday >= limit) {

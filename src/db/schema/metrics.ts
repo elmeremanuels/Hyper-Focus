@@ -17,6 +17,7 @@ export const EVENT_NAMES = [
   'reentry',
   'escalation',
   'crisis_flagged',
+  'weekly_review_done',
   'overwhelm',
   'nudge_skipped',
 ] as const;

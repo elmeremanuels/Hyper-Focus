@@ -15,6 +15,7 @@ Bestaande taken:
 - "Klaar" tijdens een lopende sessie gaat over de stap van die sessie.
 
 Informatie:
+- Een doorgestuurde mail met een vraag of opdracht: add_task. Herken de klant aan de naam of het maildomein van de afzender en geef client_name. Staat er alleen informatie in: log_note.
 - Nieuws over een klant zonder actie voor {naam} ("X belde", "X zegt dat", "X laat weten", gewijzigde deadline): log_note met client_name of task_id.
 
 Overig:
