@@ -10,3 +10,4 @@ Ideeën en extra's die buiten de huidige bouwstap vallen.
 - Ochtendbericht: nu een vaste tekst zonder AI. Het slimme model (10.4) kan de groet persoonlijker maken, bijvoorbeeld samen met het agenda-overzicht (1.8). Eerst kijken of de vaste tekst werkt.
 - Middagbericht: de tijd (13:30) staat vast in de code. Een instelling `midday_time` vraagt een datamodelwijziging.
 - Router: Haiku eerst, Sonnet 5.5 als vangnet wanneer Haiku bij een bericht van meer dan een paar woorden geen tool aanroept. Interessant zodra de kosten per klant tellen (fase 3).
+- Dagritme: geen proactieve berichten in het weekend, of een instelling met werkdagen. Vraagt een kolom in `user_settings` (datamodelwijziging). Het bouwplan noemt nu geen werkdagen.
