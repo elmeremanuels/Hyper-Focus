@@ -292,8 +292,9 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   | Haiku 4.5 | 58/61 (95%) | 1,0 s | 1,7 s | 4.680 tokens |
   | Sonnet 5.5, effort low | 60/61 (98%) | 1,6 s | 2,6 s | 5.715 tokens |
 
-- **Besluit:** Haiku blijft het snelle model; `CLAUDE_EFFORT_FAST` blijft leeg. Definition of Done van 1.2 (≥ 90%) is gehaald.
-- **Restmissers Haiku:** "boho vraagt om een extra mailing" (notitie in plaats van taak), een spraakachtige zin over Jansen (geen tool), "help me starten met de jaarplanning" (geen tool). Die laatste raakt 1.4: live controleren of opknippen in Telegram werkt. Lukt het daar vaak niet, dan is Sonnet 5.5 met effort low de terugvaloptie (`.env` aanpassen, geen code).
+- **Besluit (Elmer, 2026-10-03):** Sonnet 5.5 met effort low wordt het snelle model (`CLAUDE_MODEL_FAST=claude-sonnet-5-5`, `CLAUDE_EFFORT_FAST=low`). Reden: hogere nauwkeurigheid voor ongeveer $6 per maand extra en 0,6 s langere reactietijd. Alleen `.env` verandert. Definition of Done van 1.2 (≥ 90%) is met beide modellen gehaald.
+- **Later (fase 3):** Haiku eerst met Sonnet als vangnet bij berichten zonder tool, als de kosten per klant tellen (`docs/later.md`).
+- **Restmissers Haiku:** "boho vraagt om een extra mailing" (notitie in plaats van taak), een spraakachtige zin over Jansen (geen tool), "help me starten met de jaarplanning" (geen tool). Sonnet 5.5 miste alleen "boho belde: ze willen de nieuwsbrief in een andere kleur" (taak in plaats van notitie).
 
 ## Volgende stap
 
