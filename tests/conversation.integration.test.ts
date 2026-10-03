@@ -84,7 +84,7 @@ describe.skipIf(!adminUrl)('conversation layer (integration)', () => {
   it('keeps the context within budget', async () => {
     const data = await loadContext(t.connection.db, t.userId, NOW);
     expect(data.today).toBe('2026-10-07');
-    expect(data.clients).toContain('Boho Interieur');
+    expect(data.clients).toContain('Boho Interieur (Mo)');
     expect(renderContext(data).length).toBeLessThanOrEqual(MAX_CONTEXT_CHARS);
   });
 

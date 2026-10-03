@@ -269,6 +269,24 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - `npm test`: 186 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
 - **Open:** geen.
 
+## Stap 1.2 — aanvulling: router en evaluatie (na de eerste live meting)
+
+- **Datum:** 2026-10-03
+- **Meting op de VPS (Haiku 4.5):** 52/61 (85%), doel 90%.
+- **Oorzaken:**
+  - De prompt liet Haiku een vraag stellen in plaats van een taak vast te leggen (4 van de 9 missers).
+  - De context noemde geen contactpersonen (Kees, Anna).
+  - De evaluatiecontext was dubbelzinnig: het laatste bericht suggereerde dat de offerte af was. Dat gaf de missers bij "doe ik morgen" en "ben nu met de banner bezig".
+  - Eén geval had twee goede antwoorden (er bestaat al een bannertaak).
+- **Aangepast:**
+  - `router.nl.md`: altijd iets vastleggen; onduidelijk project → taak zonder project; "moet nog" is een taak; nieuws over een klant is een notitie; opknippen zonder vragen; alleen taken veranderen die genoemd zijn.
+  - De context toont klanten met contactpersoon: "Bakkerij De Vries (Anna)".
+  - De evaluatiecontext is eenduidig en accepteert het tweede goede antwoord.
+  - Klaar voor Sonnet 5.5 en Opus 5.5: die weigeren een afgedwongen tool. De client biedt bij opknippen alleen `break_down` aan, met `tool_choice: auto` en de opdracht in de prompt. Nieuwe optionele variabelen `CLAUDE_EFFORT_FAST` en `CLAUDE_EFFORT_SMART`. `max_tokens` van de router naar 4096, voor denkstappen.
+  - `npm run eval -- --model … --effort …` vergelijkt modellen zonder `.env` te wijzigen, en toont de tijd per bericht en de tokens.
+- **Controle:** `npm test` 187 groen. De eval moet opnieuw op de VPS draaien.
+- **Open:** de keuze van het model na de vergelijking op de VPS.
+
 ## Stap 1.5 — Vangrails, escalatieladder, herstart, overbelasting
 
 - **Datum:** 2026-10-02
