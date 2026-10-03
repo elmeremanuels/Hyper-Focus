@@ -188,14 +188,13 @@ export async function reviewModeHandler(
 // Monday overview by mail
 
 export async function composeWeeklyMail(ctx: Pick<ButtonContext, 'db' | 'userId' | 'now'> & { name: string }) {
-  const [done, focus, open] = await Promise.all([
-    doneThisWeek(ctx.db, ctx.userId, ctx.now, 10),
-    ctx.db
-      .select({ title: projects.title })
-      .from(projects)
-      .where(and(eq(projects.userId, ctx.userId), eq(projects.isWeeklyFocus, true), eq(projects.status, 'active'))),
-    listOpenSuggestions(ctx.db, ctx.userId, 3),
-  ]);
+  // One query at a time: inside a transaction (sim:day) all queries share one connection.
+  const done = await doneThisWeek(ctx.db, ctx.userId, ctx.now, 10);
+  const focus = await ctx.db
+    .select({ title: projects.title })
+    .from(projects)
+    .where(and(eq(projects.userId, ctx.userId), eq(projects.isWeeklyFocus, true), eq(projects.status, 'active')));
+  const open = await listOpenSuggestions(ctx.db, ctx.userId, 3);
 
   const lines = [
     `Goedemorgen ${ctx.name}. ${done.length === 0 ? 'Een nieuwe week.' : `Vorige week ${done.length === 1 ? 'is 1 taak' : `zijn ${done.length} taken`} af.`}`,

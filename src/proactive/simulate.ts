@@ -1,6 +1,6 @@
 // Plays the proactive layer through one or more days at speed (BOUWPLAN.md, 15: sim:day).
 // Runs inside a transaction that is always rolled back, so nothing is stored or sent.
-import { and, asc, eq, gte, lt } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, lt } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import { createDelivery, type Channel, type ChannelName, type ChannelUser, type SendContext } from '../channels/channel.js';
 import { createAssistantRouter } from '../conversation/assistant.js';
@@ -128,6 +128,24 @@ export async function simulateDays(options: SimulationOptions): Promise<Simulati
         }
         await runPlanner(db, now);
         await sendDueNudges(deps, now);
+
+        // The live worker ticks every minute: send nudges between two steps at their own time.
+        const between = await db
+          .select({ at: scheduledNudges.scheduledForUtc })
+          .from(scheduledNudges)
+          .where(
+            and(
+              eq(scheduledNudges.userId, options.userId),
+              eq(scheduledNudges.status, 'pending'),
+              gt(scheduledNudges.scheduledForUtc, now),
+              lt(scheduledNudges.scheduledForUtc, t.plus({ minutes: step }).toJSDate()),
+            ),
+          )
+          .orderBy(asc(scheduledNudges.scheduledForUtc));
+        for (const { at } of between) {
+          now = at;
+          await sendDueNudges(deps, now);
+        }
       }
 
       const skipped = await db

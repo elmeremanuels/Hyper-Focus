@@ -289,8 +289,26 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
       'geluid: Terug naar je blok?',
       'stil: Welkom terug',
     ]);
+    // The reminder comes the minute the pause time is up, not at the next 5-minute step.
+    const mission = hf.filter((m) => m.text.startsWith('Mooi gewerkt')).at(-1)!;
+    const reminder = hf.find((m) => m.text === 'Terug naar je blok?')!;
+    expect([2, 3].map((n) => mission.at.getTime() + n * 60_000)).toContain(reminder.at.getTime());
     // The simulation rolls back.
     expect(await db().select().from(focusBlocks)).toHaveLength(0);
+  });
+
+  it('runs a Monday with the weekly mail without parallel queries on one connection', async () => {
+    const warnings: string[] = [];
+    const listen = (warning: Error) => void warnings.push(warning.message);
+    process.on('warning', listen);
+    try {
+      const { sent } = await simulateDays({ db: db(), userId: t.userId, start: '2026-10-05', days: 1, silent: false });
+      expect(sent.some((m) => m.channel === 'email' && m.text.includes('Een nieuwe week'))).toBe(true);
+      await new Promise((resolve) => setImmediate(resolve));
+    } finally {
+      process.off('warning', listen);
+    }
+    expect(warnings.filter((w) => w.includes('already executing a query'))).toEqual([]);
   });
 
   it('measures blocks, returns and rewards for stats:focus', async () => {
