@@ -487,9 +487,12 @@ Heads-ups en nabesprekingen hebben een eigen limiet: maximaal `max_calendar_nudg
 - Afgeslagen uitnodigingen tellen niet mee.
 
 **Techniek**
+- **Standaard: de geheime ICS-link van de agenda** (beslissing 12, 3 oktober 2026). Google, Outlook en Apple iCloud geven elk zo'n abonnementslink. De gebruiker plakt hem één keer op de koppelpagina, nooit in de chat. Hyper&Focus bewaart hem versleuteld en haalt de feed op met vandaag en morgen. Herhalende afspraken worden zelf uitgevouwen (`rrule`), in de tijdzone van de afspraak. Er zijn geen API-sleutels nodig. Vertraging: gepubliceerde agenda's werken soms pas na enkele uren bij. Ontkoppelen verwijdert de link bij ons; ongeldig maken doet de gebruiker in de agenda.
+- **Zet in agenda:** een geplande sessie ("Ja, om 14:00") komt met een `.ics`-bestand. Een tik zet hem in de eigen agenda-app. Zonder schrijfrechten of koppeling.
+- **Directe koppelingen, standaard uit** (voor fase 3, als klanten ze willen). Ze worden pas actief als hun sleutels in `.env` staan:
 - Google Agenda-API met OAuth 2.0 en refresh token, scope `calendar.readonly`. Oogst `server/services/googleOAuthService.ts`.
 - Outlook via Microsoft Graph (`/me/calendarView`) met OAuth 2.0, scopes `Calendars.Read` en `offline_access`, tenant `common` (werk- en persoonlijke accounts). Graph kent geen intrekken van deze tokens; ontkoppelen verwijdert ze bij ons en de gebruiker kan de app verwijderen op myapps.microsoft.com.
-- Apple iCloud via CalDAV (`caldav.icloud.com`) met Apple ID en een app-specifiek wachtwoord. Dat vult de gebruiker in op de koppelpagina, nooit in de chat. Het wordt versleuteld opgeslagen. De server vouwt terugkerende afspraken uit (`expand`).
+- Apple iCloud via CalDAV (`caldav.icloud.com`) met Apple ID en een app-specifiek wachtwoord (`CALENDAR_APPLE_CALDAV=true`). Dat vult de gebruiker in op de koppelpagina, nooit in de chat. Het wordt versleuteld opgeslagen. De server vouwt terugkerende afspraken uit (`expand`).
 - De planner haalt om 00:05 vandaag en morgen op; de worker ververst elke 15 minuten met een `syncToken`. Terugkerende afspraken uitgevouwen ophalen (`singleEvents`).
 - Afspraken in UTC opslaan, tonen in de tijdzone van de gebruiker.
 - Mislukt de synchronisatie, dan plant de planner zoals zonder agenda en meldt dat één keer per dag in het afrondbericht.
@@ -674,7 +677,7 @@ Context:
 - **Telegram [BESLISSING vóór fase 3]:** Telegram biedt geen verwerkersovereenkomst en berichten staan op de servers van Telegram. Voor eigen gebruik is dat mijn eigen keuze. Vóór de beta beslissen: Telegram houden met een duidelijke uitleg in de privacyverklaring, of mail en de web-UI als standaardkanaal voor klanten.
 - Commando's *"exporteer mijn gegevens"* en *"verwijder mijn gegevens"*, plus dezelfde knoppen in de web-UI (fase 2).
 - **Bewaartermijn:** berichten, inclusief transcripties, worden na 30 dagen verwijderd door een nachtelijke job in de worker. Spraakopnames worden direct na transcriptie verwijderd en nooit opgeslagen. Taken, projecten, ideeën en suggesties blijven bestaan tot de gebruiker ze verwijdert. `events` en `ai_usage` bevatten alleen metadata zonder berichtinhoud en blijven 12 maanden bewaard; die zijn nodig voor de verkooppoort en de kostenmeting.
-- **Agenda:** alleen de velden uit `calendar_events`, alleen voor vandaag en morgen; een nachtelijke job ruimt oudere afspraken op. Deelnemers, beschrijvingen en locaties van afspraken halen we nooit op.
+- **Agenda:** alleen de velden uit `calendar_events`, alleen voor vandaag en morgen; een nachtelijke job ruimt oudere afspraken op. Een ICS-feed bevat ook deelnemers, beschrijvingen en locaties. Die worden bij het inlezen direct weggegooid en nooit opgeslagen of gelogd (beslissing 12). Bij de directe koppelingen halen we ze niet op.
 
 **Welzijn**
 - Overbelasting en crisis zoals beschreven in 11.6.
@@ -848,7 +851,7 @@ Controleer bij de start van de bouw de actuele modelnamen in de documentatie van
 | 9 | Agenda | optioneel en standaard uit; alleen lezen (zie 12) |
 | 10 | Kanalen (1 oktober 2026) | Telegram voor het dagelijkse gesprek, mail voor overzichten, concepten en als tweede invoer. WhatsApp vervalt: alle WhatsApp-accounts in mijn Meta-portfolio zijn uitgeschakeld en een nieuwe portfolio kan ik niet aanmaken. |
 | 11 | Mailprovider (2 oktober 2026) | Brevo in plaats van SendGrid, voor versturen en Inbound Parsing. |
-| 12 | Agenda's en modellen (2 oktober 2026) | Google Agenda, Outlook en Apple iCloud, alle drie alleen lezen. Wijzigt beslissing 9 (Google eerst). Modellen: snel `claude-haiku-4-5-20251001`, slim `claude-opus-5-5`. |
+| 12 | Agenda's en modellen (2–3 oktober 2026) | Lezen via de geheime ICS-link van elke agenda (Google, Outlook, Apple en andere); de feed bevat meer velden dan we bewaren, die worden direct weggegooid. Schrijven via een `.ics`-bestand ("Zet in agenda"). Directe koppelingen met Google, Outlook en Apple CalDAV staan in de code, standaard uit. Wijzigt beslissing 9 (Google eerst). Modellen: snel `claude-sonnet-5-5` met effort low (3 oktober 2026, na meting: 98% tegen 95% voor Haiku 4.5), slim `claude-opus-5-5`. |
 
 ### Nog open
 

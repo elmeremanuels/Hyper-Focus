@@ -357,40 +357,40 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 
 → **Start eigen gebruik** (BOUWPLAN 16) zodra 1.2 t/m 1.7 op de VPS staan en de evaluatieset ≥ 90% haalt.
 
-## Stap 1.8 — Agendakoppeling: Google, Outlook en Apple
+## Stap 1.8 — Agendakoppeling via ICS-link
 
-- **Datum:** 2026-10-02
-- **Besluit (Elmer):** de agenda koppelt met Google, Outlook en Apple. Bouwplan v1.5, beslissing 12.
-- **Status:** klaar in code. Inrichten op de VPS volgens `docs/agenda.md`.
-- **Datamodel (bewust gewijzigd):** enum `calendar_provider` krijgt `microsoft` en `apple` (migratie `0002_calendar_providers`). Er komen geen nieuwe kolommen bij: Apple ID en app-specifiek wachtwoord staan samen versleuteld in `refresh_token_enc`, de agenda-URL's in `calendar_ids`.
+- **Datum:** 2026-10-02, herzien 2026-10-03.
+- **Besluit (Elmer, 3 oktober):** lezen via de geheime ICS-link van de eigen agenda, schrijven via een `.ics`-bestand ("Zet in agenda"). Akkoord met de privacy-afweging: de feed bevat deelnemers, beschrijvingen en locaties; die worden bij het inlezen weggegooid en nooit bewaard. Bouwplan v1.5, beslissing 12.
+- **Datamodel (akkoord):** enum `calendar_provider` krijgt `microsoft`, `apple` en `ics` (migratie `0002_calendar_providers`). Er komen geen nieuwe kolommen bij: de ICS-link staat versleuteld in `refresh_token_enc`.
 - **Gebouwd:**
-  - `integrations/calendar/`: één `CalendarProvider`-interface met drie aanbieders:
-    - Google: OAuth, `calendar.readonly`, `singleEvents`.
-    - Outlook: Microsoft Graph `calendarView`, `Calendars.Read`, tenant `common`.
-    - Apple: CalDAV met ontdekking van de agenda's, `calendar-query` met `expand` en een eigen ICS-parser.
-  - Afgeslagen, geannuleerde en vrije afspraken tellen niet als bezet. Deelnemers, beschrijvingen en locaties worden nooit opgehaald.
-  - Koppelen: "koppel agenda" → persoonlijke link (15 minuten, ondertekend) → pagina met de ingerichte agenda's. Apple vraagt het app-specifieke wachtwoord op die pagina, nooit in de chat. Tokens en wachtwoord worden versleuteld opgeslagen (`ENCRYPTION_KEY`).
-  - Sync: de planner haalt om 00:05 vandaag en morgen op, de worker ververst elke 15 minuten. Alleen dat venster blijft bewaard. Afspraken worden op woorden aan klanten gekoppeld ("Call Bakkerij De Vries").
-  - Focus en vrije tijd: bij ≥ 4 uur afspraken, of als de schatting niet past, vervalt de derde taak. Past het dan nog niet, dan wordt de hoofdtaak de eerste microstap.
-  - Ochtendbericht met één regel over de dag (afspraken, hele-dag-afspraken, grootste vrije blok). `show_today` noemt de afspraken.
-  - Een proactief bericht tijdens een afspraak schuift naar direct erna. Lukt dat niet binnen 90 minuten, dan vervalt het (`in_meeting`). Sessie-check-ins schuiven mee.
-  - Middag: het eerste vrije blok van ≥ 30 minuten met *Ja, om 14:00 · Nu · Later*. Knop `ps:{taak}:{HHMM}` plant de sessie.
-  - Heads-up 10 minuten voor een gekoppelde afspraak met open punten, en een vraag naar actiepunten direct erna. Maximaal `max_calendar_nudges_per_day`. Deze berichten volgen stille uren en pauze, maar tellen niet mee voor de daglimiet.
-  - Tools `connect_calendar`, `disconnect_calendar`, `find_free_slot`; drie nieuwe gevallen in de evaluatieset (66 in totaal).
-  - Mislukt de sync, dan plant de planner zonder agenda en meldt het afrondbericht dat één keer.
-- **Controle (Definition of Done)** in `tests/calendar.integration.test.ts`, met een nep-`CalendarProvider`:
-  - *Met de agenda uit werkt alles zoals na 1.7:* `without a calendar everything works as before`, en alle eerdere tests blijven groen.
-  - *Een proactief bericht tijdens een afspraak komt direct erna:* `moves a proactive message to right after an appointment, or drops it after 90 minutes`.
-  - *Een dag met vijf uur afspraken telt maximaal twee focustaken:* `a day with five hours of appointments…`.
-  - *Een klantafspraak geeft tien minuten vooraf een heads-up met open punten:* `gives a heads-up…`.
-  - *"Ontkoppel agenda" trekt de toegang in en verwijdert tokens en afspraken:* `"ontkoppel agenda" revokes access…`.
-  - Verder: koppelpagina's met verlopen link, Apple-login met fout en goed wachtwoord (versleuteld opgeslagen), de Google-callback, een mislukte sync, `find_free_slot` met plannen.
-  - Providers apart (`tests/calendar-units.test.ts`): mapping per aanbieder, paginering, token verversen bij Microsoft, CalDAV-ontdekking met een iCloud-partitiehost, ICS met tijdzones, `DURATION`, gevouwen regels en hele-dag-afspraken.
-  - `npm test`: 238 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
+  - `integrations/calendar/ics.ts`:
+    - eigen ICS-parser met herhalende afspraken (`rrule`), uitgevouwen in de tijdzone van de afspraak;
+    - ondersteunt `EXDATE`, verplaatste afspraken (`RECURRENCE-ID`), Windows-zonenamen van Outlook, hele-dag-afspraken, geannuleerde afspraken en uitnodigingen die je hebt afgeslagen;
+    - `IcsCalendarProvider` met een tijdslimiet (15 s) en een groottelimiet (10 MB);
+    - alleen `https`/`webcal` naar publieke adressen, zodat de server geen interne adressen kan opvragen.
+  - Koppelpagina: één invulveld voor de ICS-link, met uitleg voor Google, Outlook en Apple. Bij het koppelen wordt de link eerst getest.
+  - **Zet in agenda:** de knop `ps:` (*Ja, om 14:00* of *Plan om …*) plant de sessie en stuurt een `.ics`-bestand mee. Bijlagen werken overal:
+    - Telegram: `sendDocument`;
+    - mail: Brevo-bijlage;
+    - actiepagina: downloadlink;
+    - simulator: een regel `[bijlage]`.
+  - De directe koppelingen met Google, Outlook en Apple CalDAV blijven in de code, maar staan uit tot hun sleutels in `.env` staan (`CALENDAR_APPLE_CALDAV` voor Apple).
+  - Verder als eerder gebouwd:
+    - vrije tijd en focus passend bij de dag;
+    - ochtendregel over de afspraken;
+    - berichten schuiven op tot na een afspraak (maximaal 90 minuten);
+    - heads-up en nabespreking bij klantafspraken;
+    - tools `connect_calendar`, `disconnect_calendar` en `find_free_slot`.
+- **Controle (Definition of Done)** in `tests/calendar.integration.test.ts`, met nep-agenda's:
+  - Alle vijf DoD-punten uit 11.8, zoals eerder.
+  - Nieuw: `connects any calendar with a secret ICS link and keeps only times and titles`. Ongeldige link → 400, geen agenda → 422, goede link → gekoppeld en versleuteld. Van een wekelijkse afspraak staat alleen het juiste exemplaar in de database, zonder beschrijving of locatie.
+  - `tests/ics.test.ts`: herhaling over de klokwissel, `EXDATE` en verplaatsing, Outlook-zones, afgeslagen uitnodiging, tijden zonder zone in Bali, linkcontrole en private adressen, en `.ics`-bestanden schrijven en teruglezen.
+  - `tests/attachments.test.ts`: het bestand gaat via Telegram als document en per mail als bijlage.
+  - `npm test`: 251 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
 - **Open:**
-  - Live controleren per aanbieder (`docs/agenda.md`, tabel onderaan). Vooral Apple: dat iCloud `expand` uitvoert voor terugkerende afspraken.
-  - Twijfelgevallen bij het koppelen aan een klant gaan nog niet naar het snelle model. Er is alleen een woordvergelijking (`docs/later.md`).
+  - Live koppelen en de checks uit `docs/agenda.md` doen.
+  - Meer dan één ICS-link per gebruiker staat in `docs/later.md`.
 
 ## Volgende stap
 
-Stappen 1.2 t/m 1.8 één voor één live zetten volgens `docs/testplan-fase1.md`. Daarna eigen gebruik.
+Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.

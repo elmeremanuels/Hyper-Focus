@@ -88,6 +88,19 @@ export class TelegramClient {
     return Buffer.from(await response.arrayBuffer());
   }
 
+  /** Sends a file, for example an .ics file the user taps to add to their calendar. */
+  async sendDocument(chatId: number, filename: string, mimeType: string, content: string, caption?: string): Promise<void> {
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    form.append('document', new Blob([content], { type: mimeType }), filename);
+    if (caption) form.append('caption', caption);
+    const response = await this.fetchImpl(`https://api.telegram.org/bot${this.token}/sendDocument`, { method: 'POST', body: form });
+    const payload = (await response.json()) as ApiResponse<unknown>;
+    if (!payload.ok) {
+      throw new TelegramApiError('sendDocument', payload.error_code ?? response.status, payload.description ?? 'Unknown error');
+    }
+  }
+
   /** Sets the command menu next to the message field. */
   async setMyCommands(commands: ReadonlyArray<{ command: string; description: string }>): Promise<void> {
     await this.call('setMyCommands', { commands });

@@ -97,7 +97,13 @@ export function createActionRouter(config: ActionRouteConfig): Router {
             })
             .join(' ')
         : '';
-    return `<p>${escapeHtml(reply.text).replace(/\n/g, '<br>')}</p>${links ? `<p>${links}</p>` : ''}`;
+    const files = (reply.attachments ?? [])
+      .map((file) => {
+        const href = `data:${file.mimeType};base64,${Buffer.from(file.content, 'utf8').toString('base64')}`;
+        return `<a class="button" download="${escapeHtml(file.filename)}" href="${href}">Zet in agenda</a>`;
+      })
+      .join(' ');
+    return `<p>${escapeHtml(reply.text).replace(/\n/g, '<br>')}</p>${links ? `<p>${links}</p>` : ''}${files ? `<p>${files}</p>` : ''}`;
   }
 
   return router;

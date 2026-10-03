@@ -2,10 +2,14 @@
 import type { Env } from '../../config/env.js';
 import { AppleCalendarProvider } from './apple.js';
 import { GoogleCalendarProvider } from './google.js';
+import { IcsCalendarProvider } from './ics.js';
 import { MicrosoftCalendarProvider } from './microsoft.js';
 import type { CalendarProvider, CalendarProviderName } from './types.js';
 
 export interface CalendarService {
+  /** The default: one secret ICS link, for any calendar. */
+  ics?: IcsCalendarProvider | undefined;
+  /** Direct connections, off unless set up in .env (kept for phase 3). */
   google?: GoogleCalendarProvider | undefined;
   microsoft?: MicrosoftCalendarProvider | undefined;
   apple?: AppleCalendarProvider | undefined;
@@ -37,9 +41,10 @@ export function buildCalendarService(env: Env): CalendarService | undefined {
     redirectUri: env.MICROSOFT_REDIRECT_URI,
   });
   return {
+    ics: new IcsCalendarProvider(),
     google,
     microsoft: microsoft.isConfigured() ? microsoft : undefined,
-    apple: new AppleCalendarProvider(),
+    apple: env.CALENDAR_APPLE_CALDAV ? new AppleCalendarProvider() : undefined,
     encryptionKey: env.ENCRYPTION_KEY,
     linkSecret: env.ACTION_LINK_SECRET,
     baseUrl: env.APP_BASE_URL,

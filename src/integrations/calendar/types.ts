@@ -1,6 +1,6 @@
 // One interface for every calendar (BOUWPLAN.md, 11.8): Google, Outlook and Apple.
 
-export type CalendarProviderName = 'google' | 'microsoft' | 'apple';
+export type CalendarProviderName = 'ics' | 'google' | 'microsoft' | 'apple';
 
 /** Only the fields we keep (BOUWPLAN.md, 14): no attendees, descriptions or locations. */
 export interface ProviderEvent {
@@ -24,6 +24,10 @@ export interface Credentials {
   password?: string;
   /** Apple: calendar collection URLs. Google: calendar ids. */
   calendars?: string[];
+  /** ICS feed: the secret link. */
+  url?: string;
+  /** The user's timezone, for feed times without a zone. */
+  timezone?: string;
 }
 
 export interface ListResult {

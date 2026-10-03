@@ -37,6 +37,9 @@ export class TelegramChannel implements Channel {
           deliveryStatus: 'sent',
         });
       }
+      for (const file of message.attachments ?? []) {
+        await this.client.sendDocument(chatId, file.filename, file.mimeType, file.content);
+      }
     } catch (error) {
       if (error instanceof TelegramApiError) {
         await this.store.recordOutbound({

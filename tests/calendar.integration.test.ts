@@ -111,7 +111,11 @@ describe.skipIf(!adminUrl)('calendar (integration)', { timeout: 30_000 }, () => 
     expect(button?.id).toMatch(/^ps:\d+:1100$/);
 
     const [planned] = await router({ kind: 'button', userId: t.userId, buttonId: button!.id, title: button!.title });
-    expect(planned?.text).toBe('Staat gepland. Om 11:00 stuur ik je een seintje.');
+    expect(planned?.text).toBe('Staat gepland. Om 11:00 stuur ik je een seintje. Tik op het bestand om het in je agenda te zetten.');
+    const [file] = planned?.attachments ?? [];
+    expect(file).toMatchObject({ filename: 'focus-1100.ics', mimeType: 'text/calendar' });
+    expect(file?.content).toContain('DTSTART:20261007T090000Z');
+    expect(file?.content).toContain('DTEND:20261007T092500Z');
     const session = (await nudges('session_checkin')).find((n) => n.payload.planned === true);
     expect(session?.scheduledForUtc.toISOString()).toBe('2026-10-07T09:00:00.000Z');
   });
@@ -139,7 +143,7 @@ describe.skipIf(!adminUrl)('calendar (integration)', { timeout: 30_000 }, () => 
       const html = await choose.text();
       expect(html).toContain('Google Agenda');
       expect(html).toContain('Apple iCloud-agenda');
-      expect(html).not.toContain('Outlook');
+      expect(html).not.toContain('/microsoft"'); // no direct Outlook button without Azure keys
 
       const bad = await fetch(`${server.baseUrl}/agenda/koppel/${token}/apple`, {
         method: 'POST',
@@ -167,6 +171,51 @@ describe.skipIf(!adminUrl)('calendar (integration)', { timeout: 30_000 }, () => 
 
       const expired = createConnectToken(t.userId, cal.service.linkSecret!, new Date(Date.now() - 16 * 60_000));
       expect((await fetch(`${server.baseUrl}/agenda/koppel/${expired}`)).status).toBe(404);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('connects any calendar with a secret ICS link and keeps only times and titles', async () => {
+    cal.feeds.set(
+      'https://feeds.invalid/sam/private.ics',
+      [
+        'BEGIN:VCALENDAR',
+        'BEGIN:VEVENT',
+        'UID:x1',
+        'DTSTART;TZID=Europe/Amsterdam:20261103T100000',
+        'DTEND;TZID=Europe/Amsterdam:20261103T110000',
+        'RRULE:FREQ=WEEKLY;BYDAY=TU',
+        'SUMMARY:Overleg Boho',
+        'DESCRIPTION:geheim',
+        'LOCATION:kantoor',
+        'END:VEVENT',
+        'END:VCALENDAR',
+      ].join('\r\n'),
+    );
+    const server = await startServer(
+      createApp({ calendar: { db: db(), service: cal.service, resolveHost: async () => ['93.184.216.34'], now: () => new Date('2026-11-10T07:00:00Z') } }),
+    );
+    try {
+      const token = createConnectToken(t.userId, cal.service.linkSecret!, new Date('2026-11-10T07:00:00Z'));
+      const html = await (await fetch(`${server.baseUrl}/agenda/koppel/${token}`)).text();
+      expect(html).toContain('ICS-link');
+      expect(html).toContain('Geheim adres in iCal-indeling');
+
+      const post = (url: string) =>
+        fetch(`${server.baseUrl}/agenda/koppel/${token}/ics`, { method: 'POST', body: new URLSearchParams({ url }) });
+      expect((await post('http://feeds.invalid/x.ics')).status).toBe(400);
+      expect((await post('https://feeds.invalid/onbekend.ics')).status).toBe(422);
+      expect((await post('webcal://feeds.invalid/sam/private.ics')).status).toBe(200);
+
+      const [ics] = await db().select().from(calendarConnections).where(and(eq(calendarConnections.userId, t.userId), eq(calendarConnections.provider, 'ics')));
+      expect(ics?.refreshTokenEnc).toBeTruthy();
+      expect(ics?.refreshTokenEnc).not.toContain('feeds.invalid');
+
+      const stored = await db().select().from(calendarEvents).where(eq(calendarEvents.connectionId, ics!.id));
+      expect(stored.map((e) => [e.title, e.startsAtUtc.toISOString()])).toEqual([['Overleg Boho', '2026-11-10T09:00:00.000Z']]);
+      expect(stored[0]?.clientId).not.toBeNull();
+      expect(JSON.stringify(stored)).not.toMatch(/geheim|kantoor/);
     } finally {
       await server.close();
     }

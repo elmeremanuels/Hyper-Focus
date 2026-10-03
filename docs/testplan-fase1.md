@@ -132,21 +132,21 @@ Verwacht: alles groen; de databasetests worden overgeslagen.
 
 ## 1.8 Agendakoppeling
 
-**Automatisch:** `tests/calendar-units.test.ts`, `tests/calendar.integration.test.ts`.
+**Automatisch:** `tests/ics.test.ts`, `tests/attachments.test.ts`, `tests/calendar-units.test.ts`, `tests/calendar.integration.test.ts`.
 
-**Vooraf:** `docs/agenda.md` (`ENCRYPTION_KEY`, en Google en/of Azure). Test elke agenda die je gebruikt.
+**Vooraf:** `docs/agenda.md` (alleen `ENCRYPTION_KEY` en `npm run db:migrate`).
 
 | # | Check | Hoe | Verwacht |
 |---|---|---|---|
 | 1 | Zonder agenda | niets koppelen, één dag gebruiken | alles werkt zoals na 1.7 |
-| 2 | Koppelen | "koppel agenda" → kies Google, Outlook of Apple | "Je agenda is gekoppeld." in Telegram |
+| 2 | Koppelen | "koppel agenda" → ICS-link plakken | "Je agenda is gekoppeld." in Telegram |
 | 3 | Ochtend | de volgende ochtend | regel met je afspraken en de ruimte |
 | 4 | Drukke dag | een dag met vijf uur afspraken | maximaal twee focustaken |
 | 5 | Bericht tijdens afspraak | zet een afspraak van 13:00 tot 14:00 | het middagbericht komt om 14:00 |
 | 6 | Heads-up | afspraak met een klantnaam in de titel | 10 minuten vooraf: "Om … heb je een afspraak met …. Open: …" |
 | 7 | Nabespreking | direct na die afspraak | vraag om actiepunten; een spraakbericht wordt taken onder de klant |
-| 8 | Vrij blok | "wanneer heb ik vandaag een uur?" | eerste vrije uur en een knop om daar een sessie te plannen |
-| 9 | Apple: terugkerende afspraken | zet een wekelijkse afspraak in iCloud | hij verschijnt op de juiste dag (controleert dat iCloud `expand` uitvoert) |
+| 8 | Vrij blok en zet in agenda | "wanneer heb ik vandaag een uur?" → *Plan om …* | bericht met een `.ics`-bestand; tik erop en de sessie staat in je agenda |
+| 9 | Herhalende afspraak | een wekelijkse afspraak | verschijnt op de juiste dag en tijd, ook na de klokwissel |
 | 10 | Ontkoppelen | "ontkoppel agenda" | `select count(*) from calendar_connections;` en `calendar_events` geven 0 voor jou |
 
 ## Is dit risicovol?
@@ -163,4 +163,4 @@ Echte onzekerheden, die alleen live te zien zijn:
 
 1. De score van de evaluatieset met het echte model (1.2).
 2. Of Brevo en Telegram binnen de tijdslimieten blijven met Claude ertussen (1.2, 1.6).
-3. Of iCloud terugkerende afspraken uitvouwt (1.8, check 9).
+3. Hoe snel je agenda de ICS-link bijwerkt (1.8): Google en Outlook soms pas na enkele uren.

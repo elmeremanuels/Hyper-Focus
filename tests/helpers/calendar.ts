@@ -1,5 +1,6 @@
 // A fake CalendarProvider with fixed appointments (BOUWPLAN.md, 15).
 import { vi } from 'vitest';
+import { IcsCalendarProvider } from '../../src/integrations/calendar/ics.js';
 import type { CalendarService } from '../../src/integrations/calendar/service.js';
 import type { CalendarProvider, Credentials, ProviderEvent } from '../../src/integrations/calendar/types.js';
 
@@ -29,14 +30,20 @@ export function fakeCalendar(events: ProviderEvent[] = []) {
       return ['https://p01-caldav.invalid/123/calendars/home/'];
     }),
   };
+  const feeds = new Map<string, string>();
+  const icsFetch = vi.fn(async (url: string | URL | Request) => {
+    const feed = feeds.get(String(url));
+    return feed ? new Response(feed) : new Response('<html>niet gevonden</html>', { status: 200 });
+  });
   const service = {
+    ics: new IcsCalendarProvider(icsFetch as typeof fetch),
     google: provider,
     apple,
     encryptionKey: 'e'.repeat(40),
     linkSecret: 'l'.repeat(40),
     baseUrl: 'https://hyper-focus.invalid',
   } as unknown as CalendarService;
-  return { service, provider: provider as CalendarProvider & typeof provider, apple, state };
+  return { service, provider: provider as CalendarProvider & typeof provider, apple, state, feeds, icsFetch };
 }
 
 export const appointment = (id: string, start: string, end: string, title: string, overrides: Partial<ProviderEvent> = {}): ProviderEvent => ({

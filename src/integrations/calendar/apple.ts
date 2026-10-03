@@ -1,9 +1,8 @@
 // Apple iCloud Calendar over CalDAV, read-only (decision 12, BOUWPLAN v1.5). The user
 // creates an app-specific password at appleid.apple.com; we store it encrypted.
-import { DateTime } from 'luxon';
+import { parseIcs } from './ics.js';
 import {
   CalendarAuthError,
-  dateToUtc,
   type CalendarProvider,
   type Credentials,
   type FetchLike,
@@ -66,7 +65,7 @@ export class AppleCalendarProvider implements CalendarProvider {
       if (response.status === 401 || response.status === 403) throw new CalendarAuthError(`CalDAV ${response.status}`);
       if (!response.ok && response.status !== 207) throw new Error(`CalDAV REPORT ${response.status}`);
       for (const data of calendarData(await response.text())) {
-        events.push(...parseIcs(data).filter((e) => e.endsAt > from && e.startsAt < to));
+        events.push(...parseIcs(data, { from, to, ...(credentials.username && { selfEmails: [credentials.username] }) }));
       }
     }
     return { events };
@@ -129,71 +128,4 @@ function decodeXml(value: string): string {
     .replace(/&amp;/g, '&');
 }
 
-/** Parses the VEVENTs of an iCalendar text. Recurring events arrive expanded by the server. */
-export function parseIcs(ics: string): ProviderEvent[] {
-  const lines = ics.replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '').split('\n');
-  const events: ProviderEvent[] = [];
-  let current: Map<string, { params: string; value: string }> | undefined;
-
-  for (const line of lines) {
-    if (line === 'BEGIN:VEVENT') current = new Map();
-    else if (line === 'END:VEVENT' && current) {
-      const event = toEvent(current);
-      if (event) events.push(event);
-      current = undefined;
-    } else if (current) {
-      const match = /^([A-Z-]+)((?:;[^:]*)?):(.*)$/.exec(line);
-      if (match?.[1] && !current.has(match[1])) current.set(match[1], { params: match[2] ?? '', value: match[3] ?? '' });
-    }
-  }
-  return events;
-}
-
-function toEvent(props: Map<string, { params: string; value: string }>): ProviderEvent | undefined {
-  if (props.get('STATUS')?.value === 'CANCELLED') return undefined;
-  const start = props.get('DTSTART');
-  if (!start) return undefined;
-  const isAllDay = /VALUE=DATE(;|$)/.test(start.params) || /^\d{8}$/.test(start.value);
-  const startsAt = icsTime(start.params, start.value, isAllDay);
-  const end = props.get('DTEND');
-  let endsAt = end ? icsTime(end.params, end.value, isAllDay) : undefined;
-  const duration = props.get('DURATION')?.value;
-  if (!endsAt && startsAt) {
-    endsAt = duration
-      ? DateTime.fromJSDate(startsAt).plus(isoDuration(duration)).toJSDate()
-      : new Date(startsAt.getTime() + (isAllDay ? 86_400_000 : 0));
-  }
-  if (!startsAt || !endsAt) return undefined;
-
-  const uid = props.get('UID')?.value ?? `${start.value}`;
-  const recurrence = props.get('RECURRENCE-ID')?.value;
-  return {
-    externalId: recurrence ? `${uid}:${recurrence}` : `${uid}:${start.value}`,
-    startsAt,
-    endsAt,
-    title: unescapeText(props.get('SUMMARY')?.value ?? '') || '(zonder titel)',
-    isAllDay,
-    isBusy: props.get('TRANSP')?.value !== 'TRANSPARENT',
-  };
-}
-
-function icsTime(params: string, value: string, isAllDay: boolean): Date | undefined {
-  if (isAllDay) {
-    const date = /^(\d{4})(\d{2})(\d{2})/.exec(value);
-    return date ? dateToUtc(`${date[1]}-${date[2]}-${date[3]}`) : undefined;
-  }
-  const zone = value.endsWith('Z') ? 'utc' : (/TZID=([^;:]+)/.exec(params)?.[1] ?? 'utc');
-  const parsed = DateTime.fromFormat(value.replace(/Z$/, ''), "yyyyMMdd'T'HHmmss", { zone });
-  return parsed.isValid ? parsed.toJSDate() : undefined;
-}
-
-function isoDuration(value: string): Record<string, number> {
-  const match = /^-?P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(value);
-  if (!match) return {};
-  const [, w, d, h, m, s] = match.map((part) => Number(part ?? 0));
-  return { weeks: w ?? 0, days: d ?? 0, hours: h ?? 0, minutes: m ?? 0, seconds: s ?? 0 };
-}
-
-function unescapeText(value: string): string {
-  return value.replace(/\\n/gi, ' ').replace(/\\([,;\\])/g, '$1').trim();
-}
+export { parseIcs };

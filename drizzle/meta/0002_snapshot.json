@@ -1,5 +1,5 @@
 {
-  "id": "79e09e4d-a318-4085-80b5-dcdbb28bff0e",
+  "id": "2a14e50e-4c76-47ba-b23a-a77a35b99afb",
   "prevId": "9c516f57-6917-4870-ae77-3c77fe4ddeec",
   "version": "7",
   "dialect": "postgresql",
@@ -2677,7 +2677,8 @@
       "values": [
         "google",
         "microsoft",
-        "apple"
+        "apple",
+        "ics"
       ]
     },
     "public.client_status": {

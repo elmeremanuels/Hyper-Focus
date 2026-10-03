@@ -40,7 +40,8 @@ export async function syncUserCalendars(
     const provider = providerFor(service, connection.provider);
     try {
       if (!provider) throw new Error(`Provider ${connection.provider} is not configured`);
-      const { events, refreshed } = await provider.listEvents(credentialsOf(connection, service.encryptionKey), from, to);
+      const credentials = { ...credentialsOf(connection, service.encryptionKey), timezone };
+      const { events, refreshed } = await provider.listEvents(credentials, from, to);
       if (refreshed) await updateTokens(db, connection.id, refreshed, service.encryptionKey);
 
       const [clientRows, projectRows] = await Promise.all([

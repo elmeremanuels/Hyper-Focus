@@ -15,6 +15,7 @@ export class ConsoleChannel {
     if (this.lastButtons.length > 0) {
       this.write(this.lastButtons.map((button, index) => `  [${index + 1}] ${button.title}`).join('\n'));
     }
+    for (const file of message.attachments ?? []) this.write(`  [bijlage] ${file.filename}`);
   }
 
   /** The button for a typed number such as "1", if the last message had one. */

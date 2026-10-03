@@ -42,6 +42,9 @@ export class EmailChannel implements Channel {
       text,
       html,
       ...(context.inReplyTo && { inReplyTo: context.inReplyTo }),
+      ...(message.attachments?.length && {
+        attachments: message.attachments.map((file) => ({ filename: file.filename, content: file.content })),
+      }),
     });
 
     await this.store.recordOutbound({

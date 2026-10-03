@@ -17,11 +17,13 @@ export async function saveConnection(
   credentials: Credentials,
   secret: string | undefined,
 ): Promise<number> {
-  // Apple has no tokens: the Apple ID and app-specific password go encrypted in the refresh column.
+  // Apple and ICS have no tokens: the login or the secret link go encrypted in the refresh column.
   const refresh =
     provider === 'apple'
       ? JSON.stringify({ username: credentials.username, password: credentials.password })
-      : credentials.refreshToken;
+      : provider === 'ics'
+        ? JSON.stringify({ url: credentials.url, username: credentials.username })
+        : credentials.refreshToken;
   const values = {
     accessTokenEnc: enc(credentials.accessToken, secret),
     refreshTokenEnc: enc(refresh, secret),
@@ -55,6 +57,10 @@ export async function updateTokens(db: Database, connectionId: number, refreshed
 export function credentialsOf(row: ConnectionRow, secret: string | undefined): Credentials {
   const refresh = row.refreshTokenEnc ? decryptToken(row.refreshTokenEnc, secret) : null;
   const calendars = row.calendarIds.filter((id) => id !== 'primary');
+  if (row.provider === 'ics') {
+    const { url, username } = JSON.parse(refresh ?? '{}') as { url?: string; username?: string };
+    return { ...(url && { url }), ...(username && { username }) };
+  }
   if (row.provider === 'apple') {
     const { username, password } = JSON.parse(refresh ?? '{}') as { username?: string; password?: string };
     return { ...(username && { username }), ...(password && { password }), calendars };

@@ -1,49 +1,69 @@
 # Agenda koppelen (stap 1.8)
 
-De agenda is optioneel. Zonder deze stappen werkt alles zoals na 1.7. Hyper&Focus leest alleen tijden en titels van vandaag en morgen en schrijft nooit in je agenda.
+De agenda is optioneel. Zonder koppeling werkt alles zoals na 1.7.
 
-## Op de VPS: `.env`
+Hyper&Focus leest je agenda via de **geheime ICS-link** die elke grote agenda aanbiedt. Er zijn geen API-sleutels of app-registraties nodig. Bewaard worden alleen de tijden en titels van vandaag en morgen. De feed bevat ook deelnemers, beschrijvingen en locaties; die worden bij het inlezen weggegooid. Hyper&Focus schrijft nooit in je agenda. Een geplande sessie komt met een `.ics`-bestand, en met één tik zet je hem zelf in je agenda.
 
-- `ENCRYPTION_KEY`: willekeurig, 32+ tekens (`openssl rand -base64 48`). Versleutelt tokens en het Apple-wachtwoord. **Verlies je hem, dan moet je opnieuw koppelen.**
-- `ACTION_LINK_SECRET` en `APP_BASE_URL` staan er al (stap 1.1).
-- Google en Outlook hieronder zijn elk optioneel. Apple heeft geen extra sleutels nodig.
+## Op de VPS (één keer)
 
-Daarna: `npm run build`, `npm run db:migrate` (migratie `0002_calendar_providers`), `pm2 restart hyperfocus hyperfocus-worker`.
+1. Maak een sleutel aan en zet hem in `.env` (`nano .env`):
+   ```
+   openssl rand -base64 48
+   ```
+   Daarna: `ENCRYPTION_KEY=<de uitkomst>`. Bewaar hem ook in je wachtwoordmanager. **Raak je hem kwijt, dan moet je opnieuw koppelen.**
+2. `ACTION_LINK_SECRET` en `APP_BASE_URL` staan er al (stap 1.1).
+3. Zet de nieuwe code live:
+   ```
+   git pull
+   npm ci
+   npm run build
+   npm run db:migrate
+   pm2 restart hyperfocus hyperfocus-worker
+   ```
+   De migratie `0002_calendar_providers` voegt `ics`, `microsoft` en `apple` toe als agenda-aanbieders.
 
-## Google Agenda
+## Koppelen (in Telegram)
 
-1. Google Cloud Console → nieuw project → *APIs en services* → *Google Calendar API* inschakelen.
-2. *OAuth-toestemmingsscherm*: extern, scope `.../auth/calendar.readonly`. Zet het op **In productie** (in testmodus verlopen refresh tokens na 7 dagen).
-3. *Inloggegevens* → *OAuth-client-ID* → webapplicatie. Geautoriseerde omleidings-URI: `https://hyper-focus.pro/auth/google/callback`.
-4. In `.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI=https://hyper-focus.pro/auth/google/callback`.
+1. Stuur **"koppel agenda"**. Je krijgt een persoonlijke link die 15 minuten werkt.
+2. Open de link en plak je ICS-link. Waar je die vindt:
 
-## Outlook (Microsoft 365 en Outlook.com)
+| Agenda | Waar |
+|---|---|
+| Google | calendar.google.com op een computer → tandwiel → *Instellingen* → links je agenda → *Agenda integreren* → **Geheim adres in iCal-indeling** |
+| Outlook | Outlook op het web → *Instellingen* → *Agenda* → *Gedeelde agenda's* → *Een agenda publiceren* → kies je agenda en *Kan alle details zien* → *Publiceren* → **ICS-link** |
+| Apple iCloud | iPhone: Agenda-app → *Agenda's* → ⓘ naast je agenda → **Openbare agenda** aan → *Deel link*. Mac: Agenda → rechtsklik op je agenda → *Deel agenda* → *Openbare agenda* |
 
-1. portal.azure.com → *Microsoft Entra ID* → *App-registraties* → *Nieuwe registratie*.
-2. Ondersteunde accounttypen: *Accounts in elke organisatiemap en persoonlijke Microsoft-accounts*.
-3. Omleidings-URI (Web): `https://hyper-focus.pro/auth/microsoft/callback`.
-4. *API-machtigingen* → Microsoft Graph → gedelegeerd: `Calendars.Read` en `offline_access`.
-5. *Certificaten en geheimen* → nieuw clientgeheim. Noteer de **waarde** (niet de id) en de vervaldatum; zet een herinnering om hem te vernieuwen.
-6. In `.env`: `MICROSOFT_CLIENT_ID` (de *Application (client) ID*), `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI=https://hyper-focus.pro/auth/microsoft/callback`.
+3. In Telegram komt "Je agenda is gekoppeld."
 
-## Apple iCloud
+Plak de link nooit in de chat; alleen op de koppelpagina wordt hij versleuteld opgeslagen.
 
-Geen inrichting op de server. De gebruiker:
+**Ontkoppelen:** stuur "ontkoppel agenda". Hyper&Focus verwijdert de link en de afspraken. Wil je de link zelf ongeldig maken, maak dan in je agenda een nieuwe geheime link aan (Google: *Opnieuw instellen*; Outlook: publicatie stoppen; Apple: *Openbare agenda* uit).
 
-1. Gaat naar account.apple.com → *Inloggen en beveiliging* → *App-specifieke wachtwoorden* en maakt er een aan (bijvoorbeeld "Hyper&Focus").
-2. Stuurt de bot "koppel agenda", kiest *Apple iCloud-agenda* en vult Apple ID en dat wachtwoord in.
+## Bekende beperkingen
 
-Het gewone Apple-wachtwoord werkt niet en wordt nooit gevraagd. Ontkoppelen: "ontkoppel agenda", en daarna het app-specifieke wachtwoord intrekken op account.apple.com.
+- Google en Outlook werken een gepubliceerde agenda soms pas na enkele uren bij. Een afspraak die je vandaag nog toevoegt, ziet Hyper&Focus daardoor mogelijk later.
+- Eén ICS-link per gebruiker. Heb je meer agenda's, kies dan de agenda waar je werkafspraken in staan.
 
-## Controle na het inrichten
+## Controle
 
 | Wat | Hoe |
 |---|---|
-| Koppellink | stuur "koppel agenda"; de link toont alleen de ingerichte agenda's en werkt 15 minuten |
-| Koppelen | kies een agenda; daarna komt in Telegram "Je agenda is gekoppeld." |
+| Koppellink | "koppel agenda" → pagina met een invulveld en uitleg per agenda |
+| Koppelen | link plakken → "Je agenda is gekoppeld." in Telegram |
 | Ochtend | de volgende ochtend noemt het bericht je afspraken en de ruimte |
-| Heads-up | zet een afspraak met een klantnaam in de titel (bijv. "Bakkerij De Vries"); 10 minuten vooraf komt een bericht met open punten |
-| Bericht tijdens afspraak | een middagbericht tijdens een afspraak komt direct erna |
-| Vrij blok | "wanneer heb ik vandaag een uur?" |
-| Ontkoppelen | "ontkoppel agenda"; in de database staan daarna geen rijen meer in `calendar_connections` en `calendar_events` voor jou |
+| Heads-up | afspraak met een klantnaam in de titel → 10 minuten vooraf een bericht met open punten |
+| Bericht tijdens afspraak | het middagbericht tijdens een afspraak komt direct erna |
+| Vrij blok + zet in agenda | "wanneer heb ik vandaag een uur?" → *Plan om …* → bericht met een `.ics`-bestand; tik erop en kies *Toevoegen* |
+| Herhalende afspraak | een wekelijkse afspraak verschijnt op de juiste dag en tijd |
+| Ontkoppelen | "ontkoppel agenda" → `select count(*) from calendar_connections;` geeft 0 voor jou |
 | Fouten | `pm2 logs hyperfocus-worker` toont "Calendar sync failed"; het afrondbericht meldt het één keer |
+
+## Directe koppelingen (standaard uit, voor later)
+
+De code voor Google (OAuth), Outlook (Microsoft Graph) en Apple (CalDAV met app-specifiek wachtwoord) staat klaar. Ze verschijnen op de koppelpagina zodra hun waarden in `.env` staan:
+
+- Google: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (Google Cloud Console, OAuth-client, scope `calendar.readonly`, toestemmingsscherm *In productie*).
+- Outlook: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI` (Azure app-registratie, `Calendars.Read` + `offline_access`).
+- Apple CalDAV: `CALENDAR_APPLE_CALDAV=true`.
+
+Ze zijn sneller bij te werken dan een ICS-link, maar vragen per aanbieder een eigen inrichting.

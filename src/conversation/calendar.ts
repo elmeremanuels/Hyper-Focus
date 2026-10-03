@@ -2,8 +2,10 @@
 import { DateTime } from 'luxon';
 import { z } from 'zod';
 import { getSettings } from '../core/settings.js';
+import { getTask } from '../core/tasks.js';
 import { scheduledNudges } from '../db/schema/index.js';
 import type { CalendarService } from '../integrations/calendar/service.js';
+import { calendarFile } from '../integrations/calendar/ics.js';
 import { createConnectToken } from '../integrations/calendar/state.js';
 import { credentialsOf, deleteConnections, listConnections } from '../integrations/calendar/store.js';
 import { eventsBetween, syncUserCalendars } from '../integrations/calendar/sync.js';
@@ -33,7 +35,7 @@ const connectCalendar = defineTool({
     return {
       content: 'Koppellink gestuurd.',
       reply: {
-        text: `Open deze link om je agenda te koppelen. Hij werkt 15 minuten.\n${url}\nIk kijk alleen naar tijden en titels van vandaag en morgen.`,
+        text: `Open deze link en plak de geheime ICS-link van je agenda. Op de pagina staat waar je die vindt. De link werkt 15 minuten.\n${url}`,
       },
     };
   },
@@ -56,12 +58,14 @@ const disconnectCalendar = defineTool({
     }
     await deleteConnections(ctx.db, ctx.userId);
     const apple = connections.some((c) => c.provider === 'apple');
+    const ics = connections.some((c) => c.provider === 'ics');
     return {
       content: 'Agenda ontkoppeld.',
       reply: {
         text:
           'Je agenda is ontkoppeld. Ik heb de toegang ingetrokken en de tokens en afspraken verwijderd.' +
-          (apple ? ' Verwijder ook het app-specifieke wachtwoord op appleid.apple.com.' : ''),
+          (apple ? ' Verwijder ook het app-specifieke wachtwoord op account.apple.com.' : '') +
+          (ics ? ' Wil je de ICS-link zelf ongeldig maken, maak dan in je agenda een nieuwe geheime link aan.' : ''),
       },
     };
   },
@@ -123,7 +127,22 @@ export function planSessionButton(): ButtonExtension {
       payload: { planned: true, taskId: button.taskId, localDate: today },
     });
     const time = `${button.time.slice(0, 2)}:${button.time.slice(2)}`;
-    return [{ text: `Staat gepland. Om ${time} stuur ik je een seintje.` }];
+    const task = await getTask(ctx.db, ctx.userId, button.taskId);
+    const { sessionMinutes } = await getSettings(ctx.db, ctx.userId);
+    const file = calendarFile({
+      uid: `session-${ctx.userId}-${button.taskId}-${today}-${button.time}@hyper-focus.pro`,
+      start: at,
+      end: new Date(at.getTime() + sessionMinutes * 60_000),
+      title: `Focus: ${task?.title ?? 'sessie'}`,
+      description: 'Gepland met Hyper&Focus.',
+      now: ctx.now,
+    });
+    return [
+      {
+        text: `Staat gepland. Om ${time} stuur ik je een seintje. Tik op het bestand om het in je agenda te zetten.`,
+        attachments: [{ filename: `focus-${button.time}.ics`, mimeType: 'text/calendar', content: file }],
+      },
+    ];
   };
 }
 
