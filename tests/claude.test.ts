@@ -71,3 +71,20 @@ describe('ClaudeClient', () => {
     );
   });
 });
+
+describe('ClaudeClient for Sonnet 5.5 and Opus 5.5', () => {
+  it('never forces a tool and sends effort only when configured', async () => {
+    const { client, create } = fakeAnthropic({ stop_reason: 'end_turn', content: [] });
+    const tool = { name: 'break_down', input_schema: { type: 'object' as const } };
+    const other = { name: 'add_task', input_schema: { type: 'object' as const } };
+
+    const plain = new ClaudeClient(config, undefined, client);
+    await plain.callWithTools({ purpose: 'x', tier: 'fast', messages: [{ role: 'user', content: 'a' }], tools: [tool, other], forceTool: 'break_down' });
+    expect(create).toHaveBeenLastCalledWith(expect.objectContaining({ tool_choice: { type: 'auto' }, tools: [tool] }));
+    expect((create.mock.lastCall as unknown[] | undefined)?.[0]).not.toHaveProperty('output_config');
+
+    const tuned = new ClaudeClient({ ...config, effortFast: 'low' }, undefined, client);
+    await tuned.callWithTools({ purpose: 'x', tier: 'fast', messages: [{ role: 'user', content: 'a' }], tools: [other] });
+    expect(create).toHaveBeenLastCalledWith(expect.objectContaining({ output_config: { effort: 'low' } }));
+  });
+});
