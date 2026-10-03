@@ -1,7 +1,7 @@
 // Buttons, choices and action links are handled without an AI call (BOUWPLAN.md, 9.4, 10.1).
 import type { ClaudeClient } from '../ai/claude.js';
 import type { Database } from '../db/client.js';
-import { setPausedUntil } from '../core/settings.js';
+import { getSettings, setPausedUntil } from '../core/settings.js';
 import { carryOver, getTask, listOpenTasks, moveTask, setTaskStatus } from '../core/tasks.js';
 import { setSuggestionStatus } from '../core/suggestions.js';
 import { and, eq } from 'drizzle-orm';
@@ -18,6 +18,10 @@ export type ParsedButton =
   | { kind: 'review'; step: string; value: string }
   | { kind: 'move'; taskId: number; projectId: number }
   | { kind: 'plan'; taskId: number; time: string }
+  | { kind: 'block'; action: 'start'; taskId: number; minutes: number }
+  | { kind: 'block'; action: 'next'; taskId: number }
+  | { kind: 'block'; action: 'stop' | 'done' | 'break' | 'plus15' | 'back'; blockId: number }
+  | { kind: 'rewards'; enabled: boolean }
   | { kind: 'tools'; action: 'start' | 'missing' | 'pick' | 'skip' | 'other' | 'paste' | 'keep' | 'edit' | 'del'; workType?: string; toolKey?: string }
   | { kind: 'help' };
 
@@ -37,6 +41,13 @@ export function parseButtonId(id: string): ParsedButton | undefined {
   if (match) return { kind: 'move', taskId: Number(match[1]), projectId: Number(match[2]) };
   match = /^ps:(\d+):([01]\d|2[0-3])([0-5]\d)$/.exec(id);
   if (match) return { kind: 'plan', taskId: Number(match[1]), time: `${match[2]}${match[3]}` };
+  match = /^blk:t(\d+):m(\d{2})$/.exec(id);
+  if (match) return { kind: 'block', action: 'start', taskId: Number(match[1]), minutes: Number(match[2]) };
+  match = /^blk:t(\d+):next$/.exec(id);
+  if (match) return { kind: 'block', action: 'next', taskId: Number(match[1]) };
+  match = /^blk:(\d+):(stop|done|break|plus15|back)$/.exec(id);
+  if (match) return { kind: 'block', action: match[2] as never, blockId: Number(match[1]) };
+  if (id === 'rw:on' || id === 'rw:off') return { kind: 'rewards', enabled: id === 'rw:on' };
   if (id === 'tl:start' || id === 'tl:missing') return { kind: 'tools', action: id === 'tl:start' ? 'start' : 'missing' };
   match = /^tl:([a-z]+):pick:([a-z_]+)$/.exec(id);
   if (match) return { kind: 'tools', action: 'pick', workType: match[1] ?? '', toolKey: match[2] ?? '' };
@@ -52,10 +63,24 @@ export interface ButtonContext {
   timezone: string;
   now: Date;
   claude?: Pick<ClaudeClient, 'callWithTools'> | undefined;
+  /** For the reward mini-app link (step 1.9). */
+  appBaseUrl?: string | undefined;
 }
 
 /** A later step can take over a button kind (session in 1.4, review in 1.7). */
 export type ButtonExtension = (button: ParsedButton, ctx: ButtonContext) => Promise<OutboundMessage[] | undefined>;
+
+/** Help with the rewards switch in its current position (step 1.9). */
+export async function helpMessage(ctx: Pick<ButtonContext, 'db' | 'userId'>): Promise<OutboundMessage> {
+  const { rewardsEnabled } = await getSettings(ctx.db, ctx.userId);
+  return {
+    ...HELP_MESSAGE,
+    buttons: [
+      ...(HELP_MESSAGE.buttons ?? []),
+      rewardsEnabled ? { id: 'rw:off', title: 'Beloningen uit' } : { id: 'rw:on', title: 'Beloningen aan' },
+    ],
+  };
+}
 
 export const HELP_MESSAGE: OutboundMessage = {
   text:
@@ -83,7 +108,7 @@ export async function handleButton(
   const { db, userId, timezone, now } = ctx;
   switch (button.kind) {
     case 'help':
-      return [HELP_MESSAGE];
+      return [await helpMessage(ctx)];
 
     case 'focus':
       if (button.action === 'show') return [await focusView(db, userId, timezone, now)];
@@ -123,6 +148,8 @@ export async function handleButton(
     case 'session':
     case 'review':
     case 'tools':
+    case 'block':
+    case 'rewards':
     case 'plan':
       return [UNKNOWN];
   }

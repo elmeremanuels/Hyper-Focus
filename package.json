@@ -23,6 +23,7 @@
     "sim": "tsx scripts/sim.ts",
     "eval": "tsx scripts/eval.ts",
     "sim:day": "tsx scripts/sim-day.ts",
+    "stats:focus": "tsx scripts/stats-focus.ts",
     "link:telegram": "tsx scripts/link-telegram.ts",
     "telegram:webhook": "tsx scripts/telegram-webhook.ts",
     "brevo:inbound": "tsx scripts/brevo-inbound.ts"

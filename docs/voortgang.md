@@ -414,6 +414,41 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - De klikmeting via `/go/<id>` vraagt een nieuwe `.env`-vlag. Die leg ik je eerst voor (zie `docs/later.md`).
   - Export van gegevens bestaat nog niet (BOUWPLAN 14, fase 2). Verwijderen werkt via de cascade op de gebruiker, dus `user_tools` gaat mee.
 
+## Stap 1.9 — Werkblokken, pauze-opdrachten en de beloningsminuut
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Datamodel (uit de brief):** tabellen `focus_blocks` en `garden_events`, kolommen `users.garden_growth` en `user_settings.rewards_enabled`, vier nudge-soorten (`block_end`, `return_reminder`, `pause_close`, `hyperfocus_break`). Migratie `0004_work_blocks`. Alles valt weg met de cascade op de gebruiker.
+- **Gebouwd:**
+  - *Start* vraagt 15, 25 of 45 minuten (standaard 15). De router geeft `minutes` mee; andere duren rond de code af naar de dichtstbijzijnde.
+  - Einde van het blok met geluid: [Afgerond] [Nog 15 min] [Stoppen]. Zonder antwoord sluit het blok na 30 minuten stil.
+  - *Afgerond* start een pauze-opdracht zonder geluid (water, strekken, toilet 3 min, ademen; nooit twee keer dezelfde achter elkaar). *Ik ben terug* of de tekst "ben terug" sluit de pauze. Op tijd: extra blaadje, [Je minuut] en [Volgende blok starten].
+  - Pauzetijd voorbij: één keer "Terug naar je blok?" met geluid; 30 minuten later sluit de pauze stil.
+  - Hyperfocus-vanger: 60 minuten of meer aaneengesloten werk (blokken zonder terugkeer uit de pauze, met minder dan 30 minuten ertussen) geeft één pauzebericht. Na *Nog 15 min* komt er nog één; daarna alleen de gewone vraag.
+  - Stilte: tijdens een blok of pauze gaan antwoorden en berichten met `disable_notification`, behalve `block_end`, `return_reminder` en `hyperfocus_break`. Andere proactieve berichten wachten tot na de pauze. Stille uren en /pauze gaan voor.
+  - Beloningsminuut: `/app/beloning?t=…`, een Telegram-mini-app. Eén ronde van 60 seconden, geteld op de server; herladen geeft geen extra tijd. Het token is eenmalig (alleen de hash staat in de database) en verloopt aan het eind van de lokale dag. `initData` wordt met HMAC gecontroleerd, maximaal 24 uur oud, en moet van de eigenaar zijn. In de mail is het een gewone link.
+  - Tuin: +1 per afgerond blok en +1 per terugkeer op tijd. Krimpt nooit. De weekreview noemt de groei.
+  - "zet beloningen uit"/"aan" en een knop in /help. Blokken en pauzes werken door.
+  - Router: `start_session` krijgt `minutes`; nieuwe tools `return_from_pause` en `set_rewards`.
+  - `npm run sim:day -- --date … --scenario blocks`: twee blokken achter elkaar en een late terugkeer, met "zonder geluid" per bericht.
+  - `npm run stats:focus -- --days 14`: de meetpunten uit de brief per gebruiker.
+  - Evaluatieset: 4 nieuwe gevallen (75 in totaal).
+- **Controle (Definition of Done)** in `tests/blocks.integration.test.ts`, `tests/blocks.test.ts`, `tests/session.integration.test.ts`, `tests/telegram-processor.test.ts`:
+  - *Start vraagt 15/25/45; het einde komt op tijd, met geluid:* `asks the length, starts a block…` en `runs a block, a silent pause…`.
+  - *Pauze-opdracht zonder geluid; op tijd terug geeft de druppel en [Je minuut]:* `runs a block, a silent pause…` en de sim-test.
+  - *Precies één "Terug naar je blok?", met geluid:* `sends one return reminder with sound…`.
+  - *Mini-app 60 seconden:* `times one round of 60 seconds on the server…`, `expires at the end of the local day`, `stores only a hash of the token`. In Chromium gecontroleerd: de pagina laadt zonder fouten, telt af en toont de plant. Telegram Desktop en mobiel: live-check.
+  - *Hyperfocus na 60+ minuten:* `catches hyperfocus once after 60+ minutes…` (15 + 25 + 25).
+  - *"zet beloningen uit":* `keeps blocks and pauses working with rewards off…` (geen knop, geen tuinregel, /help toont *Beloningen aan*).
+  - *sim:day toont de nieuwe nudges:* `plays two blocks and a late return in sim:day…`. `npm test`: 294 groen. Eval: op de VPS.
+- **Afwijkingen en keuzes om voor te leggen:**
+  - Vier teksten staan niet in de brief: "Eerste stap: {stap}." (onder de starttekst als de taak stappen heeft), "Prima, nog 15 minuten.", "Gestopt." en "Beloningen staan weer aan." Ze staan in `src/texts/werkblokken.nl.ts`.
+  - *Afgerond* rondt de microstap af waaraan je werkte, niet de hele taak. Een taak zonder stappen blijft open.
+  - Bij een late terugkeer blijft [Je minuut] staan, zonder extra blaadje.
+  - Evalgeval "even 40 min aan de offerte voor Roos" heet hier "…voor de bakkerij": de evalcontext heeft geen offerte voor Roos.
+  - Space Grotesk staat in de CSS, maar wordt niet extern geladen (geen extra dienst); de pagina valt terug op de systeemletter.
+  - De oude knoppen uit stap 1.4 (*Gedaan*, *Nog 10 min*, *Vastgelopen*) blijven werken voor berichten die al verstuurd zijn.
+
 ## Volgende stap
 
 Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.

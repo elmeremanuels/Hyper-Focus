@@ -1,6 +1,6 @@
 import type { MessageStore } from '../../core/messages.js';
 import type { OutboundMessage } from '../../conversation/types.js';
-import { ChannelUnavailableError, type Channel, type ChannelUser } from '../channel.js';
+import { ChannelUnavailableError, type Channel, type ChannelUser, type SendContext } from '../channel.js';
 import { TelegramApiError, type TelegramClient } from './client.js';
 import { splitText, toInlineKeyboard } from './keyboard.js';
 
@@ -13,7 +13,7 @@ export class TelegramChannel implements Channel {
     private readonly store: MessageStore,
   ) {}
 
-  async send(user: ChannelUser, message: OutboundMessage): Promise<void> {
+  async send(user: ChannelUser, message: OutboundMessage, context: SendContext = {}): Promise<void> {
     const chatId = user.telegramChatId;
     if (chatId === null) {
       throw new ChannelUnavailableError('telegram', 'user has not linked Telegram');
@@ -27,7 +27,7 @@ export class TelegramChannel implements Channel {
       for (const [index, part] of parts.entries()) {
         // Buttons go under the last part.
         const markup = index === parts.length - 1 ? keyboard : undefined;
-        const { messageId } = await this.client.sendMessage(chatId, part, markup);
+        const { messageId } = await this.client.sendMessage(chatId, part, markup, { silent: Boolean(context.silent) });
         await this.store.recordOutbound({
           userId: user.id,
           channel: 'telegram',
@@ -38,7 +38,7 @@ export class TelegramChannel implements Channel {
         });
       }
       for (const file of message.attachments ?? []) {
-        await this.client.sendDocument(chatId, file.filename, file.mimeType, file.content);
+        await this.client.sendDocument(chatId, file.filename, file.mimeType, file.content, { silent: Boolean(context.silent) });
       }
     } catch (error) {
       if (error instanceof TelegramApiError) {

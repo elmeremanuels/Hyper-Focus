@@ -16,6 +16,8 @@ export interface TelegramProcessorDeps {
   messages: MessageStore;
   delivery: Delivery;
   router: Router;
+  /** True during a work block or pause: replies go out without sound (step 1.9). */
+  isQuiet?: (userId: number) => Promise<boolean>;
   allowedUserIds: readonly number[];
   linkSecret: string | undefined;
   /** Without a configured transcriber, voice messages get a short reply. */
@@ -120,8 +122,10 @@ export function createTelegramProcessor(deps: TelegramProcessorDeps) {
       type: update.content.kind,
     });
 
+    // Decided before routing: a tap that ends the pause is still answered quietly.
+    const silent = deps.isQuiet ? await deps.isQuiet(user.id).catch(() => false) : false;
     for (const reply of await route(update, user, externalId)) {
-      await deps.delivery.send(withChat(user, update.chatId), reply, { via: 'telegram' });
+      await deps.delivery.send(withChat(user, update.chatId), reply, { via: 'telegram', context: { silent } });
     }
     return 'processed';
   };

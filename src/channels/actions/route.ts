@@ -90,7 +90,8 @@ export function createActionRouter(config: ActionRouteConfig): Router {
     const { secret, baseUrl } = config;
     const links = buttons
       .flatMap((button) => {
-        if (button.url) return [`<a class="button" href="${escapeHtml(button.url)}" rel="noreferrer">${escapeHtml(button.title)}</a>`];
+        const direct = button.url ?? button.webApp;
+        if (direct) return [`<a class="button" href="${escapeHtml(direct)}" rel="noreferrer">${escapeHtml(button.title)}</a>`];
         if (!secret || !baseUrl) return [];
         const url = actionUrl(baseUrl, createActionToken(userId, button.id, secret, now()));
         return [`<a class="button" href="${escapeHtml(url)}">${escapeHtml(button.title)}</a>`];

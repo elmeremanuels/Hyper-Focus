@@ -23,7 +23,7 @@ import {
 
 const LINK_SECRET = 's'.repeat(32);
 
-function setup(options: { linked?: boolean; mail?: Channel; transcriber?: VoiceTranscriber } = {}) {
+function setup(options: { linked?: boolean; mail?: Channel; transcriber?: VoiceTranscriber; quiet?: boolean } = {}) {
   const telegram = fakeTelegramFetch();
   const client = new TelegramClient('test-token', telegram.fetchImpl);
   const messages = new MemoryMessageStore();
@@ -57,6 +57,7 @@ function setup(options: { linked?: boolean; mail?: Channel; transcriber?: VoiceT
     transcriber: options.transcriber,
     log,
     now: () => new Date('2026-10-01T08:00:00Z'),
+    ...(options.quiet !== undefined && { isQuiet: async () => options.quiet! }),
   });
   return { telegram, messages, users, log, process, routed };
 }
@@ -81,6 +82,16 @@ describe('Telegram processor', () => {
     expect(messages.outbound()).toMatchObject([{ channel: 'telegram', externalId: 'm:111222333:101', deliveryStatus: 'sent' }]);
     expect(messages.lastInbound.get(1)).toEqual(new Date(1791280800 * 1000));
     expect(messages.events[0]).toMatchObject({ name: 'inbound_message', props: { channel: 'telegram' } });
+  });
+
+  it('answers without sound during a work block or pause', async () => {
+    const quiet = setup({ quiet: true });
+    await quiet.process(fixture('telegram', 'text'));
+    expect(quiet.telegram.sent()[0]?.body.disable_notification).toBe(true);
+
+    const loud = setup({ quiet: false });
+    await loud.process(fixture('telegram', 'text'));
+    expect(loud.telegram.sent()[0]?.body).not.toHaveProperty('disable_notification');
   });
 
   it('processes a duplicate delivery once', async () => {

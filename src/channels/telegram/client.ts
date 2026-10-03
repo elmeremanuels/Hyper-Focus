@@ -1,6 +1,9 @@
 // Telegram Bot API over fetch, without a library (BOUWPLAN.md, 5).
 
-export type InlineKeyboardButton = { text: string; callback_data: string } | { text: string; url: string };
+export type InlineKeyboardButton =
+  | { text: string; callback_data: string }
+  | { text: string; url: string }
+  | { text: string; web_app: { url: string } };
 
 export interface InlineKeyboardMarkup {
   inline_keyboard: InlineKeyboardButton[][];
@@ -44,10 +47,12 @@ export class TelegramClient {
     chatId: number,
     text: string,
     replyMarkup?: InlineKeyboardMarkup,
+    options: { silent?: boolean } = {},
   ): Promise<{ messageId: number }> {
     const result = await this.call<{ message_id: number }>('sendMessage', {
       chat_id: chatId,
       text,
+      ...(options.silent && { disable_notification: true }),
       link_preview_options: { is_disabled: true },
       ...(replyMarkup && { reply_markup: replyMarkup }),
     });
@@ -86,11 +91,18 @@ export class TelegramClient {
   }
 
   /** Sends a file, for example an .ics file the user taps to add to their calendar. */
-  async sendDocument(chatId: number, filename: string, mimeType: string, content: string, caption?: string): Promise<void> {
+  async sendDocument(
+    chatId: number,
+    filename: string,
+    mimeType: string,
+    content: string,
+    options: { caption?: string; silent?: boolean } = {},
+  ): Promise<void> {
     const form = new FormData();
     form.append('chat_id', String(chatId));
+    if (options.silent) form.append('disable_notification', 'true');
     form.append('document', new Blob([content], { type: mimeType }), filename);
-    if (caption) form.append('caption', caption);
+    if (options.caption) form.append('caption', options.caption);
     const response = await this.fetchImpl(`https://api.telegram.org/bot${this.token}/sendDocument`, { method: 'POST', body: form });
     const payload = (await response.json()) as ApiResponse<unknown>;
     if (!payload.ok) {

@@ -37,6 +37,8 @@ export interface ToolContext {
   claude?: Pick<ClaudeClient, 'callWithTools'> | undefined;
   /** Calendar providers and secrets, when the calendar is set up (step 1.8). */
   calendar?: CalendarService | undefined;
+  /** For the reward mini-app link (step 1.9). */
+  appBaseUrl?: string | undefined;
 }
 
 export interface ToolOutcome {

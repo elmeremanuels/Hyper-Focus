@@ -5,7 +5,8 @@ import type { ClaudeClient } from '../ai/claude.js';
 import { fillPrompt, loadPrompt } from '../ai/prompts.js';
 import { getProfile, type UserProfile } from '../core/profile.js';
 import type { Database } from '../db/client.js';
-import { handleButton, HELP_MESSAGE, type ButtonContext, type ButtonExtension } from './buttons.js';
+import { handleButton, helpMessage, type ButtonContext, type ButtonExtension } from './buttons.js';
+import { blockButtons, BLOCK_TOOLS, DEFAULT_BLOCK_MINUTES, pauseModeHandler, setRewards, startBlock, type DefaultBlockMinutes } from './blocks.js';
 import { loadContext, renderContext } from './context.js';
 import type { Router } from './router.js';
 import { getState, type ConversationMode, type ConversationStateRow } from './state.js';
@@ -33,6 +34,10 @@ export interface AssistantDeps {
   claude: Pick<ClaudeClient, 'callWithTools'> | undefined;
   /** Calendar providers and secrets, when set up (step 1.8). */
   calendar?: CalendarService | undefined;
+  /** APP_BASE_URL, for the reward mini-app (step 1.9). */
+  appBaseUrl?: string | undefined;
+  /** Length of a block when none is chosen; step 1.11 makes it follow the day review. */
+  defaultBlockMinutes?: DefaultBlockMinutes;
   tools?: ToolDefinition[];
   buttonExtensions?: ButtonExtension[];
   modeHandlers?: Partial<Record<ConversationMode, ModeHandler>>;
@@ -41,7 +46,14 @@ export interface AssistantDeps {
 }
 
 /** All tools the router offers Claude. */
-export const ROUTER_TOOLS: ToolDefinition[] = [...CORE_TOOLS, ...SESSION_TOOLS, ...CALENDAR_TOOLS, ...WORKPLACE_TOOLS, crisisTool];
+export const ROUTER_TOOLS: ToolDefinition[] = [
+  ...CORE_TOOLS,
+  ...SESSION_TOOLS,
+  ...BLOCK_TOOLS,
+  ...CALENDAR_TOOLS,
+  ...WORKPLACE_TOOLS,
+  crisisTool,
+];
 
 /** Tool rounds per message; after that the reply goes out as it is. */
 export const MAX_TOOL_ROUNDS = 3;
@@ -55,7 +67,9 @@ export const TEXTS = {
 } as const;
 
 // Fixed words that never need an AI call (the Telegram commands map to these).
-const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools'> = {
+const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools' | 'rewards_off' | 'rewards_on'> = {
+  'zet beloningen uit': 'rewards_off',
+  'zet beloningen aan': 'rewards_on',
   'mijn tools': 'tools',
   weekreview: 'review',
   vandaag: 'today',
@@ -67,6 +81,7 @@ const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools'> =
 export function createAssistantRouter(deps: AssistantDeps): Router {
   const tools = deps.tools ?? ROUTER_TOOLS;
   const buttonExtensions = [
+    blockButtons(deps.defaultBlockMinutes),
     sessionButtons(),
     reviewButtons(),
     planSessionButton(),
@@ -74,7 +89,11 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     ...(deps.buttonExtensions ?? []),
   ];
   const modeHandlers: Partial<Record<ConversationMode, ModeHandler>> = {
-    session: (message, state, ctx) => sessionModeHandler(message.text, state.data as SessionData, ctx),
+    session: async (message, state, ctx) =>
+      (await pauseModeHandler(message.text, state.data, ctx)) ??
+      sessionModeHandler(message.text, state.data as SessionData, ctx, async (c, taskId) =>
+        startBlock(c, taskId, (await deps.defaultBlockMinutes?.(c)) ?? DEFAULT_BLOCK_MINUTES),
+      ),
     weekly_review: (message, state, ctx) => reviewModeHandler(message.text, state.data, ctx),
     onboarding: (message, state, ctx) => onboardingModeHandler(message.text, state.data, ctx),
     ...deps.modeHandlers,
@@ -92,6 +111,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
       timezone: profile.timezone,
       now: now(),
       claude: deps.claude,
+      appBaseUrl: deps.appBaseUrl,
     };
 
     if (message.kind === 'button') {
@@ -118,7 +138,8 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     const fixed = FIXED[message.text.trim().toLowerCase().replace(/^\//, '')];
     if (fixed === 'today') return [await focusView(deps.db, profile.id, profile.timezone, ctx.now)];
     if (fixed === 'parking') return [await parkingMessage(deps.db, profile.id)];
-    if (fixed === 'help') return [HELP_MESSAGE];
+    if (fixed === 'help') return [await helpMessage(ctx)];
+    if (fixed === 'rewards_off' || fixed === 'rewards_on') return [await setRewards(ctx, fixed === 'rewards_on')];
     if (fixed === 'review') return [await reviewStart(ctx)];
     if (fixed === 'tools') return [await toolsOverview(ctx)];
 
@@ -160,7 +181,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
       const results: Anthropic.ToolResultBlockParam[] = [];
       const roundOutcomes: ToolOutcome[] = [];
       for (const call of result.toolCalls) {
-        const outcome = await safeRunTool(call, { ...ctx, source, calendar: deps.calendar });
+        const outcome = await safeRunTool(call, { ...ctx, source, calendar: deps.calendar, appBaseUrl: deps.appBaseUrl });
         outcomes.push(outcome);
         roundOutcomes.push(outcome);
         results.push({

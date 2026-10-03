@@ -9,7 +9,7 @@ export function renderMessageMail(
   const buttons = message.rows?.flat() ?? message.choices ?? message.buttons ?? [];
   // Link buttons go straight to their URL; other buttons become signed action links.
   const links = buttons.flatMap((button) =>
-    button.url ? [{ title: button.title, url: button.url }] : linkFor ? [{ title: button.title, url: linkFor(button.id) }] : [],
+    (button.url ?? button.webApp) ? [{ title: button.title, url: (button.url ?? button.webApp) as string }] : linkFor ? [{ title: button.title, url: linkFor(button.id) }] : [],
   );
 
   const text = [
