@@ -45,7 +45,16 @@ export function useTestDatabase(): TestDatabase {
 
   afterAll(async () => {
     await state.connection?.close();
-    await admin(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+    // FORCE cannot stop an autovacuum worker for a role without superuser; it is gone in a moment.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await admin(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+        return;
+      } catch (error) {
+        if (attempt >= 5) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+      }
+    }
   }, HOOK_TIMEOUT_MS);
 
   return state;
