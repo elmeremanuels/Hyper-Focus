@@ -114,7 +114,7 @@ export async function generateSteps(
     messages: [{ role: 'user', content: lines.join('\n') }],
     tools: toAnthropicTools([breakDown]),
     forceTool: 'break_down',
-    maxTokens: 1024,
+    maxTokens: 4096,
   });
   const call = result.toolCalls[0];
   if (!call) return undefined;
