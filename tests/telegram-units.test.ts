@@ -137,3 +137,16 @@ describe('TelegramApiError', () => {
     expect(new TelegramApiError('sendMessage', 429, 'Too Many Requests').chatUnreachable).toBe(false);
   });
 });
+
+describe('command menu', () => {
+  it('sends the commands to setMyCommands, and every command maps to a word the router knows', async () => {
+    const { BOT_COMMANDS } = await import('../src/channels/telegram/processor.js');
+    const { TelegramClient } = await import('../src/channels/telegram/client.js');
+    const { fakeTelegramFetch } = await import('./helpers/memory.js');
+    const telegram = fakeTelegramFetch();
+    await new TelegramClient('t', telegram.fetchImpl).setMyCommands(BOT_COMMANDS);
+    expect(telegram.calls[0]).toMatchObject({ method: 'setMyCommands', body: { commands: BOT_COMMANDS } });
+    expect(BOT_COMMANDS.map((c) => c.command)).toContain('weekreview');
+    for (const c of BOT_COMMANDS) expect(c.description.length).toBeLessThanOrEqual(256);
+  });
+});

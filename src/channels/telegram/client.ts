@@ -88,6 +88,11 @@ export class TelegramClient {
     return Buffer.from(await response.arrayBuffer());
   }
 
+  /** Sets the command menu next to the message field. */
+  async setMyCommands(commands: ReadonlyArray<{ command: string; description: string }>): Promise<void> {
+    await this.call('setMyCommands', { commands });
+  }
+
   async setWebhook(url: string, secretToken: string): Promise<void> {
     await this.call('setWebhook', {
       url,
