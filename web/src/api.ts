@@ -29,3 +29,28 @@ export interface Battery {
   elapsedMinutes: number | null;
   label: string;
 }
+
+export interface TodayTask {
+  id: number;
+  title: string;
+  minutes: number | null;
+  project: string;
+  client: string | null;
+  status: string;
+  quickWin: boolean;
+  inWindow: boolean;
+  step: string | null;
+  link: { title: string; url: string } | null;
+}
+
+export interface Today {
+  date: string;
+  dayLabel: string;
+  name: string;
+  window: { start: string; end: string; status: string; taskId: number | null } | null;
+  focus: TodayTask[];
+  log: Array<{ time: string; minutes: number; title: string; result: string | null; inWindow: boolean }>;
+  activeBlock: { phase: 'block' | 'pause'; taskId: number | null; endsAt: string } | null;
+}
+
+export const post = <T = { ok: true }>(path: string, body: unknown = {}) => api<T>(path, { method: 'POST', body: JSON.stringify(body) });

@@ -61,6 +61,7 @@ if (env.DATABASE_URL) {
   if (env.DASHBOARD_BASE_URL) {
     const dashboardBaseUrl = env.DASHBOARD_BASE_URL;
     options.dashboardApi = { db, botToken: env.TELEGRAM_BOT_TOKEN };
+    options.dashboard = { db, dashboardBaseUrl };
     options.dashboardWeb = { dir: resolve('dist/web'), host: new URL(dashboardBaseUrl).hostname };
     options.auth = {
       db,

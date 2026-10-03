@@ -7,6 +7,7 @@ import { createRewardRouter, type RewardRouteConfig } from './web/reward.js';
 import { createDashboardApi, type DashboardApiConfig } from './web/dashboard-api.js';
 import { createAuthRouter, type AuthConfig } from './web/auth/routes.js';
 import { createDashboardStatic, type DashboardWebConfig } from './web/dashboard-static.js';
+import { createDashboardRoutes, type DashboardRoutesConfig } from './web/dashboard/index.js';
 
 export interface AppOptions {
   telegram?: {
@@ -24,6 +25,7 @@ export interface AppOptions {
   dashboardApi?: DashboardApiConfig;
   auth?: AuthConfig;
   dashboardWeb?: DashboardWebConfig;
+  dashboard?: DashboardRoutesConfig;
 }
 
 export function createApp(options: AppOptions = {}): Express {
@@ -53,6 +55,9 @@ export function createApp(options: AppOptions = {}): Express {
   }
   if (options.auth) {
     app.use(createAuthRouter(options.auth));
+  }
+  if (options.dashboard) {
+    app.use(createDashboardRoutes(options.dashboard));
   }
   if (options.dashboardApi) {
     app.use(createDashboardApi(options.dashboardApi));

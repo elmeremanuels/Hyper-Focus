@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Battery, Me } from './api';
 import { Card, ROUTES, Shell, type Route } from './components/Shell';
 import { Placeholder } from './pages/Placeholder';
+import { Today } from './pages/Today';
 import { T } from './texts';
 import { useApi } from './useApi';
 
@@ -41,7 +42,7 @@ export function App() {
 
   return (
     <Shell route={route} go={go} battery={battery.data}>
-      {route === 'today' && <Placeholder title={T.nav.today} />}
+      {route === 'today' && <Today onChange={() => void battery.reload()} />}
       {route === 'projects' && <Placeholder title={T.nav.projects} />}
       {route === 'parking' && <Placeholder title={T.nav.parking} />}
       {route === 'settings' && <Placeholder title={T.nav.settings} />}
