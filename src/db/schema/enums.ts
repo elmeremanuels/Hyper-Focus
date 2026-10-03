@@ -83,3 +83,4 @@ export const dayEnergy = pgEnum('day_energy', ['low', 'normal', 'high']);
 export const focusPref = pgEnum('focus_pref', ['morning', 'afternoon', 'evening', 'unknown']);
 export const focusWindowSource = pgEnum('focus_window_source', ['pref', 'learned', 'manual']);
 export const focusWindowStatus = pgEnum('focus_window_status', ['planned', 'used', 'missed', 'moved']);
+export const loginChannel = pgEnum('login_channel', ['email', 'telegram']);

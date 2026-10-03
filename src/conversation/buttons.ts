@@ -31,6 +31,7 @@ export type ParsedButton =
   | { kind: 'rhythm'; action: 'yes'; start: string; weekdays: number[] }
   | { kind: 'rhythm'; action: 'keep' }
   | { kind: 'workweek'; action: 'ask' | 'other' | 'days' | 'hours'; value: string }
+  | { kind: 'dashboard' }
   | { kind: 'tools'; action: 'start' | 'missing' | 'pick' | 'skip' | 'other' | 'paste' | 'keep' | 'edit' | 'del'; workType?: string; toolKey?: string }
   | { kind: 'help' };
 
@@ -75,6 +76,7 @@ export function parseButtonId(id: string): ParsedButton | undefined {
     return { kind: 'rhythm', action: 'yes', start: `${time.slice(0, 2)}:${time.slice(2)}`, weekdays: [...(match[2] ?? '')].map(Number) };
   }
   if (id === 'rh:keep') return { kind: 'rhythm', action: 'keep' };
+  if (id === 'db:open') return { kind: 'dashboard' };
   if (id === 'ww:ask' || id === 'ww:other') return { kind: 'workweek', action: id === 'ww:ask' ? 'ask' : 'other', value: '' };
   match = /^ww:d:([1-7]{1,7})$/.exec(id);
   if (match) return { kind: 'workweek', action: 'days', value: match[1] ?? '' };
@@ -119,7 +121,7 @@ export const HELP_MESSAGE: OutboundMessage = {
   text:
     'Stuur een taak, idee of vraag in gewone woorden. "Vandaag" toont je focus. ' +
     '"Mijn tools" zet je werkplek-knoppen klaar. "Mijn ritme" zet je focusvenster. "Mijn werkweek" zet je werkdagen en -tijden.',
-  buttons: [SHOW_TODAY, { id: 'tl:start', title: 'Tools instellen' }],
+  buttons: [SHOW_TODAY, { id: 'tl:start', title: 'Tools instellen' }, { id: 'db:open', title: 'Open dashboard' }],
 };
 
 const UNKNOWN: OutboundMessage = { text: 'Die knop ken ik niet.', buttons: [SHOW_TODAY] };
@@ -189,6 +191,7 @@ export async function handleButton(
     case 'window':
     case 'rhythm':
     case 'workweek':
+    case 'dashboard':
     case 'plan':
       return [UNKNOWN];
   }
