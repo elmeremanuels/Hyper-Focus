@@ -6,6 +6,8 @@ import { recordEvent } from '../core/events.js';
 import { getTask, getTasksInOrder, listOpenTasks, type TaskSummary } from '../core/tasks.js';
 import type { OutboundMessage } from '../conversation/types.js';
 import { SHOW_TODAY } from '../conversation/views.js';
+import { localDate } from '../lib/time.js';
+import { calendarDayLine, calendarErrorLine, freeSlotOffer } from './calendar-messages.js';
 
 export interface NudgeContext {
   db: Database;
@@ -57,9 +59,13 @@ export async function composeMorning(ctx: NudgeContext, localDate: string): Prom
       message: { text: `Goedemorgen ${ctx.name}. Er staat vandaag niets open. Stuur me wat je wilt doen, dan zet ik het klaar.` },
     };
   }
+  const day = await calendarDayLine(ctx, localDate);
   return {
     subject: 'Je focus voor vandaag',
-    message: { text: `Goedemorgen ${ctx.name}. Je focus voor vandaag staat klaar.`, buttons: [SHOW_TODAY, DAY_OFF] },
+    message: {
+      text: `Goedemorgen ${ctx.name}.${day ? ` ${day}` : ''} Je focus voor vandaag staat klaar.`,
+      buttons: [SHOW_TODAY, DAY_OFF],
+    },
   };
 }
 
@@ -67,6 +73,8 @@ export async function composeMorning(ctx: NudgeContext, localDate: string): Prom
 export async function composeMidday(ctx: NudgeContext, taskId: number): Promise<Composed> {
   const task = await getTask(ctx.db, ctx.userId, taskId);
   if (!task || task.status !== 'open') return { skip: 'main_task_started' };
+  const slot = await freeSlotOffer(ctx, localDate(ctx.timezone, ctx.now), task);
+  if (slot) return { subject: 'Samen beginnen?', message: slot };
   return {
     subject: 'Samen beginnen?',
     message: {
@@ -82,13 +90,15 @@ export async function composeMidday(ctx: NudgeContext, taskId: number): Promise<
 export async function composeWrapup(ctx: NudgeContext, localDate: string): Promise<Composed> {
   const focus = await plannedFocus(ctx, localDate);
   if (focus.length === 0) return { skip: 'no_focus' };
+  const calendarError = await calendarErrorLine(ctx);
+  const note = calendarError ? `\n${calendarError}` : '';
 
   const done = focus.filter((task) => task.status === 'done');
   const open = focus.filter(isOpen);
   const intro = 'Tijd om de dag af te ronden.';
 
   if (open.length === 0) {
-    return { subject: 'De dag afronden', message: { text: `${intro} Alles uit je focus is af ✔ Sterk gedaan. Tot morgen.` } };
+    return { subject: 'De dag afronden', message: { text: `${intro} Alles uit je focus is af ✔ Sterk gedaan. Tot morgen.${note}` } };
   }
 
   const first = open[0] as TaskSummary;
@@ -99,7 +109,7 @@ export async function composeWrapup(ctx: NudgeContext, localDate: string): Promi
   return {
     subject: 'De dag afronden',
     message: {
-      text: `${intro}${doneLine} Wat doen we met ${lowerFirst(first.title)}?`,
+      text: `${intro}${doneLine} Wat doen we met ${lowerFirst(first.title)}?${note}`,
       buttons: [
         { id: `t:${first.id}:tomorrow`, title: 'Morgen verder' },
         { id: `t:${first.id}:split`, title: 'Opknippen' },

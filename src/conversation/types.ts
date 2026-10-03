@@ -21,4 +21,13 @@ export interface OutboundMessage {
   buttons?: Button[];
   /** Choice list: one button per row, up to 8 (BOUWPLAN.md, 9.2). */
   choices?: Button[];
+  /** Files sent with the message, such as an .ics file to put a session in a calendar. */
+  attachments?: Attachment[];
+}
+
+export interface Attachment {
+  filename: string;
+  mimeType: string;
+  /** Text content (an .ics file is text). */
+  content: string;
 }

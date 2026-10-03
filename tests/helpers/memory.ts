@@ -96,7 +96,12 @@ export function fakeTelegramFetch() {
       return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53]), { status: 200 });
     }
     const method = String(url).split('/').pop()!;
-    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    const body =
+      init?.body instanceof FormData
+        ? Object.fromEntries(
+            [...init.body.entries()].map(([key, value]) => [key, typeof value === 'string' ? value : { filename: value.name, type: value.type }]),
+          )
+        : (JSON.parse(String(init?.body)) as Record<string, unknown>);
     calls.push({ method, body });
     if (failWith && method === 'sendMessage') {
       return new Response(

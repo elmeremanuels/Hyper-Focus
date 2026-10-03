@@ -14,6 +14,7 @@ export interface EmailMessage {
   html: string;
   /** Message-ID of the mail this answers. */
   inReplyTo?: string;
+  attachments?: Array<{ filename: string; content: string }>;
 }
 
 export class EmailSendError extends Error {
@@ -61,6 +62,12 @@ export class EmailSender {
         subject: message.subject,
         textContent: message.text,
         htmlContent: message.html,
+        ...(message.attachments?.length && {
+          attachment: message.attachments.map((file) => ({
+            name: file.filename,
+            content: Buffer.from(file.content, 'utf8').toString('base64'),
+          })),
+        }),
         ...(message.inReplyTo && {
           headers: { 'In-Reply-To': message.inReplyTo, References: message.inReplyTo },
         }),

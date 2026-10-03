@@ -125,6 +125,11 @@ export const CASES: EvalCase[] = [
     tools: [['log_note'], ['add_task']],
   },
 
+  // calendar (step 1.8)
+  { text: 'koppel mijn agenda', tools: one('connect_calendar') },
+  { text: 'ontkoppel agenda', tools: one('disconnect_calendar') },
+  { text: 'wanneer heb ik vandaag een uur vrij?', tools: one('find_free_slot') },
+
   // more than one thing
   {
     text: 'factuur is verstuurd en zet op de lijst: offerte voor boho maken',

@@ -17,6 +17,7 @@ export type ParsedButton =
   | { kind: 'session'; taskId: number; action: 'done' | 'plus10' | 'stuck' }
   | { kind: 'review'; step: string; value: string }
   | { kind: 'move'; taskId: number; projectId: number }
+  | { kind: 'plan'; taskId: number; time: string }
   | { kind: 'help' };
 
 /** Parses the button ids from BOUWPLAN.md 9.4. */
@@ -33,6 +34,8 @@ export function parseButtonId(id: string): ParsedButton | undefined {
   if (match) return { kind: 'review', step: match[1] ?? '', value: match[2] ?? '' };
   match = /^mv:(\d+):(\d+)$/.exec(id);
   if (match) return { kind: 'move', taskId: Number(match[1]), projectId: Number(match[2]) };
+  match = /^ps:(\d+):([01]\d|2[0-3])([0-5]\d)$/.exec(id);
+  if (match) return { kind: 'plan', taskId: Number(match[1]), time: `${match[2]}${match[3]}` };
   if (id === 'help') return { kind: 'help' };
   return undefined;
 }
@@ -111,6 +114,7 @@ export async function handleButton(
 
     case 'session':
     case 'review':
+    case 'plan':
       return [UNKNOWN];
   }
 }

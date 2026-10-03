@@ -2,6 +2,7 @@ import express, { type Express } from 'express';
 import { createActionRouter, type ActionRouteConfig } from './channels/actions/route.js';
 import { createMailWebhookRouter, type InboundItem } from './channels/email/inbound.js';
 import { createTelegramWebhookRouter } from './channels/telegram/webhook.js';
+import { createCalendarRouter, type CalendarRouteConfig } from './integrations/calendar/routes.js';
 
 export interface AppOptions {
   telegram?: {
@@ -13,6 +14,7 @@ export interface AppOptions {
     onMail?: (item: InboundItem) => Promise<unknown>;
   };
   actions?: ActionRouteConfig;
+  calendar?: CalendarRouteConfig;
 }
 
 export function createApp(options: AppOptions = {}): Express {
@@ -39,6 +41,9 @@ export function createApp(options: AppOptions = {}): Express {
   );
   if (options.actions) {
     app.use(createActionRouter(options.actions));
+  }
+  if (options.calendar) {
+    app.use(createCalendarRouter(options.calendar));
   }
 
   return app;

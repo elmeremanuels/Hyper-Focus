@@ -9,10 +9,12 @@ import { handleButton, HELP_MESSAGE, type ButtonContext, type ButtonExtension } 
 import { loadContext, renderContext } from './context.js';
 import type { Router } from './router.js';
 import { getState, type ConversationMode, type ConversationStateRow } from './state.js';
+import type { CalendarService } from '../integrations/calendar/service.js';
+import { CALENDAR_TOOLS, planSessionButton } from './calendar.js';
 import { reviewButtons, reviewModeHandler, reviewStart } from './review.js';
 import { sessionButtons, sessionModeHandler, SESSION_TOOLS, type SessionData } from './session.js';
 import { CRISIS_REPLY, crisisTool, flagCrisis, looksLikeCrisis } from './wellbeing.js';
-import { CORE_TOOLS, runTool, toAnthropicTools, type ToolDefinition, type ToolOutcome } from './tools.js';
+import { CORE_TOOLS, runTool, toAnthropicTools, type ToolContext, type ToolDefinition, type ToolOutcome } from './tools.js';
 import type { Button, InboundMessage, InboundSource, OutboundMessage } from './types.js';
 import { focusView, parkingMessage, SHOW_TODAY } from './views.js';
 
@@ -27,6 +29,8 @@ export interface AssistantDeps {
   db: Database;
   /** Without Claude, only buttons and the fixed words below work. */
   claude: Pick<ClaudeClient, 'callWithTools'> | undefined;
+  /** Calendar providers and secrets, when set up (step 1.8). */
+  calendar?: CalendarService | undefined;
   tools?: ToolDefinition[];
   buttonExtensions?: ButtonExtension[];
   modeHandlers?: Partial<Record<ConversationMode, ModeHandler>>;
@@ -35,7 +39,7 @@ export interface AssistantDeps {
 }
 
 /** All tools the router offers Claude. */
-export const ROUTER_TOOLS: ToolDefinition[] = [...CORE_TOOLS, ...SESSION_TOOLS, crisisTool];
+export const ROUTER_TOOLS: ToolDefinition[] = [...CORE_TOOLS, ...SESSION_TOOLS, ...CALENDAR_TOOLS, crisisTool];
 
 /** Tool rounds per message; after that the reply goes out as it is. */
 export const MAX_TOOL_ROUNDS = 3;
@@ -59,7 +63,7 @@ const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review'> = {
 
 export function createAssistantRouter(deps: AssistantDeps): Router {
   const tools = deps.tools ?? ROUTER_TOOLS;
-  const buttonExtensions = [sessionButtons(), reviewButtons(), ...(deps.buttonExtensions ?? [])];
+  const buttonExtensions = [sessionButtons(), reviewButtons(), planSessionButton(), ...(deps.buttonExtensions ?? [])];
   const modeHandlers: Partial<Record<ConversationMode, ModeHandler>> = {
     session: (message, state, ctx) => sessionModeHandler(message.text, state.data as SessionData, ctx),
     weekly_review: (message, state, ctx) => reviewModeHandler(message.text, state.data, ctx),
@@ -145,7 +149,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
       const results: Anthropic.ToolResultBlockParam[] = [];
       const roundOutcomes: ToolOutcome[] = [];
       for (const call of result.toolCalls) {
-        const outcome = await safeRunTool(call, { ...ctx, source });
+        const outcome = await safeRunTool(call, { ...ctx, source, calendar: deps.calendar });
         outcomes.push(outcome);
         roundOutcomes.push(outcome);
         results.push({
@@ -164,7 +168,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     return compose(reply, outcomes);
   }
 
-  async function safeRunTool(call: Anthropic.ToolUseBlock, ctx: ButtonContext & { source: InboundSource }) {
+  async function safeRunTool(call: Anthropic.ToolUseBlock, ctx: ToolContext) {
     try {
       return await runTool(tools, call.name, call.input, ctx);
     } catch (error) {

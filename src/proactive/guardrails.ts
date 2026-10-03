@@ -4,6 +4,8 @@ import { DateTime } from 'luxon';
 
 /** The user started these themselves, so they go out regardless of the guardrails. */
 export const USER_STARTED_KINDS = new Set(['session_checkin']);
+/** Heads-ups and follow-ups: limited by max_calendar_nudges_per_day when planned. */
+export const CALENDAR_KINDS = new Set(['meeting_heads_up', 'meeting_followup']);
 /** At least this long between two proactive messages. */
 export const BREATHING_MINUTES = 45;
 
@@ -49,7 +51,8 @@ export function checkGuardrails(input: GuardrailInput): GuardrailVerdict {
     return { send: false, reason: 'silence_morning_only' };
   }
 
-  if (input.mailOnly) return { send: true };
+  // Mail and appointment messages have their own limits (BOUWPLAN.md, 11.7–11.8).
+  if (input.mailOnly || CALENDAR_KINDS.has(input.kind)) return { send: true };
 
   const limit = input.overwhelmedYesterday ? 1 : settings.maxProactivePerDay;
   if (input.sentToday >= limit) {

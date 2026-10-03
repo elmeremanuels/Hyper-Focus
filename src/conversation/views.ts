@@ -3,7 +3,9 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { dailyFocus, tasks } from '../db/schema/index.js';
 import { getTasksInOrder, listOpenTasks, listParkedTasks, type TaskSummary } from '../core/tasks.js';
-import { localDate } from '../lib/time.js';
+import { getSettings } from '../core/settings.js';
+import { eventsBetween } from '../integrations/calendar/sync.js';
+import { localDate, localNow } from '../lib/time.js';
 import type { Button, OutboundMessage } from './types.js';
 
 export const SHOW_TODAY: Button = { id: 'f:show', title: 'Laat zien' };
@@ -77,10 +79,26 @@ export async function focusView(db: Database, userId: number, timezone: string, 
     .select({ quickWinTaskId: dailyFocus.quickWinTaskId })
     .from(dailyFocus)
     .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, localDate(timezone, now))));
-  return focusMessage(focus, {
+  const message = focusMessage(focus, {
     firstSteps: await firstSteps(db, userId, focus.map((task) => task.id)),
     quickWinTaskId: planned?.quickWinTaskId ?? null,
   });
+  const appointments = await appointmentsLine(db, userId, timezone, now);
+  return appointments ? { ...message, text: `${appointments}\n\n${message.text}` } : message;
+}
+
+/** "Afspraken: 10:00 Bakkerij De Vries, 14:00 Lunch." when the calendar is connected. */
+export async function appointmentsLine(db: Database, userId: number, timezone: string, now: Date): Promise<string | undefined> {
+  const settings = await getSettings(db, userId);
+  if (!settings.calendarEnabled) return undefined;
+  const dayEnd = localNow(timezone, now).endOf('day').toJSDate();
+  const events = (await eventsBetween(db, userId, now, dayEnd))
+    .filter((e) => e.isBusy && !e.isAllDay)
+    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+    .slice(0, 5);
+  if (events.length === 0) return undefined;
+  const time = (d: Date) => localNow(timezone, d).toFormat('HH:mm');
+  return `Afspraken: ${events.map((e) => `${time(e.startsAt)} ${e.title}`).join(', ')}.`;
 }
 
 /** The first open micro step (subtask) of each task that has one. */

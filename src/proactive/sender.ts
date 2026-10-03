@@ -1,6 +1,6 @@
 // Sends due messages from scheduled_nudges (BOUWPLAN.md, 11.1): one row at a time with
 // FOR UPDATE SKIP LOCKED, through the guardrails, then over the user's channel.
-import { and, asc, desc, eq, gte, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, notInArray, sql } from 'drizzle-orm';
 import type { Delivery } from '../channels/channel.js';
 import { recordEvent } from '../core/events.js';
 import { getProfile } from '../core/profile.js';
@@ -12,6 +12,8 @@ import { localDate, localNow } from '../lib/time.js';
 import { composeWeeklyMail, reviewStart } from '../conversation/review.js';
 import { composeCheckin } from '../conversation/session.js';
 import { checkGuardrails, silentDays, USER_STARTED_KINDS, type GuardrailInput, type GuardrailVerdict } from './guardrails.js';
+import { composeFollowup, composeHeadsUp, composePlannedSession, todaysEvents } from './calendar-messages.js';
+import { meetingAt } from './daycalendar.js';
 import { composeEscalation } from './escalation.js';
 import { composeMidday, composeMorning, composeReentry, composeWrapup, type Composed, type NudgeContext } from './messages.js';
 
@@ -24,7 +26,11 @@ export const DEFAULT_COMPOSERS: Partial<Record<NudgeRow['kind'], Composer>> = {
   midday: (ctx, nudge) => composeMidday(ctx, Number(nudge.payload.taskId)),
   wrapup: (ctx, nudge) => composeWrapup(ctx, String(nudge.payload.localDate)),
   session_checkin: (ctx, nudge) =>
-    composeCheckin(ctx, { taskId: Number(nudge.payload.taskId), stepId: Number(nudge.payload.stepId) }),
+    nudge.payload.planned
+      ? composePlannedSession(ctx, Number(nudge.payload.taskId))
+      : composeCheckin(ctx, { taskId: Number(nudge.payload.taskId), stepId: Number(nudge.payload.stepId) }),
+  meeting_heads_up: (ctx, nudge) => composeHeadsUp(ctx, String(nudge.payload.eventId)),
+  meeting_followup: (ctx, nudge) => composeFollowup(ctx, String(nudge.payload.eventId)),
   escalation: (ctx, nudge) => composeEscalation(ctx, Number(nudge.payload.taskId), Number(nudge.payload.level)),
   reentry: (ctx) => composeReentry(ctx),
   weekly_review: async (ctx, nudge) =>
@@ -41,6 +47,10 @@ export interface SenderDeps {
   guardrail?: Guardrail;
   log?: Pick<Console, 'error' | 'warn'>;
 }
+
+/** Heads-ups and follow-ups are about the appointment itself, so they never move. */
+const MEETING_KINDS = new Set(['meeting_heads_up', 'meeting_followup']);
+export const MAX_MEETING_DELAY_MS = 90 * 60 * 1000;
 
 /** A message more than this late is skipped (worker was down). */
 export const MAX_DELAY_MS = 2 * 60 * 60 * 1000;
@@ -67,7 +77,9 @@ export async function sendDueNudges(deps: SenderDeps, now: Date = new Date(), li
 
       const result = await processNudge(deps, nudge, now);
       if (result.status === 'postponed') {
-        await tx.update(scheduledNudges).set({ scheduledForUtc: result.retryAt }).where(eq(scheduledNudges.id, nudge.id));
+        // Keep the first planned time: the 90-minute limit counts from there.
+        const payload = { ...nudge.payload, originalAt: nudge.payload.originalAt ?? nudge.scheduledForUtc.toISOString() };
+        await tx.update(scheduledNudges).set({ scheduledForUtc: result.retryAt, payload }).where(eq(scheduledNudges.id, nudge.id));
         return 'postponed' as const;
       }
       // updated_at doubles as the send time for the daily limit and breathing room.
@@ -106,6 +118,16 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
     if (!user || !profile) return { status: 'skipped', reason: 'unknown_user' };
     if (status[0]?.status === 'paused' && !USER_STARTED_KINDS.has(nudge.kind)) {
       return { status: 'skipped', reason: 'user_paused' };
+    }
+
+    // In an appointment: move to right after it, or drop after 90 minutes (BOUWPLAN.md, 11.8).
+    if (!MEETING_KINDS.has(nudge.kind)) {
+      const meeting = meetingAt(await todaysEvents({ db: deps.db, userId: user.id, timezone: profile.timezone, now }), now);
+      if (meeting) {
+        const original = new Date(String(nudge.payload.originalAt ?? nudge.scheduledForUtc.toISOString()));
+        if (meeting.endsAt.getTime() - original.getTime() > MAX_MEETING_DELAY_MS) return { status: 'skipped', reason: 'in_meeting' };
+        return { status: 'postponed', retryAt: meeting.endsAt };
+      }
     }
 
     const silent = silentDays(status[0]?.lastInboundAt ?? null, profile.timezone, now);
@@ -155,7 +177,7 @@ async function guardrailInput(
   const proactive = and(
     eq(scheduledNudges.userId, nudge.userId),
     eq(scheduledNudges.status, 'sent'),
-    ne(scheduledNudges.kind, 'session_checkin'),
+    notInArray(scheduledNudges.kind, ['session_checkin', 'meeting_heads_up', 'meeting_followup']),
     // The Monday mail does not count against Telegram messages.
     sql`not (${scheduledNudges.kind} = 'weekly_review' and ${scheduledNudges.payload}->>'part' = 'mail')`,
   );

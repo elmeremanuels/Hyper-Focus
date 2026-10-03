@@ -5,6 +5,10 @@ import type { Database } from '../db/client.js';
 import { dailyFocus, projects, scheduledNudges, tasks, users } from '../db/schema/index.js';
 import { getSettings } from '../core/settings.js';
 import { localDate, localNow, localTimeOnDate } from '../lib/time.js';
+import { nextStep } from '../core/steps.js';
+import type { CalendarService } from '../integrations/calendar/service.js';
+import { eventsBetween, syncUserCalendars } from '../integrations/calendar/sync.js';
+import { busyBlocks, fitFocus, totalMinutes } from './daycalendar.js';
 import { ESCALATION_TIME, pickEscalation } from './escalation.js';
 import { silentDays } from './guardrails.js';
 import { composeFocus, type ComposedFocus, type FocusCandidate } from './focus.js';
@@ -30,8 +34,13 @@ export interface PlanResult {
   nudges: PlannedNudge[];
 }
 
+export interface PlannerOptions {
+  /** With a calendar service, connected calendars are synced and the focus fits the free time. */
+  calendar?: CalendarService | undefined;
+}
+
 /** Plans today for every active user whose local time is past 00:05 and who has no plan yet. */
-export async function runPlanner(db: Database, now: Date = new Date()): Promise<PlanResult[]> {
+export async function runPlanner(db: Database, now: Date = new Date(), options: PlannerOptions = {}): Promise<PlanResult[]> {
   const targets = await db
     .select({ id: users.id, timezone: users.timezone })
     .from(users)
@@ -42,7 +51,7 @@ export async function runPlanner(db: Database, now: Date = new Date()): Promise<
     const local = localNow(target.timezone, now);
     if (local.toFormat('HH:mm') < PLANNER_TIME) continue;
     try {
-      const result = await planDay(db, target.id, target.timezone, now);
+      const result = await planDay(db, target.id, target.timezone, now, options);
       if (result) results.push(result);
     } catch (error) {
       console.error(`Planning failed for user ${target.id}:`, error);
@@ -57,9 +66,20 @@ export async function planDay(
   userId: number,
   timezone: string,
   now: Date,
+  options: PlannerOptions = {},
 ): Promise<PlanResult | undefined> {
   const today = localDate(timezone, now);
   const settings = await getSettings(db, userId);
+
+  // Fresh appointments before planning; a failed sync plans as without a calendar.
+  let withCalendar = false;
+  if (options.calendar && settings.calendarEnabled) {
+    const [planned] = await db
+      .select({ id: dailyFocus.id })
+      .from(dailyFocus)
+      .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, today)));
+    if (!planned) withCalendar = (await syncUserCalendars(db, options.calendar, userId, timezone, now)).ok;
+  }
 
   return db.transaction(async (tx) => {
     // The unique (user, date) row makes planning idempotent across ticks and processes.
@@ -72,6 +92,7 @@ export async function planDay(
 
     const candidates = await focusCandidates(tx, userId, now);
     const focus = composeFocus(candidates, today, now);
+    if (withCalendar) await fitToCalendar(tx as unknown as Database, userId, timezone, today, settings, candidates, focus);
     await tx
       .update(dailyFocus)
       .set({ taskIds: focus.taskIds, quickWinTaskId: focus.quickWinTaskId })
@@ -115,6 +136,36 @@ export async function planDay(
     }
     return { userId, localDate: today, focus, nudges };
   });
+}
+
+/**
+ * Fits the focus to the free time between morning and wrap-up (BOUWPLAN.md, 11.8): the third
+ * task goes first; when it still does not fit, the main task shrinks to its first micro step.
+ */
+async function fitToCalendar(
+  db: Database,
+  userId: number,
+  timezone: string,
+  today: string,
+  settings: { morningTime: string; wrapupTime: string },
+  candidates: FocusCandidate[],
+  focus: ComposedFocus,
+) {
+  const from = localTimeOnDate(timezone, today, settings.morningTime);
+  const to = localTimeOnDate(timezone, today, settings.wrapupTime);
+  const events = await eventsBetween(db, userId, from, to);
+  const busy = totalMinutes(busyBlocks(events, from, to));
+  const free = (to.getTime() - from.getTime()) / 60_000 - busy;
+  const picked = focus.taskIds.map((id) => candidates.find((c) => c.id === id) ?? { id, estimatedMinutes: null });
+  const fitted = fitFocus(picked, free, busy);
+
+  focus.taskIds = fitted.taskIds;
+  if (focus.quickWinTaskId !== null && !focus.taskIds.includes(focus.quickWinTaskId)) focus.quickWinTaskId = null;
+  if (fitted.shrinkMain && focus.mainTaskId !== null) {
+    const main = focus.mainTaskId;
+    const step = await nextStep(db, userId, main);
+    if (step && step.id !== main) focus.taskIds = focus.taskIds.map((id) => (id === main ? step.id : id));
+  }
 }
 
 /** Open or in-progress top-level tasks from active projects, not snoozed past now. */

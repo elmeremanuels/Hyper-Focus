@@ -256,7 +256,7 @@ Alle tabellen hebben `id`, `user_id` (behalve `users`), `created_at` en `updated
 
 **scheduled_nudges** — `kind` (`nudge_kind`), `scheduled_for_utc`, `payload` (jsonb), `status` (`pending` | `sent` | `skipped` | `failed`), `skip_reason`, `sent_message_id`.
 
-**calendar_connections** (optioneel) — `provider` (`google`), `calendar_ids` (text[], standaard alleen de hoofdagenda), `access_token_enc`, `refresh_token_enc`, `token_expires_at`, `sync_token`, `status` (`active` | `error` | `revoked`), `last_synced_at`.
+**calendar_connections** (optioneel) — `provider` (`google` | `microsoft` | `apple`), `calendar_ids` (text[], standaard alleen de hoofdagenda), `access_token_enc`, `refresh_token_enc`, `token_expires_at`, `sync_token`, `status` (`active` | `error` | `revoked`), `last_synced_at`.
 
 **calendar_events** (optioneel, alleen vandaag en morgen) — `connection_id`, `external_id`, `starts_at_utc`, `ends_at_utc`, `title`, `is_busy`, `is_all_day`, `client_id`, `project_id`. We bewaren alleen deze velden.
 
@@ -346,9 +346,10 @@ sess:{taskId}:done | sess:{taskId}:plus10 | sess:{taskId}:stuck
 wr:{step}:{value}
 mv:{taskId}:{projectId} | t:{taskId}:unpark | help
 f:later | f:carry | f:alldone
+ps:{taskId}:{HHMM}
 ```
 
-`mv:` verplaatst een taak uit *Losse taken* naar een project (10.1). `t:{taskId}:unpark` haalt een taak van de parkeerplaats. `help` toont wat Hyper&Focus kan. `f:later` is *Later* bij het middagbericht. `f:carry` (*Alles morgen*) en `f:alldone` (*Alles gedaan*) ronden de dag af.
+`mv:` verplaatst een taak uit *Losse taken* naar een project (10.1). `t:{taskId}:unpark` haalt een taak van de parkeerplaats. `help` toont wat Hyper&Focus kan. `f:later` is *Later* bij het middagbericht. `f:carry` (*Alles morgen*) en `f:alldone` (*Alles gedaan*) ronden de dag af. `ps:` plant een sessie op een vrij moment van vandaag (11.8).
 
 ---
 
@@ -466,7 +467,7 @@ Geldt voor taken in de focus of met een deadline. Maximaal één escalatieberich
 
 ### 11.8 Agendakoppeling (optioneel)
 
-Standaard uit. De gebruiker zet hem aan in de instellingen of met het bericht *"koppel agenda"*. Hyper&Focus stuurt dan een persoonlijke koppellink: 15 minuten geldig, met de gebruiker ondertekend in de `state`-parameter. *"Ontkoppel agenda"* trekt de toegang in bij Google en verwijdert tokens en opgeslagen afspraken. Zonder koppeling werkt alles zoals in 11.1–11.7.
+Standaard uit. De gebruiker zet hem aan in de instellingen of met het bericht *"koppel agenda"*. Hyper&Focus stuurt dan een persoonlijke koppellink: 15 minuten geldig, met de gebruiker ondertekend in de `state`-parameter. *"Ontkoppel agenda"* trekt de toegang in bij de aanbieder en verwijdert tokens en opgeslagen afspraken. Drie agenda's worden ondersteund: Google Agenda, Outlook (Microsoft 365 en Outlook.com) en Apple iCloud (beslissing 12). Zonder koppeling werkt alles zoals in 11.1–11.7.
 
 **Wat de koppeling toevoegt**
 
@@ -486,11 +487,17 @@ Heads-ups en nabesprekingen hebben een eigen limiet: maximaal `max_calendar_nudg
 - Afgeslagen uitnodigingen tellen niet mee.
 
 **Techniek**
+- **Standaard: de geheime ICS-link van de agenda** (beslissing 12, 3 oktober 2026). Google, Outlook en Apple iCloud geven elk zo'n abonnementslink. De gebruiker plakt hem één keer op de koppelpagina, nooit in de chat. Hyper&Focus bewaart hem versleuteld en haalt de feed op met vandaag en morgen. Herhalende afspraken worden zelf uitgevouwen (`rrule`), in de tijdzone van de afspraak. Er zijn geen API-sleutels nodig. Vertraging: gepubliceerde agenda's werken soms pas na enkele uren bij. Ontkoppelen verwijdert de link bij ons; ongeldig maken doet de gebruiker in de agenda.
+- **Zet in agenda:** een geplande sessie ("Ja, om 14:00") komt met een `.ics`-bestand. Een tik zet hem in de eigen agenda-app. Zonder schrijfrechten of koppeling.
+- **Directe koppelingen, standaard uit** (voor fase 3, als klanten ze willen). Ze worden pas actief als hun sleutels in `.env` staan:
 - Google Agenda-API met OAuth 2.0 en refresh token, scope `calendar.readonly`. Oogst `server/services/googleOAuthService.ts`.
+- Outlook via Microsoft Graph (`/me/calendarView`) met OAuth 2.0, scopes `Calendars.Read` en `offline_access`, tenant `common` (werk- en persoonlijke accounts). Graph kent geen intrekken van deze tokens; ontkoppelen verwijdert ze bij ons en de gebruiker kan de app verwijderen op myapps.microsoft.com.
+- Apple iCloud via CalDAV (`caldav.icloud.com`) met Apple ID en een app-specifiek wachtwoord (`CALENDAR_APPLE_CALDAV=true`). Dat vult de gebruiker in op de koppelpagina, nooit in de chat. Het wordt versleuteld opgeslagen. De server vouwt terugkerende afspraken uit (`expand`).
 - De planner haalt om 00:05 vandaag en morgen op; de worker ververst elke 15 minuten met een `syncToken`. Terugkerende afspraken uitgevouwen ophalen (`singleEvents`).
 - Afspraken in UTC opslaan, tonen in de tijdzone van de gebruiker.
 - Mislukt de synchronisatie, dan plant de planner zoals zonder agenda en meldt dat één keer per dag in het afrondbericht.
-- `CalendarProvider`-interface (`listEvents`, `revoke`), zodat Outlook en een ICS-link in fase 3 kunnen aansluiten.
+- `CalendarProvider`-interface (`listEvents`, `revoke`) voor alle drie; een ICS-link kan in fase 3 aansluiten.
+- Verversen: elke 15 minuten het venster vandaag en morgen opnieuw ophalen. Een `syncToken` werkt bij Google niet samen met een tijdvenster en is voor twee dagen niet nodig.
 - Google Cloud: zet het OAuth-toestemmingsscherm op *In productie*, ook voor eigen gebruik. In testmodus verlopen refresh tokens na 7 dagen en moet je elke week opnieuw koppelen.
 
 **Later** (naar `docs/later.md`): een focusblok met één tik in de agenda zetten. Dat vraagt schrijfrechten en wordt een aparte toestemming.
@@ -670,7 +677,7 @@ Context:
 - **Telegram [BESLISSING vóór fase 3]:** Telegram biedt geen verwerkersovereenkomst en berichten staan op de servers van Telegram. Voor eigen gebruik is dat mijn eigen keuze. Vóór de beta beslissen: Telegram houden met een duidelijke uitleg in de privacyverklaring, of mail en de web-UI als standaardkanaal voor klanten.
 - Commando's *"exporteer mijn gegevens"* en *"verwijder mijn gegevens"*, plus dezelfde knoppen in de web-UI (fase 2).
 - **Bewaartermijn:** berichten, inclusief transcripties, worden na 30 dagen verwijderd door een nachtelijke job in de worker. Spraakopnames worden direct na transcriptie verwijderd en nooit opgeslagen. Taken, projecten, ideeën en suggesties blijven bestaan tot de gebruiker ze verwijdert. `events` en `ai_usage` bevatten alleen metadata zonder berichtinhoud en blijven 12 maanden bewaard; die zijn nodig voor de verkooppoort en de kostenmeting.
-- **Agenda:** alleen de velden uit `calendar_events`, alleen voor vandaag en morgen; een nachtelijke job ruimt oudere afspraken op. Deelnemers, beschrijvingen en locaties van afspraken halen we nooit op.
+- **Agenda:** alleen de velden uit `calendar_events`, alleen voor vandaag en morgen; een nachtelijke job ruimt oudere afspraken op. Een ICS-feed bevat ook deelnemers, beschrijvingen en locaties. Die worden bij het inlezen direct weggegooid en nooit opgeslagen of gelogd (beslissing 12). Bij de directe koppelingen halen we ze niet op.
 
 **Welzijn**
 - Overbelasting en crisis zoals beschreven in 11.6.
@@ -814,10 +821,13 @@ PERPLEXITY_API_KEY=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=https://hyper-focus.pro/auth/google/callback
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+MICROSOFT_REDIRECT_URI=https://hyper-focus.pro/auth/microsoft/callback
+ENCRYPTION_KEY=                       # versleutelt agendatokens (1.8) en tokens van gebruikers (fase 3)
 
 # Fase 3
 MOLLIE_API_KEY=
-ENCRYPTION_KEY=
 ```
 
 Controleer bij de start van de bouw de actuele modelnamen in de documentatie van Anthropic.
@@ -838,18 +848,19 @@ Controleer bij de start van de bouw de actuele modelnamen in de documentatie van
 | 6 | Toegestane gebruiker fase 1 | mijn eigen Telegram-gebruikers-ID en mailadres, in `.env` |
 | 7 | Bewaartermijn berichten | 30 dagen |
 | 8 | Prijs | €26,88 per maand, proefmaand van 1 maand |
-| 9 | Agenda | optioneel en standaard uit; Google Agenda eerst, alleen lezen |
+| 9 | Agenda | optioneel en standaard uit; alleen lezen (zie 12) |
 | 10 | Kanalen (1 oktober 2026) | Telegram voor het dagelijkse gesprek, mail voor overzichten, concepten en als tweede invoer. WhatsApp vervalt: alle WhatsApp-accounts in mijn Meta-portfolio zijn uitgeschakeld en een nieuwe portfolio kan ik niet aanmaken. |
 | 11 | Mailprovider (2 oktober 2026) | Brevo in plaats van SendGrid, voor versturen en Inbound Parsing. |
+| 12 | Agenda's en modellen (2–3 oktober 2026) | Lezen via de geheime ICS-link van elke agenda (Google, Outlook, Apple en andere); de feed bevat meer velden dan we bewaren, die worden direct weggegooid. Schrijven via een `.ics`-bestand ("Zet in agenda"). Directe koppelingen met Google, Outlook en Apple CalDAV staan in de code, standaard uit. Wijzigt beslissing 9 (Google eerst). Modellen: snel `claude-sonnet-5-5` met effort low (3 oktober 2026, na meting: 98% tegen 95% voor Haiku 4.5), slim `claude-opus-5-5`. |
 
 ### Nog open
 
 1. Gebruikersnaam van de Telegram-bot.
 2. Is €26,88 inclusief of exclusief btw?
 3. Merk- en domeincheck voor Hyper&Focus vóór fase 3.
-4. Welke agenda's tellen mee: alleen je hoofdagenda, of ook gedeelde agenda's?
+4. Welke agenda's tellen mee: alleen je hoofdagenda, of ook gedeelde agenda's? (Nu: Google de hoofdagenda, Outlook de standaardagenda, Apple alle agenda's met afspraken.)
 5. Telegram voor klanten in fase 3, gezien de AVG (hoofdstuk 14).
 
 ---
 
-*Bouwplan v1.4 — ik lees dit zelf na en pas aan waar nodig.*
+*Bouwplan v1.5 — ik lees dit zelf na en pas aan waar nodig.*

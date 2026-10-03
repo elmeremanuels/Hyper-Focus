@@ -357,6 +357,40 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 
 → **Start eigen gebruik** (BOUWPLAN 16) zodra 1.2 t/m 1.7 op de VPS staan en de evaluatieset ≥ 90% haalt.
 
+## Stap 1.8 — Agendakoppeling via ICS-link
+
+- **Datum:** 2026-10-02, herzien 2026-10-03.
+- **Besluit (Elmer, 3 oktober):** lezen via de geheime ICS-link van de eigen agenda, schrijven via een `.ics`-bestand ("Zet in agenda"). Akkoord met de privacy-afweging: de feed bevat deelnemers, beschrijvingen en locaties; die worden bij het inlezen weggegooid en nooit bewaard. Bouwplan v1.5, beslissing 12.
+- **Datamodel (akkoord):** enum `calendar_provider` krijgt `microsoft`, `apple` en `ics` (migratie `0002_calendar_providers`). Er komen geen nieuwe kolommen bij: de ICS-link staat versleuteld in `refresh_token_enc`.
+- **Gebouwd:**
+  - `integrations/calendar/ics.ts`:
+    - eigen ICS-parser met herhalende afspraken (`rrule`), uitgevouwen in de tijdzone van de afspraak;
+    - ondersteunt `EXDATE`, verplaatste afspraken (`RECURRENCE-ID`), Windows-zonenamen van Outlook, hele-dag-afspraken, geannuleerde afspraken en uitnodigingen die je hebt afgeslagen;
+    - `IcsCalendarProvider` met een tijdslimiet (15 s) en een groottelimiet (10 MB);
+    - alleen `https`/`webcal` naar publieke adressen, zodat de server geen interne adressen kan opvragen.
+  - Koppelpagina: één invulveld voor de ICS-link, met uitleg voor Google, Outlook en Apple. Bij het koppelen wordt de link eerst getest.
+  - **Zet in agenda:** de knop `ps:` (*Ja, om 14:00* of *Plan om …*) plant de sessie en stuurt een `.ics`-bestand mee. Bijlagen werken overal:
+    - Telegram: `sendDocument`;
+    - mail: Brevo-bijlage;
+    - actiepagina: downloadlink;
+    - simulator: een regel `[bijlage]`.
+  - De directe koppelingen met Google, Outlook en Apple CalDAV blijven in de code, maar staan uit tot hun sleutels in `.env` staan (`CALENDAR_APPLE_CALDAV` voor Apple).
+  - Verder als eerder gebouwd:
+    - vrije tijd en focus passend bij de dag;
+    - ochtendregel over de afspraken;
+    - berichten schuiven op tot na een afspraak (maximaal 90 minuten);
+    - heads-up en nabespreking bij klantafspraken;
+    - tools `connect_calendar`, `disconnect_calendar` en `find_free_slot`.
+- **Controle (Definition of Done)** in `tests/calendar.integration.test.ts`, met nep-agenda's:
+  - Alle vijf DoD-punten uit 11.8, zoals eerder.
+  - Nieuw: `connects any calendar with a secret ICS link and keeps only times and titles`. Ongeldige link → 400, geen agenda → 422, goede link → gekoppeld en versleuteld. Van een wekelijkse afspraak staat alleen het juiste exemplaar in de database, zonder beschrijving of locatie.
+  - `tests/ics.test.ts`: herhaling over de klokwissel, `EXDATE` en verplaatsing, Outlook-zones, afgeslagen uitnodiging, tijden zonder zone in Bali, linkcontrole en private adressen, en `.ics`-bestanden schrijven en teruglezen.
+  - `tests/attachments.test.ts`: het bestand gaat via Telegram als document en per mail als bijlage.
+  - `npm test`: 251 groen met `TEST_DATABASE_URL`. Typecheck, lint en build groen.
+- **Open:**
+  - Live koppelen en de checks uit `docs/agenda.md` doen.
+  - Meer dan één ICS-link per gebruiker staat in `docs/later.md`.
+
 ## Volgende stap
 
-1.8 Agendakoppeling (11.8).
+Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.
