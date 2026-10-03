@@ -8,6 +8,7 @@ import { getSettings, type UserSettingsRow } from '../core/settings.js';
 import type { UserStore } from '../core/users.js';
 import type { Database } from '../db/client.js';
 import { scheduledNudges } from '../db/schema/index.js';
+import { composeCheckin } from '../conversation/session.js';
 import { checkGuardrails, type GuardrailVerdict } from './guardrails.js';
 import { composeMidday, composeMorning, composeWrapup, type Composed, type NudgeContext } from './messages.js';
 
@@ -24,6 +25,8 @@ export const DEFAULT_COMPOSERS: Partial<Record<NudgeRow['kind'], Composer>> = {
   morning: (ctx, nudge) => composeMorning(ctx, String(nudge.payload.localDate)),
   midday: (ctx, nudge) => composeMidday(ctx, Number(nudge.payload.taskId)),
   wrapup: (ctx, nudge) => composeWrapup(ctx, String(nudge.payload.localDate)),
+  session_checkin: (ctx, nudge) =>
+    composeCheckin(ctx, { taskId: Number(nudge.payload.taskId), stepId: Number(nudge.payload.stepId) }),
 };
 
 export interface SenderDeps {

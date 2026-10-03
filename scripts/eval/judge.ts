@@ -11,7 +11,8 @@ export function judge(evalCase: EvalCase, calls: Anthropic.ToolUseBlock[]): { pr
   const check = evalCase.check;
   if (!check) return {};
   const input = calls.find((call) => call.name === check.tool)?.input as Record<string, unknown> | undefined;
-  if (!input) return { problem: `no ${check.tool}` };
+  // The check is about one accepted tool set; another accepted set skips it.
+  if (!input) return chosen.split(',').includes(check.tool) ? { problem: `no ${check.tool}` } : {};
   for (const key of ['task_id', 'status', 'until_date'] as const) {
     if (check[key] !== undefined && input[key] !== check[key]) {
       return { problem: `${key} ${String(input[key])}, expected ${check[key]}` };

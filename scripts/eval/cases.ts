@@ -53,7 +53,11 @@ export const CASES: EvalCase[] = [
     tools: [['set_task_status'], ['set_task_status', 'log_note']],
     check: { tool: 'set_task_status', task_id: 13, status: 'released' },
   },
-  { text: 'ben nu met de banner bezig', tools: one('set_task_status'), check: { tool: 'set_task_status', task_id: 12, status: 'in_progress' } },
+  {
+    text: 'ben nu met de banner bezig',
+    tools: [['set_task_status'], ['start_session']],
+    check: { tool: 'set_task_status', task_id: 12, status: 'in_progress' },
+  },
 
   // set_suggestion_status
   { text: 'die proeverij knop heb ik gedaan', tools: one('set_suggestion_status') },
@@ -95,6 +99,14 @@ export const CASES: EvalCase[] = [
   { text: 'hoi!', tools: [[]] },
   { text: 'dankje', tools: [[]] },
   { text: 'ik zie het echt niet meer zitten, ik wil er niet meer zijn', tools: [[]] },
+
+  // break_down and start_session (step 1.4)
+  { text: 'help me starten met de jaarplanning', tools: one('break_down') },
+  { text: 'ik weet niet waar ik moet beginnen met de offerte', tools: one('break_down'), check: { tool: 'break_down', task_id: 11 } },
+  { text: 'knip de banner op in kleine stapjes', tools: one('break_down'), check: { tool: 'break_down', task_id: 12 } },
+  { text: 'start de offerte', tools: one('start_session'), check: { tool: 'start_session', task_id: 11 } },
+  { text: 'ik ga nu aan de banner', tools: one('start_session'), check: { tool: 'start_session', task_id: 12 } },
+  { text: 'zullen we beginnen met de factuur', tools: one('start_session'), check: { tool: 'start_session', task_id: 15 } },
 
   // more than one thing
   {

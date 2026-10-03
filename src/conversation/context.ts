@@ -9,6 +9,8 @@ import { getSettings } from '../core/settings.js';
 import { listOpenSuggestions } from '../core/suggestions.js';
 import { listOpenTasks } from '../core/tasks.js';
 import { describeLocal, localDate } from '../lib/time.js';
+import { getTask } from '../core/tasks.js';
+import { getState } from './state.js';
 import { todaysFocus } from './views.js';
 
 export interface ContextTask {
@@ -35,6 +37,8 @@ export interface ContextData {
   projects: Array<{ id: number; title: string; clientName: string | null }>;
   clients: string[];
   suggestions: Array<{ id: number; title: string; status: string }>;
+  /** The running work session, if any. */
+  session: { taskId: number; stepId: number; stepTitle: string } | null;
   /** Oldest first. */
   recentMessages: Array<{ direction: 'in' | 'out'; body: string }>;
 }
@@ -46,7 +50,8 @@ export async function loadContext(db: Database, userId: number, now: Date): Prom
   if (!profile) throw new Error(`Unknown user ${userId}`);
   const tz = profile.timezone;
 
-  const [settings, focus, open, projectRows, clientRows, suggestionRows, messageRows] = await Promise.all([
+  const [state, settings, focus, open, projectRows, clientRows, suggestionRows, messageRows] = await Promise.all([
+    getState(db, userId, now),
     getSettings(db, userId),
     todaysFocus(db, userId, tz, now),
     listOpenTasks(db, userId, 10, now),
@@ -96,11 +101,24 @@ export async function loadContext(db: Database, userId: number, now: Date): Prom
       title: suggestion.title,
       status: suggestion.status,
     })),
+    session: await sessionInfo(db, userId, state),
     recentMessages: messageRows
       .reverse()
       .map((message) => ({ direction: message.direction, body: message.transcript ?? message.body ?? '' }))
       .filter((message) => message.body.length > 0),
   };
+}
+
+async function sessionInfo(
+  db: Database,
+  userId: number,
+  state: Awaited<ReturnType<typeof getState>>,
+): Promise<ContextData['session']> {
+  if (state.mode !== 'session') return null;
+  const taskId = Number(state.data.taskId);
+  const stepId = Number(state.data.stepId);
+  const step = await getTask(db, userId, stepId);
+  return step ? { taskId, stepId, stepTitle: step.title } : null;
 }
 
 export function renderContext(data: ContextData): string {
@@ -124,6 +142,9 @@ export function renderContext(data: ContextData): string {
     ...data.projects.map((p) => `- ${p.id} · ${p.title}${p.clientName ? ` · ${p.clientName}` : ''}`),
     '',
     `Klanten: ${data.clients.join(', ') || '(geen)'}`,
+    ...(data.session
+      ? ['', `Lopende sessie: taak #${data.session.taskId}, stap #${data.session.stepId} "${data.session.stepTitle}".`]
+      : []),
     ...(data.suggestions.length
       ? ['', 'Open suggesties:', ...data.suggestions.map((s) => `- #${s.id} ${s.title} (${s.status})`)]
       : []),

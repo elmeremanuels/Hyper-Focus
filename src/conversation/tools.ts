@@ -1,6 +1,7 @@
 // Tools for the conversation layer (BOUWPLAN.md, 10.2). Every tool that touches the
 // database has a fixed schema; input is validated again before it runs.
 import type Anthropic from '@anthropic-ai/sdk';
+import type { ClaudeClient } from '../ai/claude.js';
 import { z } from 'zod';
 import type { Database } from '../db/client.js';
 import { appendClientNote, findClientByName } from '../core/clients.js';
@@ -29,6 +30,8 @@ export interface ToolContext {
   timezone: string;
   now: Date;
   source: InboundSource;
+  /** For tools that need a second AI call, such as breaking down a big task. */
+  claude?: Pick<ClaudeClient, 'callWithTools'> | undefined;
 }
 
 export interface ToolOutcome {
@@ -80,7 +83,7 @@ export async function runTool(
   return tool.run(parsed.data, ctx);
 }
 
-const date = z.string().refine(isValidDate, 'Gebruik YYYY-MM-DD');
+export const date = z.string().refine(isValidDate, 'Gebruik YYYY-MM-DD');
 const time = z.string().refine(isValidTime, 'Gebruik HH:MM');
 const estimate = z
   .union(ESTIMATES.map((value) => z.literal(value)) as unknown as [z.ZodLiteral<5>, z.ZodLiteral<15>])
@@ -89,6 +92,33 @@ const estimate = z
 /** Telegram shows about 20 characters per button. */
 export function buttonTitle(title: string): string {
   return title.length <= 20 ? title : `${title.slice(0, 19)}…`;
+}
+
+/**
+ * The project for a new task: a valid project id, else the client's first active project
+ * (created when the client has none), else Losse taken.
+ */
+export async function resolveProject(
+  { db, userId }: Pick<ToolContext, 'db' | 'userId'>,
+  input: { project_id?: number | undefined; client_name?: string | undefined },
+): Promise<{ projectId: number; needsProject: boolean }> {
+  if (input.project_id !== undefined) {
+    const project = await getProject(db, userId, input.project_id);
+    if (project && project.status === 'active') return { projectId: project.id, needsProject: false };
+  }
+  if (input.client_name) {
+    const client = await findClientByName(db, userId, input.client_name);
+    if (client) {
+      const existing = (await listActiveProjects(db, userId)).find((p) => p.clientId === client.id);
+      if (existing) return { projectId: existing.id, needsProject: false };
+      const [created] = await db
+        .insert(projects)
+        .values({ userId, clientId: client.id, title: client.name })
+        .returning({ id: projects.id });
+      if (created) return { projectId: created.id, needsProject: false };
+    }
+  }
+  return { projectId: await getLooseTasksProject(db, userId), needsProject: true };
 }
 
 const stamp = (ctx: ToolContext) => `[${localDate(ctx.timezone, ctx.now)}]`;
@@ -111,31 +141,7 @@ const addTask = defineTool({
   }),
   async run(input, ctx) {
     const { db, userId } = ctx;
-    let projectId: number | undefined;
-    let needsProject = false;
-
-    if (input.project_id !== undefined) {
-      const project = await getProject(db, userId, input.project_id);
-      if (project && project.status === 'active') projectId = project.id;
-    }
-    if (projectId === undefined && input.client_name) {
-      const client = await findClientByName(db, userId, input.client_name);
-      if (client) {
-        const clientProjects = (await listActiveProjects(db, userId)).filter((p) => p.clientId === client.id);
-        projectId = clientProjects[0]?.id;
-        if (projectId === undefined) {
-          const [created] = await db
-            .insert(projects)
-            .values({ userId, clientId: client.id, title: client.name })
-            .returning({ id: projects.id });
-          projectId = created?.id;
-        }
-      }
-    }
-    if (projectId === undefined) {
-      projectId = await getLooseTasksProject(db, userId);
-      needsProject = true;
-    }
+    const { projectId, needsProject } = await resolveProject(ctx, input);
 
     const { id } = await createTask(db, {
       userId,

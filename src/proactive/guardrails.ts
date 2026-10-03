@@ -10,7 +10,11 @@ export interface GuardrailInput {
 
 export type GuardrailVerdict = { send: true } | { send: false; reason: string };
 
+/** The user started these themselves, so they go out regardless of pause and limits. */
+export const USER_STARTED_KINDS = new Set(['session_checkin']);
+
 export function checkGuardrails(input: GuardrailInput): GuardrailVerdict {
+  if (USER_STARTED_KINDS.has(input.kind)) return { send: true };
   if (input.settings.pausedUntil && input.settings.pausedUntil > input.now) {
     return { send: false, reason: 'paused' };
   }
