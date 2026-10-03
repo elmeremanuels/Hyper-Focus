@@ -657,6 +657,33 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - `npm test`: 358 groen.
 - **Nog te kiezen:** de weekreview komt op de eindtijd van de laatste werkdag. Wil je hem eerder op die dag, dan wordt dat een aparte instelling.
 
+## Fase 2a — Dashboard: besluiten en plan
+
+- **Datum:** 2026-10-03
+- **Besluiten:**
+  - het dashboard komt op `app.hyper-focus.pro`;
+  - de schermen zijn Vandaag, Projecten & klanten, Parkeerplaats & ideeënbak en Instellingen; *Suggesties* komt na 2.5;
+  - batterij en focuslog komen op het dashboard, zonder grafieken, en de tuin gaat eruit;
+  - de volgorde is 2a dashboard, 2b website, dan 2.1–2.5;
+  - inloggen kan met een magic link per mail en met een link vanuit Telegram.
+- **Bouwstappen (elk een eigen PR):**
+  - **2a.1 Inloggen.** Magic link via Brevo en *Open dashboard* in Telegram. De cookie is HttpOnly, Secure en SameSite=Lax. Oogsten uit Publicato `server/auth.ts`.
+  - **2a.2 Basis.** React + Vite + Tailwind in `web/`, met de huisstijl, navigatie, de batterij rechtsboven en de build in `npm run build`.
+  - **2a.3 Vandaag.** Focus met het venster en hypermomenten, starten en afvinken, de werkplek-knoppen, het focuslog en de batterij.
+  - **2a.4 Projecten & klanten** en **2a.5 Parkeerplaats & ideeënbak:** lijsten, bewerken, verplaatsen en terughalen.
+  - **2a.6 Instellingen:** ritme, werkweek, dagtijden, stille uren, beloningen, agenda, tools, en exporteren en verwijderen.
+  - **2a.7 Assistent (werknaam Kiki):** een braindump wordt taken, notities en ideeën. Je bevestigt eerst, daarna slaat hij op.
+  - **2a.8 Demoweek:** een seed-script voor een demo-account. De inhoud levert Elmer aan in een `.local.ts`-bestand.
+- **Eerst voorleggen:**
+  - **Datamodel 2a.1:** tabellen `login_tokens` (hash, gebruiker, kanaal, verloopt, gebruikt) en `web_sessions` (hash, gebruiker, verloopt, laatst gezien). Tokens worden alleen als hash opgeslagen.
+  - **`.env`:** `DASHBOARD_BASE_URL=https://app.hyper-focus.pro`. Een apart sessiegeheim is niet nodig, omdat sessies willekeurige tokens met een hash zijn. `DASHBOARD_API` vervalt.
+- **Nodig van Elmer:**
+  - de brief met de toetslijst uit het onderzoeksdocument;
+  - leestoegang tot Publicato in de cloudsessie;
+  - de naam Kiki bevestigen;
+  - de inhoud van de demoweek;
+  - voor de deploy een DNS-record voor `app.hyper-focus.pro` en de webserverregel (Cowork).
+
 ## Volgende stap
 
-Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.
+1.12 ronde 3 live testen (werkweek). Daarna fase 2a, stap 2a.1, zodra het datamodel en de brief er zijn.

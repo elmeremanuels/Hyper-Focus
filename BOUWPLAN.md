@@ -782,8 +782,12 @@ Toon voor bot, dashboard en website: kort (hooguit 12 woorden per zin), direct, 
 **2.5 Feedback** (12.7).
 *Klaar als:* elke knop de juiste status zet en *Niet relevant* de reden meeneemt in de volgende generatie.
 
-**2.6 Minimale web-UI.** Magic-link login. Schermen: Vandaag · Projecten & klanten · Parkeerplaats & ideeënbak · Suggesties (met concepten) · Instellingen. Mobile-first. Laat grafieken en statistieken weg. Het dashboard toont ook de tuin uit 1.9, en een assistent die een braindump structureert tot taken, klantnotities en ideeën voor de parkeerplaats, met hetzelfde brein als de Telegram-bot (werknaam Kiki; de naam wordt eerst bevestigd). Bekijk daarvoor eerst de smart assistant in Publicato en oogst wat herbruikbaar is.
-*Klaar als:* ik alles uit Telegram ook op mijn telefoon in de browser kan bekijken en bijwerken, en instellingen direct effect hebben op de planning.
+**Volgorde (besluit 3 oktober 2026):** eerst het dashboard (fase 2a, stap 2.6), dan de website (fase 2b), daarna de verbetermotor (2.1–2.5).
+
+**2.6 Dashboard (fase 2a).** Op `app.hyper-focus.pro`. React + Vite + Tailwind, mobile-first, geserveerd door `hyperfocus-web`. Inloggen met een magic link per mail én met een eenmalige link vanuit Telegram ("Open dashboard"). Schermen: Vandaag · Projecten & klanten · Parkeerplaats & ideeënbak · Instellingen. *Suggesties* komt pas na 2.5. Vandaag toont de drie taken met het focusvenster, de batterij rechtsboven (1.12 A4), het focuslog en de werkplek-knoppen. Zonder grafieken: de batterij en het focuslog zijn tekst en vorm. Instellingen omvat ritme, werkweek, dagtijden, stille uren, beloningen, agenda, tools, en *exporteer* en *verwijder mijn gegevens* (14). Een assistent structureert een braindump tot taken, klantnotities en parkeerplaats-ideeën, met dezelfde tools als de Telegram-bot (werknaam Kiki; de naam wordt eerst bevestigd). Oogst daarvoor eerst de login en de smart assistant uit Publicato. Vormgeving en toon zoals de mini-app uit 1.12: gebroken wit, 2 px rand, één accentkleur, Space Grotesk, tabulaire cijfers.
+*Klaar als:* ik alles uit Telegram ook op mijn telefoon in de browser kan bekijken en bijwerken · instellingen direct effect hebben op de planning · het dashboard met een gevulde demoweek goed genoeg is voor de printscreens van de website.
+
+**2.7 Website (fase 2b).** Op `hyper-focus.pro`, dezelfde look and feel en toon als het dashboard. Beelden: printscreens uit 2.6 en aangeleverde foto's.
 
 ### Fase 3 — Verkoopklaar (na de verkooppoort)
 
