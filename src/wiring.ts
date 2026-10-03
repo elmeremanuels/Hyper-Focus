@@ -41,7 +41,13 @@ export function buildServices(env: Env, db: Database) {
 export function buildClaude(env: Env, db: Database): ClaudeClient | undefined {
   if (!env.ANTHROPIC_API_KEY || !env.CLAUDE_MODEL_FAST) return undefined;
   return new ClaudeClient(
-    { apiKey: env.ANTHROPIC_API_KEY, modelFast: env.CLAUDE_MODEL_FAST, modelSmart: env.CLAUDE_MODEL_SMART },
+    {
+      apiKey: env.ANTHROPIC_API_KEY,
+      modelFast: env.CLAUDE_MODEL_FAST,
+      modelSmart: env.CLAUDE_MODEL_SMART,
+      effortFast: env.CLAUDE_EFFORT_FAST,
+      effortSmart: env.CLAUDE_EFFORT_SMART,
+    },
     async ({ userId, ...usage }) => {
       if (userId === undefined) return;
       try {
