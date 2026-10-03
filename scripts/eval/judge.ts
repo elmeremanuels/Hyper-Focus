@@ -1,6 +1,7 @@
 // Compares Claude's tool calls with an evaluation case.
 import type Anthropic from '@anthropic-ai/sdk';
 import type { EvalCase } from './cases.js';
+import { roundToPreset } from '../../src/conversation/blocks.js';
 import { CLIENT_PROJECTS } from './context.js';
 
 export function judge(evalCase: EvalCase, calls: Anthropic.ToolUseBlock[]): { problem?: string } {
@@ -21,6 +22,13 @@ export function judge(evalCase: EvalCase, calls: Anthropic.ToolUseBlock[]): { pr
   if (check.work_type !== undefined) {
     const actual = (input.work_type as string | undefined) ?? null;
     if (actual !== check.work_type) return { problem: `work_type ${String(actual)}, expected ${String(check.work_type)}` };
+  }
+  if (check.minutes !== undefined) {
+    const actual = typeof input.minutes === 'number' ? roundToPreset(input.minutes) : undefined;
+    if (actual !== check.minutes) return { problem: `minutes ${String(input.minutes)}, expected ${check.minutes}` };
+  }
+  if (check.enabled !== undefined && input.enabled !== check.enabled) {
+    return { problem: `enabled ${String(input.enabled)}, expected ${String(check.enabled)}` };
   }
   if (check.project !== undefined) {
     const byClient = typeof input.client_name === 'string' ? projectForClient(input.client_name) : undefined;

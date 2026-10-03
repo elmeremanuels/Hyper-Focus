@@ -14,6 +14,9 @@ export interface EvalCase {
     project?: number;
     /** A kind of work, or null when work_type must be left out. */
     work_type?: string | null;
+    /** Block length after rounding to 15, 25 or 45. */
+    minutes?: number;
+    enabled?: boolean;
   };
 }
 
@@ -115,6 +118,12 @@ export const CASES: EvalCase[] = [
   { text: 'start de offerte', tools: one('start_session'), check: { tool: 'start_session', task_id: 11 } },
   { text: 'ik ga nu aan de banner', tools: one('start_session'), check: { tool: 'start_session', task_id: 12 } },
   { text: 'zullen we beginnen met de factuur', tools: one('start_session'), check: { tool: 'start_session', task_id: 15 } },
+
+  // work blocks (step 1.9)
+  { text: 'ik ga 25 minuten aan de factuur', tools: one('start_session'), check: { tool: 'start_session', task_id: 15, minutes: 25 } },
+  { text: 'even 40 min aan de offerte voor de bakkerij', tools: one('start_session'), check: { tool: 'start_session', task_id: 11, minutes: 45 } },
+  { text: 'ben terug', tools: one('return_from_pause') },
+  { text: 'zet beloningen uit', tools: one('set_rewards'), check: { tool: 'set_rewards', enabled: false } },
 
   // forwarded mail (step 1.7)
   {

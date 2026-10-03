@@ -8,6 +8,7 @@ import { TelegramClient } from './channels/telegram/client.js';
 import type { Env } from './config/env.js';
 import { ClaudeClient } from './ai/claude.js';
 import { createAssistantRouter } from './conversation/assistant.js';
+import { isFocusQuiet } from './conversation/blocks.js';
 import { recordAiUsage } from './core/events.js';
 import { buildCalendarService } from './integrations/calendar/service.js';
 import { createDbMessageStore } from './core/messages.js';
@@ -19,7 +20,8 @@ export function buildServices(env: Env, db: Database) {
   const messages = createDbMessageStore(db);
   const claude = buildClaude(env, db);
   const calendar = buildCalendarService(env);
-  const router = createAssistantRouter({ db, claude, calendar });
+  const router = createAssistantRouter({ db, claude, calendar, appBaseUrl: env.APP_BASE_URL });
+  const isQuiet = (userId: number) => isFocusQuiet(db, userId, new Date());
 
   const telegramClient = env.TELEGRAM_BOT_TOKEN ? new TelegramClient(env.TELEGRAM_BOT_TOKEN) : undefined;
   const sender = new EmailSender({
@@ -36,7 +38,7 @@ export function buildServices(env: Env, db: Database) {
     ...(telegramClient && { telegram: new TelegramChannel(telegramClient, messages) }),
   };
 
-  return { users, messages, router, claude, calendar, telegramClient, delivery: createDelivery(channels) };
+  return { users, messages, router, isQuiet, claude, calendar, telegramClient, delivery: createDelivery(channels) };
 }
 
 /** Claude with usage logged to ai_usage, or undefined without a key and fast model. */

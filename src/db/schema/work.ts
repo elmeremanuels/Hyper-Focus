@@ -14,7 +14,16 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { id, timestamps, userId } from './common.js';
-import { clientStatus, ideaStatus, projectStatus, taskSource, taskStatus, workType } from './enums.js';
+import {
+  clientStatus,
+  focusBlockOutcome,
+  gardenEventKind,
+  ideaStatus,
+  projectStatus,
+  taskSource,
+  taskStatus,
+  workType,
+} from './enums.js';
 
 export interface Competitor {
   name: string;
@@ -182,4 +191,52 @@ export const userTools = pgTable(
     ...timestamps,
   },
   (table) => [uniqueIndex('user_tools_user_work_type').on(table.userId, table.workType)],
+);
+
+/** A work block of 15, 25 or 45 minutes, its pause and its reward minute (step 1.9). */
+export const focusBlocks = pgTable(
+  'focus_blocks',
+  {
+    id: id(),
+    userId: userId(),
+    taskId: integer('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    /** The micro step being worked on, when the task has steps. */
+    stepId: integer('step_id').references(() => tasks.id, { onDelete: 'set null' }),
+    plannedMinutes: smallint('planned_minutes').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    /** Planned end; moves with "Nog 15 min". */
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    outcome: focusBlockOutcome('outcome'),
+    extendedMinutes: smallint('extended_minutes').notNull().default(0),
+    /** Hyperfocus pause messages sent for this block (at most two). */
+    hyperfocusPrompts: smallint('hyperfocus_prompts').notNull().default(0),
+    pauseMission: text('pause_mission'),
+    pauseStartedAt: timestamp('pause_started_at', { withTimezone: true }),
+    pauseDueAt: timestamp('pause_due_at', { withTimezone: true }),
+    returnedAt: timestamp('returned_at', { withTimezone: true }),
+    /** Hash of the one-time token for the reward mini-app. */
+    rewardTokenHash: text('reward_token_hash'),
+    rewardOpenedAt: timestamp('reward_opened_at', { withTimezone: true }),
+    rewardFinishedAt: timestamp('reward_finished_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index('focus_blocks_user_started_idx').on(table.userId, table.startedAt),
+    uniqueIndex('focus_blocks_reward_token').on(table.rewardTokenHash),
+    check('focus_blocks_planned_minutes', sql`${table.plannedMinutes} IN (15, 25, 45)`),
+  ],
+);
+
+/** Garden growth log: one row per leaf; the garden never shrinks (step 1.9). */
+export const gardenEvents = pgTable(
+  'garden_events',
+  {
+    id: id(),
+    userId: userId(),
+    blockId: integer('block_id').references(() => focusBlocks.id, { onDelete: 'set null' }),
+    kind: gardenEventKind('kind').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('garden_events_user_created_idx').on(table.userId, table.createdAt)],
 );

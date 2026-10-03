@@ -1,5 +1,5 @@
 // Plays the planning of one or more days at speed, including the guardrails (BOUWPLAN.md, 15).
-// Usage: npm run sim:day -- --date 2026-10-06 [--days 7] [--silent] [--email sam@voorbeeld.invalid]
+// Usage: npm run sim:day -- --date 2026-10-06 [--days 7] [--silent] [--scenario blocks] [--email sam@voorbeeld.invalid]
 // Everything runs in a transaction that is rolled back: nothing is stored or sent.
 import { parseArgs } from 'node:util';
 import { DateTime } from 'luxon';
@@ -7,6 +7,7 @@ import { getEnv } from '../src/config/env.js';
 import { createDbUserStore } from '../src/core/users.js';
 import { connect } from '../src/db/client.js';
 import example from '../src/db/seed/example.js';
+import { SCENARIOS } from '../src/proactive/sim-scenarios.js';
 import { simulateDays } from '../src/proactive/simulate.js';
 
 const { values } = parseArgs({
@@ -14,11 +15,17 @@ const { values } = parseArgs({
     date: { type: 'string' },
     days: { type: 'string', default: '1' },
     silent: { type: 'boolean', default: false },
+    scenario: { type: 'string' },
     email: { type: 'string', default: example.user.email },
   },
 });
 if (!values.date || !/^\d{4}-\d{2}-\d{2}$/.test(values.date)) {
   console.error('Use --date YYYY-MM-DD');
+  process.exit(1);
+}
+const scenario = values.scenario ? SCENARIOS[values.scenario] : undefined;
+if (values.scenario && !scenario) {
+  console.error(`Unknown scenario. Choose from: ${Object.keys(SCENARIOS).join(', ')}`);
   process.exit(1);
 }
 
@@ -38,13 +45,19 @@ try {
     start: values.date,
     days: Number(values.days),
     silent: values.silent,
+    ...(scenario && { actions: scenario() }),
   });
 
   const fmt = (at: Date) => DateTime.fromJSDate(at, { zone }).setLocale('nl').toFormat('ccc d LLL HH:mm');
-  console.log(`Dagsimulatie · ${values.email} · ${zone} · ${values.days} dag(en)${values.silent ? ' · stil' : ''}\n`);
+  console.log(`Dagsimulatie · ${values.email} · ${zone} · ${values.days} dag(en)${values.silent ? ' · stil' : ''}${values.scenario ? ` · scenario ${values.scenario}` : ''}\n`);
   for (const message of result.sent) {
+    if (message.user) {
+      console.log(`${fmt(message.at)} · jij: ${message.text}`);
+      continue;
+    }
     const buttons = message.buttons.length ? `\n    [${message.buttons.join('] [')}]` : '';
-    console.log(`${fmt(message.at)} · ${message.channel}\n    ${message.text.replace(/\n/g, '\n    ')}${buttons}\n`);
+    const sound = message.silent ? ' · zonder geluid' : '';
+    console.log(`${fmt(message.at)} · ${message.channel}${sound}\n    ${message.text.replace(/\n/g, '\n    ')}${buttons}\n`);
   }
   if (result.skipped.length) {
     console.log('Overgeslagen:');

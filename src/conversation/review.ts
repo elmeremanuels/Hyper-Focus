@@ -1,6 +1,9 @@
 // The weekly review in three taps and the Monday overview by mail (BOUWPLAN.md, 11.7).
 import { and, desc, eq, gte, isNull, ne } from 'drizzle-orm';
 import { recordEvent } from '../core/events.js';
+import { getSettings } from '../core/settings.js';
+import { BLOCK_TEXTS, fill } from '../texts/werkblokken.nl.js';
+import { gardenGrowthSince } from './blocks.js';
 import { listOpenSuggestions } from '../core/suggestions.js';
 import type { Database } from '../db/client.js';
 import { ideas, projects, tasks } from '../db/schema/index.js';
@@ -56,8 +59,12 @@ export async function reviewStart(ctx: Pick<ButtonContext, 'db' | 'userId' | 'no
     done.length === 0
       ? 'Tijd voor de weekreview, drie korte stappen.'
       : `Tijd voor de weekreview, drie korte stappen. Deze week af: ${listTitles(done.map((t) => t.title))} ✔`;
+  // The garden line (step 1.9): only with rewards on and when it grew.
+  const { rewardsEnabled } = await getSettings(ctx.db, ctx.userId);
+  const leaves = rewardsEnabled ? await gardenGrowthSince(ctx.db, ctx.userId, new Date(ctx.now.getTime() - WEEK_MS)) : 0;
+  const garden = leaves > 0 ? `\n${fill(BLOCK_TEXTS.gardenWeek, { n: leaves })}` : '';
   return {
-    text: `${intro}\nWat ging goed? Tik of stuur een paar woorden.`,
+    text: `${intro}${garden}\nWat ging goed? Tik of stuur een paar woorden.`,
     buttons: [
       { id: 'wr:good:focus', title: 'Focus hield ik vast' },
       { id: 'wr:good:clients', title: 'Klanten blij' },

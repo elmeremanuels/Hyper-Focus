@@ -67,15 +67,19 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
     expect(await db().select().from(tasks).where(eq(tasks.title, 'Iets groots'))).toHaveLength(0);
   });
 
-  it('starts a session, checks in after the set minutes and celebrates done', async () => {
+  it('asks the length, starts a block, ends it with a question and starts the pause', async () => {
     const router = createAssistantRouter({ db: db(), claude: scriptedClaude([]), now: () => NOW });
     const banner = await byTitle('Banner voor de feestdagen');
 
-    const [started] = await tap(router, `t:${banner.id}:start`);
-    expect(started?.text).toBe('Top. Eén stap: banner voor de feestdagen. Ik check over 25 minuten bij je.');
+    const [asked] = await tap(router, `t:${banner.id}:start`);
+    expect(asked?.text).toBe('Hoe lang ga je aan banner voor de feestdagen?');
+    expect(asked?.buttons?.map((b) => b.id)).toEqual([`blk:t${banner.id}:m15`, `blk:t${banner.id}:m25`, `blk:t${banner.id}:m45`]);
+
+    const [started] = await tap(router, `blk:t${banner.id}:m25`);
+    expect(started?.text).toBe('Top. 25 minuten voor banner voor de feestdagen. Ik meld me aan het eind.');
     expect((await getState(db(), t.userId, NOW)).mode).toBe('session');
-    const [checkin] = (await checkins()).filter((n) => n.status === 'pending');
-    expect(checkin?.scheduledForUtc.toISOString()).toBe('2026-10-07T08:55:00.000Z');
+    const ends = await db().select().from(scheduledNudges).where(and(eq(scheduledNudges.userId, t.userId), eq(scheduledNudges.kind, 'block_end')));
+    expect(ends.map((n) => n.scheduledForUtc.toISOString())).toEqual(['2026-10-07T08:55:00.000Z']);
 
     await db().update(users).set({ telegramChatId: 777 }).where(eq(users.id, t.userId));
     const { delivery, telegram } = fakeDelivery(createDbMessageStore(db()));
@@ -83,13 +87,15 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
     expect((await sendDueNudges(deps, new Date('2026-10-07T08:54:00Z'))).sent).toBe(0);
     expect((await sendDueNudges(deps, new Date('2026-10-07T08:55:30Z'))).sent).toBe(1);
     const sent = telegram.sent().at(-1)?.body;
-    expect(sent?.text).toBe('Hoe ging het met banner voor de feestdagen?');
-    expect(JSON.stringify(sent?.reply_markup)).toContain(`sess:${banner.id}:stuck`);
+    expect(sent?.text).toBe('Je 25 minuten zitten erop. Hoe ging het?');
+    expect(JSON.stringify(sent?.reply_markup)).toContain('Afgerond');
+    expect(sent?.disable_notification).toBeUndefined();
 
-    const [done] = await tap(router, `sess:${banner.id}:done`);
-    expect(done?.text).toBe('✔ Banner voor de feestdagen is af.');
-    expect((await byTitle('Banner voor de feestdagen')).status).toBe('done');
-    expect((await getState(db(), t.userId, NOW)).mode).toBe('idle');
+    const blockId = Number(/blk:(\d+):done/.exec(JSON.stringify(sent?.reply_markup))?.[1]);
+    const later = createAssistantRouter({ db: db(), claude: scriptedClaude([]), now: () => new Date('2026-10-07T08:56:00Z') });
+    const [pause] = await tap(later, `blk:${blockId}:done`);
+    expect(pause?.text).toMatch(/^Mooi gewerkt\. .* Je telefoon blijft liggen\. Over [23] minuten zie ik je terug\.$/);
+    expect((await getState(db(), t.userId, new Date('2026-10-07T08:56:00Z'))).data).toMatchObject({ phase: 'pause', blockId });
   });
 
   it('adds ten minutes', async () => {
@@ -110,37 +116,37 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
     ]);
     const router = createAssistantRouter({ db: db(), claude, now: () => NOW });
 
-    const [started] = await tap(router, `t:${offerte.id}:start`);
-    expect(started?.text).toBe(`Top. Eén stap: ${first!.title.charAt(0).toLowerCase()}${first!.title.slice(1)}. Ik check over 25 minuten bij je.`);
+    const [started] = await tap(router, `blk:t${offerte.id}:m15`);
+    expect(started?.text).toBe(
+      `Top. 15 minuten voor offerte bakkerij afmaken. Ik meld me aan het eind.\nEerste stap: ${first!.title.charAt(0).toLowerCase()}${first!.title.slice(1)}.`,
+    );
 
     const [stuck] = await tap(router, `sess:${offerte.id}:stuck`);
     expect(stuck?.text).toBe(STUCK_TEXT);
     const replies = await router({ kind: 'text', userId: t.userId, text: 'ik weet niet hoe ik moet beginnen' });
     expect(claude.callWithTools.mock.calls[0]![0]).toMatchObject({ purpose: 'break_down', forceTool: 'break_down' });
     expect(replies[0]?.text).toContain('Kleiner dan:\n1. Zoek de offerte van vorig jaar · 5 min');
-    expect(replies[1]?.text).toBe('Top. Eén stap: zoek de offerte van vorig jaar. Ik check over 25 minuten bij je.');
+    expect(replies[1]?.text).toBe('Top. 15 minuten voor offerte bakkerij afmaken. Ik meld me aan het eind.\nEerste stap: zoek de offerte van vorig jaar.');
 
     // Finishing the three smaller steps finishes the step they came from.
     for (let i = 0; i < 3; i++) {
       await tap(router, `sess:${offerte.id}:done`);
-      if (i < 2) await tap(router, `t:${offerte.id}:start`);
+      if (i < 2) await tap(router, `blk:t${offerte.id}:m15`);
     }
     expect((await db().select().from(tasks).where(eq(tasks.id, first!.id)))[0]?.status).toBe('done');
-    const [last] = await tap(router, `t:${offerte.id}:start`);
+    const [last] = await tap(router, `blk:t${offerte.id}:m15`);
     expect(last?.text).toContain('zet de drie pakketten met prijs erin');
   });
 
-  it('suggests a break after the third session of the day', async () => {
+  it('still suggests a break after every third legacy session of the day', async () => {
     const router = createAssistantRouter({ db: db(), claude: scriptedClaude([]), now: () => NOW });
     const offerte = await byTitle('Offerte bakkerij afmaken');
-    // Sessions done today so far: banner and three small steps = 4; this makes 5, then 6.
-    await tap(router, `sess:${offerte.id}:done`);
-    await tap(router, `t:${offerte.id}:start`);
-    const [reply] = await tap(router, `sess:${offerte.id}:done`);
-    expect(reply?.text).toContain('Tijd voor een pauze?');
+    const replies = [];
+    for (let i = 0; i < 3; i++) replies.push(...(await tap(router, `sess:${offerte.id}:done`)));
+    expect(replies.some((reply) => reply.text.includes('Tijd voor een pauze?'))).toBe(true);
   });
 
-  it('splits a big task with Claude before the first session', async () => {
+  it('splits a big task with Claude before the first block', async () => {
     const claude = scriptedClaude([
       { tools: [{ name: 'break_down', input: { steps: steps('Maak een lijst van de pagina\'s', 'Schrijf de homepage', 'Schrijf de contactpagina') } }] },
     ]);
@@ -148,9 +154,9 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
     const site = await byTitle('Openingstijden op de site bijwerken');
     await db().update(tasks).set({ estimatedMinutes: 120, title: 'Teksten nieuwe site' }).where(eq(tasks.id, site.id));
 
-    const replies = await tap(router, `t:${site.id}:start`);
+    const replies = await tap(router, `blk:t${site.id}:m15`);
     expect(replies[0]?.text).toContain('Zo knippen we teksten nieuwe site op:');
-    expect(replies[1]?.text).toBe("Top. Eén stap: maak een lijst van de pagina's. Ik check over 25 minuten bij je.");
+    expect(replies[1]?.text).toBe("Top. 15 minuten voor teksten nieuwe site. Ik meld me aan het eind.\nEerste stap: maak een lijst van de pagina's.");
     expect(await childrenOf(site.id)).toHaveLength(3);
   });
 });

@@ -6,6 +6,8 @@ import { DateTime } from 'luxon';
 export const USER_STARTED_KINDS = new Set(['session_checkin']);
 /** Heads-ups and follow-ups: limited by max_calendar_nudges_per_day when planned. */
 export const CALENDAR_KINDS = new Set(['meeting_heads_up', 'meeting_followup']);
+/** Messages of a running work block (step 1.9). */
+export const WORK_BLOCK_KINDS = new Set(['block_end', 'return_reminder', 'pause_close', 'hyperfocus_break']);
 /** At least this long between two proactive messages. */
 export const BREATHING_MINUTES = 45;
 
@@ -37,10 +39,14 @@ export type GuardrailVerdict =
 
 export function checkGuardrails(input: GuardrailInput): GuardrailVerdict {
   if (USER_STARTED_KINDS.has(input.kind)) return { send: true };
+  // Closing a pause sends nothing, so it always runs.
+  if (input.kind === 'pause_close') return { send: true };
 
   const { settings, now } = input;
   if (settings.pausedUntil && settings.pausedUntil > now) return { send: false, reason: 'paused' };
   if (isQuiet(input.timezone, now, settings.quietStart, settings.quietEnd)) return { send: false, reason: 'quiet_hours' };
+  // Work-block messages (step 1.9) follow only the pause and quiet hours.
+  if (WORK_BLOCK_KINDS.has(input.kind)) return { send: true };
 
   // Withdrawing on silence: 2 days → morning only · 4 days → silent · day 7 → one restart.
   if (input.kind === 'reentry') {

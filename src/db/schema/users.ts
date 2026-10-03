@@ -26,6 +26,8 @@ export const users = pgTable('users', {
   locale: text('locale').notNull().default('nl-NL'),
   status: userStatus('status').notNull().default('active'),
   lastInboundAt: timestamp('last_inbound_at', { withTimezone: true }),
+  /** Leaves in the garden (step 1.9). Only grows. */
+  gardenGrowth: integer('garden_growth').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
@@ -63,6 +65,8 @@ export const userSettings = pgTable(
     meetingHeadsUp: boolean('meeting_heads_up').notNull().default(true),
     meetingFollowup: boolean('meeting_followup').notNull().default(true),
     maxCalendarNudgesPerDay: smallint('max_calendar_nudges_per_day').notNull().default(2),
+    /** Reward minute and garden (step 1.9); blocks and pauses work either way. */
+    rewardsEnabled: boolean('rewards_enabled').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

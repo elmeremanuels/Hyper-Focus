@@ -217,7 +217,7 @@ describe.skipIf(!adminUrl)('Telegram and mail end to end (integration)', () => {
     const path = new URL(link!).pathname;
     const first = await fetch(`${server.baseUrl}${path}`, { method: 'POST' });
     expect(first.status).toBe(200);
-    expect(await first.text()).toContain('Eén stap');
+    expect(await first.text()).toContain('Hoe lang ga je aan');
 
     const second = await fetch(`${server.baseUrl}${path}`, { method: 'POST' });
     expect(second.status).toBe(410);

@@ -25,6 +25,11 @@ export const nudgeKind = pgEnum('nudge_kind', [
   'reentry',
   'meeting_heads_up',
   'meeting_followup',
+  // Work blocks (step 1.9)
+  'block_end',
+  'return_reminder',
+  'pause_close',
+  'hyperfocus_break',
 ]);
 
 // Phase 2 lenses. Later lenses (swot, offer_pricing, retention, visibility, time_saving)
@@ -61,3 +66,7 @@ export const conversationMode = pgEnum('conversation_mode', [
 
 /** Kinds of work a workplace link can open (step 1.10). */
 export const workType = pgEnum('work_type', ['invoicing', 'email', 'calendar', 'content', 'website', 'docs']);
+
+/** How a work block ended (step 1.9). */
+export const focusBlockOutcome = pgEnum('focus_block_outcome', ['completed', 'extended', 'stopped', 'expired']);
+export const gardenEventKind = pgEnum('garden_event_kind', ['block', 'on_time_return']);

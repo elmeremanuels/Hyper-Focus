@@ -20,6 +20,10 @@ export const EVENT_NAMES = [
   'weekly_review_done',
   'tool_button_shown',
   'tool_prompt',
+  'block_started',
+  'block_completed',
+  'pause_returned',
+  'rewards_toggled',
   'overwhelm',
   'nudge_skipped',
 ] as const;

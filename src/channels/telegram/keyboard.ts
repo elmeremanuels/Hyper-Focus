@@ -39,6 +39,9 @@ export function toInlineKeyboard(message: OutboundMessage): InlineKeyboardMarkup
 }
 
 function toButton(button: Button) {
+  if (button.webApp) {
+    return { text: button.title, web_app: { url: button.webApp } };
+  }
   if (button.url) {
     const text = button.title.length <= MAX_LINK_TITLE ? button.title : `${button.title.slice(0, MAX_LINK_TITLE - 1)}…`;
     return { text, url: button.url };

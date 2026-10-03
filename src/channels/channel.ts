@@ -13,6 +13,8 @@ export interface ChannelUser {
 }
 
 export interface SendContext {
+  /** Telegram: deliver without sound (during a work block or pause, step 1.9). Mail ignores it. */
+  silent?: boolean;
   /** Mail: subject line. */
   subject?: string;
   /** Mail: Message-ID of the mail this answers, for threading. */

@@ -11,6 +11,15 @@ import { events, scheduledNudges, users } from '../db/schema/index.js';
 import { localDate, localNow } from '../lib/time.js';
 import { composeWeeklyMail, reviewStart } from '../conversation/review.js';
 import { composeCheckin } from '../conversation/session.js';
+import {
+  activeBlock,
+  BLOCK_NUDGE_KINDS,
+  closeQuietly,
+  composeBlockEnd,
+  composeHyperfocusBreak,
+  composeReturnReminder,
+  SOUND_KINDS,
+} from '../conversation/blocks.js';
 import { checkGuardrails, silentDays, USER_STARTED_KINDS, type GuardrailInput, type GuardrailVerdict } from './guardrails.js';
 import { composeFollowup, composeHeadsUp, composePlannedSession, todaysEvents } from './calendar-messages.js';
 import { meetingAt } from './daycalendar.js';
@@ -33,6 +42,10 @@ export const DEFAULT_COMPOSERS: Partial<Record<NudgeRow['kind'], Composer>> = {
   meeting_followup: (ctx, nudge) => composeFollowup(ctx, String(nudge.payload.eventId)),
   escalation: (ctx, nudge) => composeEscalation(ctx, Number(nudge.payload.taskId), Number(nudge.payload.level)),
   reentry: (ctx) => composeReentry(ctx),
+  block_end: (ctx, nudge) => composeBlockEnd(ctx, Number(nudge.payload.blockId)),
+  hyperfocus_break: (ctx, nudge) => composeHyperfocusBreak(ctx, Number(nudge.payload.blockId)),
+  return_reminder: (ctx, nudge) => composeReturnReminder(ctx, Number(nudge.payload.blockId)),
+  pause_close: (ctx, nudge) => closeQuietly(ctx, Number(nudge.payload.blockId), String(nudge.payload.phase)),
   weekly_review: async (ctx, nudge) =>
     nudge.payload.part === 'mail'
       ? { ...(await composeWeeklyMail(ctx)), mailOnly: true }
@@ -130,6 +143,12 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
       }
     }
 
+    // During a work block or pause other messages wait until after the pause (step 1.9).
+    const focus = await activeBlock(deps.db, user.id, now);
+    if (focus && !BLOCK_NUDGE_KINDS.has(nudge.kind) && nudge.kind !== 'session_checkin') {
+      return { status: 'postponed', retryAt: new Date(now.getTime() + 10 * 60_000) };
+    }
+
     const silent = silentDays(status[0]?.lastInboundAt ?? null, profile.timezone, now);
     const input = await guardrailInput(deps.db, nudge, now, profile.timezone, settings, silent);
     const verdict = (deps.guardrail ?? checkGuardrails)(input);
@@ -150,9 +169,11 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
     const composed = await composer(ctx, nudge);
     if ('skip' in composed) return { status: 'skipped', reason: composed.skip };
 
+    // Transitions make a sound; anything else during a block or pause is silent.
+    const quiet = Boolean(focus) && !SOUND_KINDS.has(nudge.kind);
     const via = await deps.delivery.send(user, composed.message, {
       ...(composed.mailOnly && { via: 'email' as const }),
-      context: { subject: composed.subject },
+      context: { subject: composed.subject, silent: quiet },
     });
     if (composed.alsoByMail && via !== 'email') {
       await deps.delivery.send(user, composed.message, { via: 'email', context: { subject: composed.subject } });
@@ -177,7 +198,15 @@ async function guardrailInput(
   const proactive = and(
     eq(scheduledNudges.userId, nudge.userId),
     eq(scheduledNudges.status, 'sent'),
-    notInArray(scheduledNudges.kind, ['session_checkin', 'meeting_heads_up', 'meeting_followup']),
+    notInArray(scheduledNudges.kind, [
+      'session_checkin',
+      'meeting_heads_up',
+      'meeting_followup',
+      'block_end',
+      'return_reminder',
+      'pause_close',
+      'hyperfocus_break',
+    ]),
     // The Monday mail does not count against Telegram messages.
     sql`not (${scheduledNudges.kind} = 'weekly_review' and ${scheduledNudges.payload}->>'part' = 'mail')`,
   );

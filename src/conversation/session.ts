@@ -128,7 +128,8 @@ export async function generateSteps(
 // ---------------------------------------------------------------------------
 // Sessions
 
-export const startSessionTool = defineTool({
+/** Legacy (step 1.4): sessions without a chosen length. */
+export const legacyStartSessionTool = defineTool({
   name: 'start_session',
   description: 'Start een werksessie op een taak ("start", "ik ga nu aan de offerte"). Ik noem één stap en check later bij de gebruiker.',
   input: z.object({ task_id: z.number().int() }),
@@ -138,7 +139,8 @@ export const startSessionTool = defineTool({
   },
 });
 
-export const SESSION_TOOLS: ToolDefinition[] = [breakDown, startSessionTool];
+/** start_session moved to blocks.ts (step 1.9). */
+export const SESSION_TOOLS: ToolDefinition[] = [breakDown];
 
 /** Starts a session on the next step of a task; splits a big task first when it has no steps. */
 export async function startSession(
@@ -316,6 +318,7 @@ export async function sessionModeHandler(
   text: string,
   data: SessionData,
   ctx: ButtonContext,
+  start: (ctx: ButtonContext, taskId: number) => Promise<OutboundMessage[]> = startSession,
 ): Promise<OutboundMessage[] | undefined> {
   if (!data.stuck) return undefined;
   const step = await getTask(ctx.db, ctx.userId, data.stepId);
@@ -323,7 +326,7 @@ export async function sessionModeHandler(
   const split = await generateSteps(ctx.claude, ctx, step, text);
   if (!split) return undefined;
   const lines = split.text.split('\n').slice(1, -1).join('\n');
-  const started = await startSession(ctx, data.taskId);
+  const started = await start(ctx, data.taskId);
   return [{ text: `Kleiner dan:\n${lines}` }, ...started];
 }
 

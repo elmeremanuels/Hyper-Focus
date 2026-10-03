@@ -25,6 +25,7 @@ if (env.DATABASE_URL) {
         messages: services.messages,
         delivery: services.delivery,
         router: services.router,
+        isQuiet: services.isQuiet,
         allowedUserIds: env.TELEGRAM_ALLOWED_USER_IDS,
         linkSecret: env.ACTION_LINK_SECRET,
         transcriber: new Transcriber({ apiKey: env.OPENAI_API_KEY, model: env.TRANSCRIBE_MODEL }),
@@ -53,6 +54,8 @@ if (env.DATABASE_URL) {
     messages: services.messages,
     router: services.router,
   };
+
+  options.reward = { db, botToken: env.TELEGRAM_BOT_TOKEN };
 
   if (services.calendar) {
     options.calendar = {

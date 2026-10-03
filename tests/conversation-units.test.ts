@@ -103,4 +103,11 @@ describe('eval judge', () => {
     expect(judge(snooze, [call('snooze', { task_id: 12, until_date: '2026-10-09' })]).problem).toMatch(/until_date/);
     expect(judge(snooze, []).problem).toMatch(/none/);
   });
+
+  it('checks the block length after rounding', () => {
+    const block = CASES.find((c) => c.text.startsWith('even 40 min'))!;
+    expect(judge(block, [call('start_session', { task_id: 11, minutes: 40 })])).toEqual({});
+    expect(judge(block, [call('start_session', { task_id: 11, minutes: 45 })])).toEqual({});
+    expect(judge(block, [call('start_session', { task_id: 11 })]).problem).toMatch(/minutes/);
+  });
 });
