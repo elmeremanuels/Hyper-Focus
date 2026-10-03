@@ -585,6 +585,37 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
     - "Je minuut zit erop. Terug naar je werk." (einde van de klok).
   - [Volgende blok starten] heet nu [Volgende blok], zoals in het plan.
 
+## Stap 1.12 A4 — Batterij: data en API
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Nieuwe `.env`-variabele (uit het aanpasplan):** `DASHBOARD_API`. Met `on` gaan de endpoints aan; leeg of `off` geeft 404.
+- **Gebouwd:**
+  - Pure functie `batteryState` (`src/focus/battery.ts`) met vijf standen:
+    - `charging`: in het uur voor het venster 1–4 segmenten, oplopend met de tijd, plus één per kleine taak of pitstop in dat uur;
+    - `ready`: het venster loopt en er loopt geen blok;
+    - `focus`: er loopt een blok, met de verstreken minuten;
+    - `pitstop`: tijdens de terugklok van 2 naar 4;
+    - `idle`: de laatste stand gedimd, met het volgende venster.
+
+    Er is nooit 0 segmenten en nooit een rode stand. Elke stand heeft een label voor schermlezers.
+  - `GET /api/battery` geeft de JSON uit het plan, met tijden in de tijdzone van de gebruiker.
+  - `GET /api/focus-log?days=7` geeft de regels van het focuslog.
+  - Beide antwoorden met `Cache-Control: private, max-age=60`, dus niet vaker dan eens per minuut.
+  - Inloggen: het dashboard heeft nog geen eigen sessie. Tot fase 2a meldt een verzoek zich aan met Telegram-webappgegevens: `Authorization: tma <initData>`. Die worden met HMAC gecontroleerd, mogen hooguit 24 uur oud zijn en moeten van een gekoppelde gebruiker zijn.
+- **Controle (Definition of Done):**
+  - *`batteryState`: elke stand en overgang, nooit 0 segmenten:* `tests/battery.test.ts`.
+  - *`GET /api/battery` geeft de juiste stand op elk tijdstip:* `tests/dashboard-api.integration.test.ts` loopt een dag door:
+    - om 09:00 idle;
+    - om 10:10 charging met 3 segmenten;
+    - om 10:30 ready;
+    - om 11:13 in een vensterblok focus met 42 minuten;
+    - daarna pitstop, terug, ready;
+    - na het venster idle met "morgen 10:30".
+  - Uit zonder de vlag (404), en 401 zonder geldige Telegram-aanmelding.
+  - `npm test`: 351 groen.
+- **Open:** de echte dashboardsessie komt in fase 2a. Dan vervangt die, of komt hij naast de Telegram-aanmelding.
+
 ## Volgende stap
 
 Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.

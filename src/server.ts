@@ -56,6 +56,7 @@ if (env.DATABASE_URL) {
   };
 
   options.reward = { db, botToken: env.TELEGRAM_BOT_TOKEN };
+  if (env.DASHBOARD_API === 'on') options.dashboardApi = { db, botToken: env.TELEGRAM_BOT_TOKEN };
 
   if (services.calendar) {
     options.calendar = {
