@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createAssistantRouter } from '../src/conversation/assistant.js';
 import { clearState } from '../src/conversation/state.js';
 import { createDbMessageStore } from '../src/core/messages.js';
@@ -33,6 +33,10 @@ const at = (day: string, time: string) => new Date(`${day}T${time}Z`);
 describe.skipIf(!adminUrl)('focus window (integration)', () => {
   const t = useTestDatabase();
   const db = () => t.connection.db;
+  // These tests run through weekends: every day is a work day here (the work week has its own tests).
+  beforeAll(async () => {
+    await db().update(userSettings).set({ workDays: [1, 2, 3, 4, 5, 6, 7] }).where(eq(userSettings.userId, t.userId));
+  });
   let kit: ReturnType<typeof fakeDelivery> | undefined;
   const delivery = () => (kit ??= fakeDelivery(createDbMessageStore(db())));
   const send = (when: Date) => sendDueNudges({ db: db(), delivery: delivery().delivery, users: createDbUserStore(db()) }, when);
@@ -125,7 +129,7 @@ describe.skipIf(!adminUrl)('focus window (integration)', () => {
     // In a window the hyperfocus catcher waits for 90 minutes: 60 + 30 gives the pause message.
     await tap(at('2026-10-08', '09:31:00'), `blk:${block!.id}:plus30`);
     await send(at('2026-10-08', '10:01:10'));
-    expect(lastSent()?.text).toBe('Je bent al een uur bezig. Tijd voor water en even bewegen.');
+    expect(lastSent()?.text).toBe('91 minuten diep werk. Tijd voor een pitstop.');
     await tap(at('2026-10-08', '10:02:00'), `blk:${block!.id}:stop`);
   });
 
@@ -216,6 +220,8 @@ describe.skipIf(!adminUrl)('focus window (integration)', () => {
 
   it('learns the rhythm, proposes it once after the weekly review, and uses it after a yes', { timeout: 60_000 }, async () => {
     await db().delete(focusBlocks);
+    // The rhythm counts work days: back to Monday to Friday.
+    await db().update(userSettings).set({ workDays: [1, 2, 3, 4, 5] }).where(eq(userSettings.userId, t.userId));
     const { sent } = await simulateDays({ db: db(), userId: t.userId, start: '2026-10-12', days: 14, silent: false, actions: rhythmScenario(14) });
     const proposals = sent.filter((m) => m.text.startsWith('Je beste uren'));
     expect(proposals.map((m) => m.text)).toEqual(['Je beste uren liggen op werkdagen rond 13:30. Zal ik je focusvenster daar zetten?']);
@@ -259,7 +265,7 @@ describe.skipIf(!adminUrl)('focus window (integration)', () => {
 
   it('keeps the blocks scenario outside the window', async () => {
     const { sent } = await simulateDays({ db: db(), userId: t.userId, start: '2026-11-04', days: 1, silent: false, actions: blocksScenario(0) });
-    expect(sent.some((m) => m.text.startsWith('Top. 25 minuten'))).toBe(true);
+    expect(sent.some((m) => m.text.startsWith('25 minuten voor'))).toBe(true);
   });
 
   it('removes windows and rhythm with the user', async () => {

@@ -14,20 +14,21 @@ import { fakeDelivery } from './helpers/delivery.js';
 import { fixture } from './helpers/fixtures.js';
 import { adminUrl, useTestDatabase } from './helpers/testdb.js';
 
-const SUNDAY_EVENING = new Date('2026-10-11T17:30:00Z'); // 19:30 in Amsterdam
+// The weekly review falls at the end of the last work day: Friday 17:00 in Amsterdam (step 1.12).
+const FRIDAY_END = new Date('2026-10-09T15:00:00Z');
 const MONDAY_MAIL = new Date('2026-10-12T06:00:30Z'); // just after 08:00
 
 describe.skipIf(!adminUrl)('ideas, weekly review and weekly mail (integration)', () => {
   const t = useTestDatabase();
   const db = () => t.connection.db;
   const tool = (name: string, input: object) =>
-    runTool(CORE_TOOLS, name, input, { db: db(), userId: t.userId, timezone: 'Europe/Amsterdam', now: SUNDAY_EVENING, source: 'telegram' });
+    runTool(CORE_TOOLS, name, input, { db: db(), userId: t.userId, timezone: 'Europe/Amsterdam', now: FRIDAY_END, source: 'telegram' });
 
   it('never puts ideas in the focus', async () => {
     await tool('add_idea', { text: 'Workshop websites voor bakkers' });
     await tool('add_idea', { text: 'Podcast met klanten' });
-    await planDay(db(), t.userId, 'Europe/Amsterdam', new Date('2026-10-10T22:06:00Z'));
-    const [focus] = await db().select().from(dailyFocus).where(eq(dailyFocus.localDate, '2026-10-11'));
+    await planDay(db(), t.userId, 'Europe/Amsterdam', new Date('2026-10-08T22:06:00Z'));
+    const [focus] = await db().select().from(dailyFocus).where(eq(dailyFocus.localDate, '2026-10-09'));
     const titles = await Promise.all(
       (focus?.taskIds ?? []).map(async (id) => (await db().select().from(tasks).where(eq(tasks.id, id)))[0]?.title),
     );
@@ -41,15 +42,17 @@ describe.skipIf(!adminUrl)('ideas, weekly review and weekly mail (integration)',
       .select()
       .from(scheduledNudges)
       .where(and(eq(scheduledNudges.userId, t.userId), eq(scheduledNudges.kind, 'weekly_review')));
-    expect(reviews.map((n) => [n.scheduledForUtc.toISOString(), n.payload.part])).toEqual([['2026-10-11T17:30:00.000Z', 'review']]);
+    expect(reviews.map((n) => [n.scheduledForUtc.toISOString(), n.payload.part])).toEqual([['2026-10-09T15:00:00.000Z', 'review']]);
 
     await db().update(users).set({ telegramChatId: 99 }).where(eq(users.id, t.userId));
     const { delivery, telegram } = fakeDelivery(createDbMessageStore(db()));
-    await sendDueNudges({ db: db(), delivery, users: createDbUserStore(db()) }, new Date('2026-10-11T17:30:30Z'));
+    // The day review at 16:00 comes first; the weekly review at the end of the work day.
+    await sendDueNudges({ db: db(), delivery, users: createDbUserStore(db()) }, new Date('2026-10-09T14:00:30Z'));
+    await sendDueNudges({ db: db(), delivery, users: createDbUserStore(db()) }, new Date('2026-10-09T15:00:30Z'));
     const opening = telegram.sent().at(-1)?.body;
-    expect(opening?.text).toMatch(/^Tijd voor de weekreview, drie korte stappen\..*\nWat ging goed\?/s);
+    expect(opening?.text).toMatch(/^Weekreview, drie tikken\..*\nWat ging goed\?/s);
 
-    const router = createAssistantRouter({ db: db(), claude: scriptedClaude([]), now: () => SUNDAY_EVENING });
+    const router = createAssistantRouter({ db: db(), claude: scriptedClaude([]), now: () => FRIDAY_END });
     const tap = (id: string) => router({ kind: 'button', userId: t.userId, buttonId: id, title: id });
 
     const [step2] = await tap('wr:good:focus'); // tap 1
@@ -67,12 +70,12 @@ describe.skipIf(!adminUrl)('ideas, weekly review and weekly mail (integration)',
     expect(done?.text).toBe('"Podcast met klanten" is nu een project. De weekreview is klaar. Fijne week.');
     const [idea] = await db().select().from(ideas).where(eq(ideas.text, 'Podcast met klanten'));
     expect(idea?.status).toBe('promoted');
-    expect((await getState(db(), t.userId, SUNDAY_EVENING)).mode).toBe('idle');
+    expect((await getState(db(), t.userId, FRIDAY_END)).mode).toBe('idle');
   });
 
   it('accepts a few words at the first step', async () => {
     const claude = scriptedClaude([]);
-    const router = createAssistantRouter({ db: db(), claude, now: () => SUNDAY_EVENING });
+    const router = createAssistantRouter({ db: db(), claude, now: () => FRIDAY_END });
     await router({ kind: 'text', userId: t.userId, text: 'weekreview' });
     const [next] = await router({ kind: 'text', userId: t.userId, text: 'de offerte is eindelijk de deur uit' });
     expect(next?.text).toBe('Dank je. Welk project krijgt volgende week voorrang?');

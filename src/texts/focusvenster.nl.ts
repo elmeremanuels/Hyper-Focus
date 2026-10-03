@@ -24,6 +24,14 @@ export const WINDOW_TEXTS = {
   learnedKeep: 'Prima, het blijft zo.',
 } as const;
 
+/** The work week (step 1.12, on request): not in the plan, to review. */
+export const WORK_WEEK_TEXTS = {
+  askDays: 'Op welke dagen werk je?',
+  askHours: 'Hoe laat begin en stop je meestal?',
+  other: 'Stuur je dagen en tijden. Bijvoorbeeld "ma, di en do van 8 tot 15".',
+  saved: 'Genoteerd: {dagen}, {start}–{eind}. Je weekreview komt op {dag} om {eind}.',
+} as const;
+
 export const WINDOW_BUTTONS = {
   morning: 'Ochtend',
   afternoon: 'Middag',

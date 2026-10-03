@@ -14,6 +14,7 @@ import { silentDays } from './guardrails.js';
 import { composeFocus, type ComposedFocus, type FocusCandidate } from './focus.js';
 import { tomorrowPlan } from './tomorrow-signals.js';
 import { learnRhythm, planWindow, windowFor } from '../focus/windows.js';
+import { firstWorkday, isWorkday, lastWorkday } from '../focus/workweek.js';
 
 export const PLANNER_TIME = '00:05';
 export const MIDDAY_TIME = '13:30';
@@ -115,8 +116,11 @@ export async function planDay(
       .set({ taskIds: focus.taskIds, quickWinTaskId: focus.quickWinTaskId })
       .where(eq(dailyFocus.id, claimed.id));
 
+    // Only on work days (step 1.12): the focus window and the rhythm messages.
+    const weekday = localNow(timezone, now).weekday;
+    const workday = isWorkday(settings.workDays, weekday);
     // The most important task gets today's focus window (step 1.12).
-    const window = await planWindow(db2, userId, timezone, today, focus.mainTaskId, now);
+    const window = workday ? await planWindow(db2, userId, timezone, today, focus.mainTaskId, now) : undefined;
 
     // Carried-over tasks got their bonus; it ends once they are in a focus.
     if (focus.taskIds.length > 0) {
@@ -130,20 +134,22 @@ export async function planDay(
         nudges.push({ kind, scheduledForUtc: at, payload: { localDate: today, ...payload } });
       }
     };
-    add('morning', settings.morningTime);
-    // The heads-up before the focus window takes over the midday nudge (step 1.12).
-    if (settings.middayEnabled && focus.mainTaskId !== null && !window?.taskId) {
-      add('midday', MIDDAY_TIME, { taskId: focus.mainTaskId });
-    }
-    add('wrapup', settings.wrapupTime);
+    const reviewDay = lastWorkday(settings.workDays);
+    if (workday) {
+      add('morning', settings.morningTime);
+      // The heads-up before the focus window takes over the midday nudge (step 1.12).
+      if (settings.middayEnabled && focus.mainTaskId !== null && !window?.taskId) {
+        add('midday', MIDDAY_TIME, { taskId: focus.mainTaskId });
+      }
+      add('wrapup', settings.wrapupTime);
 
-    // Weekly review on the chosen day; the overview mail on Monday (BOUWPLAN.md, 11.7).
-    const weekday = localNow(timezone, now).weekday;
-    if (weekday === settings.weeklyReviewDay) add('weekly_review', settings.weeklyReviewTime, { part: 'review' });
-    if (weekday === 1) add('weekly_review', WEEKLY_MAIL_TIME, { part: 'mail' });
+      // The weekly review at the end of the last work day; the overview mail on the first (BOUWPLAN.md, 11.7).
+      if (weekday === reviewDay) add('weekly_review', settings.workEnd, { part: 'review' });
+      if (weekday === firstWorkday(settings.workDays)) add('weekly_review', WEEKLY_MAIL_TIME, { part: 'mail' });
+    }
 
     // No escalation on the review day, so the review stays within the daily limit.
-    if (weekday !== settings.weeklyReviewDay) {
+    if (workday && weekday !== reviewDay) {
       const escalation = await pickEscalation(tx, userId, focus.taskIds, today, timezone, now);
       if (escalation) add('escalation', ESCALATION_TIME, escalation);
     }

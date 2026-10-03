@@ -8,6 +8,7 @@ import type { OutboundMessage } from '../conversation/types.js';
 import { SHOW_TODAY } from '../conversation/views.js';
 import { composeDayReview } from '../conversation/day-review.js';
 import { morningWindowLine, prefQuestionOnce } from '../conversation/focus-window.js';
+import { workWeekQuestionOnce } from '../conversation/work-week.js';
 import { workplaceButton } from '../conversation/workplace.js';
 import { REVIEW_BUTTONS, REVIEW_TEXTS } from '../texts/dagreview.nl.js';
 import { DEFERRED_PROPOSAL_AT } from './tomorrow.js';
@@ -59,13 +60,16 @@ async function plannedFocus(ctx: NudgeContext, localDate: string): Promise<TaskS
 
 const isOpen = (task: TaskSummary) => task.status === 'open' || task.status === 'in_progress';
 
+/** "Dit zijn je drie." (tone, step 1.12). */
+const FOCUS_COUNT: Record<number, string> = { 1: 'Eén taak vandaag.', 2: 'Dit zijn je twee.', 3: 'Dit zijn je drie.' };
+
 export async function composeMorning(ctx: NudgeContext, localDate: string): Promise<Composed> {
   if (ctx.silentDays >= REENTRY_AFTER_DAYS) return composeReentry(ctx, false);
   const focus = (await plannedFocus(ctx, localDate)).filter(isOpen);
   if (focus.length === 0) {
     return {
       subject: 'Goedemorgen',
-      message: { text: `Goedemorgen ${ctx.name}. Er staat vandaag niets open. Stuur me wat je wilt doen, dan zet ik het klaar.` },
+      message: { text: 'Goedemorgen. Er staat niets open. Stuur me je eerste taak.' },
     };
   }
   const day = await calendarDayLine(ctx, localDate);
@@ -81,7 +85,8 @@ export async function composeMorning(ctx: NudgeContext, localDate: string): Prom
   const deferredTask = deferred ? focus.find((task) => task.id === deferred.id) : undefined;
   // The focus window (step 1.12): one line and [Schuif venster]; the preference question once.
   const window = await morningWindowLine(ctx, localDate);
-  const prefQuestion = await prefQuestionOnce(ctx.db, ctx.userId, ctx.now);
+  // One setup question per morning: first when you work best, then the work week.
+  const prefQuestion = (await prefQuestionOnce(ctx.db, ctx.userId, ctx.now)) ?? (await workWeekQuestionOnce(ctx.db, ctx.userId, ctx.now));
   const followUps: OutboundMessage[] = [
     ...(deferredTask
       ? [
@@ -100,7 +105,7 @@ export async function composeMorning(ctx: NudgeContext, localDate: string): Prom
   return {
     subject: 'Je focus voor vandaag',
     message: {
-      text: `Goedemorgen ${ctx.name}.${day ? ` ${day}` : ''} Je focus voor vandaag staat klaar.${window ? `\n${window.line}` : ''}`,
+      text: `Goedemorgen. ${FOCUS_COUNT[focus.length] ?? FOCUS_COUNT[3]}${day ? ` ${day}` : ''}${window ? `\n${window.line}` : ''}`,
       buttons: [SHOW_TODAY, DAY_OFF, ...(window ? [window.button] : []), ...(link ? [link] : [])],
     },
     ...(followUps.length > 0 && { followUps }),
@@ -116,7 +121,7 @@ export async function composeMidday(ctx: NudgeContext, taskId: number): Promise<
   return {
     subject: 'Samen beginnen?',
     message: {
-      text: `Zullen we samen beginnen aan ${lowerFirst(task.title)}? Ik check daarna bij je.`,
+      text: `Tijd voor ${lowerFirst(task.title)}. Start je?`,
       buttons: [
         { id: `t:${task.id}:start`, title: 'Starten' },
         { id: 'f:later', title: 'Later' },
@@ -154,7 +159,7 @@ export async function composeReentry(ctx: NudgeContext, alsoByMail = true): Prom
 
   const open = await listOpenTasks(ctx.db, ctx.userId, 20, ctx.now);
   const smallest = [...open].sort((a, b) => (a.estimatedMinutes ?? 999) - (b.estimatedMinutes ?? 999))[0];
-  const welcome = 'Welkom terug. Ik heb alles even stilgezet.';
+  const welcome = 'Welkom terug. Ik heb alles stilgezet.';
   if (!smallest) {
     return { subject: 'Welkom terug', alsoByMail, message: { text: `${welcome} Stuur me wat je wilt doen, dan beginnen we klein.` } };
   }

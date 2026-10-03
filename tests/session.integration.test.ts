@@ -76,7 +76,7 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
     expect(asked?.buttons?.map((b) => b.id)).toEqual([`blk:t${banner.id}:m15`, `blk:t${banner.id}:m25`, `blk:t${banner.id}:m45`]);
 
     const [started] = await tap(router, `blk:t${banner.id}:m25`);
-    expect(started?.text).toBe('Top. 25 minuten voor banner voor de feestdagen. Ik meld me aan het eind.');
+    expect(started?.text).toBe('25 minuten voor banner voor de feestdagen. Ik meld me aan het eind.');
     expect((await getState(db(), t.userId, NOW)).mode).toBe('session');
     const ends = await db().select().from(scheduledNudges).where(and(eq(scheduledNudges.userId, t.userId), eq(scheduledNudges.kind, 'block_end')));
     expect(ends.map((n) => n.scheduledForUtc.toISOString())).toEqual(['2026-10-07T08:55:00.000Z']);
@@ -87,8 +87,8 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
     expect((await sendDueNudges(deps, new Date('2026-10-07T08:54:00Z'))).sent).toBe(0);
     expect((await sendDueNudges(deps, new Date('2026-10-07T08:55:30Z'))).sent).toBe(1);
     const sent = telegram.sent().at(-1)?.body;
-    expect(sent?.text).toBe('Je 25 minuten zitten erop. Hoe ging het?');
-    expect(JSON.stringify(sent?.reply_markup)).toContain('Afgerond');
+    expect(sent?.text).toBe('25 minuten erop. Hoe staat banner voor de feestdagen ervoor?');
+    expect(JSON.stringify(sent?.reply_markup)).toContain('"Af"');
     expect(sent?.disable_notification).toBeUndefined();
 
     const blockId = Number(/blk:(\d+):done/.exec(JSON.stringify(sent?.reply_markup))?.[1]);
@@ -118,7 +118,7 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
 
     const [started] = await tap(router, `blk:t${offerte.id}:m15`);
     expect(started?.text).toBe(
-      `Top. 15 minuten voor offerte bakkerij afmaken. Ik meld me aan het eind.\nEerste stap: ${first!.title.charAt(0).toLowerCase()}${first!.title.slice(1)}.`,
+      `15 minuten voor offerte bakkerij afmaken. Ik meld me aan het eind.\nEerste stap: ${first!.title.charAt(0).toLowerCase()}${first!.title.slice(1)}.`,
     );
 
     const [stuck] = await tap(router, `sess:${offerte.id}:stuck`);
@@ -126,7 +126,7 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
     const replies = await router({ kind: 'text', userId: t.userId, text: 'ik weet niet hoe ik moet beginnen' });
     expect(claude.callWithTools.mock.calls[0]![0]).toMatchObject({ purpose: 'break_down', forceTool: 'break_down' });
     expect(replies[0]?.text).toContain('Kleiner dan:\n1. Zoek de offerte van vorig jaar · 5 min');
-    expect(replies[1]?.text).toBe('Top. 15 minuten voor offerte bakkerij afmaken. Ik meld me aan het eind.\nEerste stap: zoek de offerte van vorig jaar.');
+    expect(replies[1]?.text).toBe('15 minuten voor offerte bakkerij afmaken. Ik meld me aan het eind.\nEerste stap: zoek de offerte van vorig jaar.');
 
     // Finishing the three smaller steps finishes the step they came from.
     for (let i = 0; i < 3; i++) {
@@ -156,7 +156,7 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
 
     const replies = await tap(router, `blk:t${site.id}:m15`);
     expect(replies[0]?.text).toContain('Zo knippen we teksten nieuwe site op:');
-    expect(replies[1]?.text).toBe("Top. 15 minuten voor teksten nieuwe site. Ik meld me aan het eind.\nEerste stap: maak een lijst van de pagina's.");
+    expect(replies[1]?.text).toBe("15 minuten voor teksten nieuwe site. Ik meld me aan het eind.\nEerste stap: maak een lijst van de pagina's.");
     expect(await childrenOf(site.id)).toHaveLength(3);
   });
 });

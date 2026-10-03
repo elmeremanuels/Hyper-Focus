@@ -27,6 +27,8 @@ export interface RhythmReview {
 export interface RhythmOptions {
   quietStart: string;
   quietEnd: string;
+  /** ISO weekdays someone works; the average for thin weekdays uses only these. Default Monday to Friday. */
+  workDays?: readonly number[];
 }
 
 export interface WeekdayWindow {
@@ -99,7 +101,8 @@ export function scoreHours(blocks: RhythmBlock[], reviews: RhythmReview[], tasks
   const damping = Math.min(1, activeDays / MIN_ACTIVE_DAYS);
 
   const sum = (rows: number[][]) => Array.from({ length: SLOTS }, (_, i) => rows.reduce((total, row) => total + (row[i] ?? 0), 0));
-  const workdays = [...days.values()].filter((d) => d.weekday <= 5);
+  const workDays = options.workDays ?? [1, 2, 3, 4, 5];
+  const workdays = [...days.values()].filter((d) => workDays.includes(d.weekday));
   const average = sum(workdays.map((d) => d.slots)).map((s) => s / Math.max(1, workdays.length));
 
   const windows: WeekdayWindow[] = [];

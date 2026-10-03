@@ -82,7 +82,7 @@ function answerWeeklyReview(day: number, time: string): SimulatedAction {
     message: async (ctx) => {
       const state = await getState(ctx.db, ctx.userId, ctx.now);
       if (state.mode !== 'weekly_review') return undefined;
-      if (state.data.step === 1) return tap(ctx.userId, 'wr:good:focus', 'Focus hield ik vast');
+      if (state.data.step === 1) return tap(ctx.userId, 'wr:good:focus', 'Focus vastgehouden');
       if (state.data.step === 2) {
         const [project] = await ctx.db.select({ id: projects.id }).from(projects).where(eq(projects.userId, ctx.userId)).orderBy(asc(projects.id)).limit(1);
         return project ? tap(ctx.userId, `wr:focus:${project.id}`, 'Project') : undefined;
@@ -106,7 +106,7 @@ export function rhythmScenario(days = 14): SimulatedAction[] {
       { day, time: '14:20', message: async (ctx) => { const id = await firstOpenTask(ctx); return id && workday(ctx) ? tap(ctx.userId, `blk:t${id}:m45`, '45 min') : undefined; } },
       { day, time: '15:05', message: async (ctx) => { const b = await lastBlock(ctx); return b && !b.endedAt ? tap(ctx.userId, `blk:${b.id}:done`, 'Afgerond') : undefined; } },
       { day, time: '15:05', message: async (ctx) => { const b = await lastBlock(ctx); return b?.pauseStartedAt && !b.returnedAt ? tap(ctx.userId, `blk:${b.id}:back`, 'Ik ben terug') : undefined; } },
-      ...Array.from({ length: 3 }, () => answerWeeklyReview(day, '19:35')),
+      ...Array.from({ length: 3 }, () => answerWeeklyReview(day, '17:05')),
     );
   }
   return actions;

@@ -57,6 +57,13 @@
       "when": 1791035408907,
       "tag": "0007_focus_log",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791038999477,
+      "tag": "0008_work_week",
+      "breakpoints": true
     }
   ]
 }

@@ -34,6 +34,8 @@ export const EVENT_NAMES = [
   'rhythm_accepted',
   'rhythm_kept',
   'focus_log_opened',
+  'work_week_asked',
+  'work_week_set',
   'overwhelm',
   'nudge_skipped',
 ] as const;

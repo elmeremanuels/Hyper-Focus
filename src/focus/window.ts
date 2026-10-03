@@ -53,9 +53,30 @@ export interface WindowInput {
   prefMinutes: number;
   quietStart: string;
   quietEnd: string;
+  /** Work hours (HH:MM); a learned or preferred window moves inside them. */
+  workStart?: string | undefined;
+  workEnd?: string | undefined;
+}
+
+/** Moves a window inside the work hours when it sticks out; a window longer than the day starts at work start. */
+export function fitWorkHours(start: string, minutes: number, workStart?: string, workEnd?: string): string {
+  if (!workStart || !workEnd) return start;
+  const from = toMinutes(workStart);
+  const to = toMinutes(workEnd);
+  if (to <= from) return start;
+  const s = toMinutes(start);
+  if (s < from) return toTime(from);
+  if (s + minutes > to) return toTime(Math.max(from, to - minutes));
+  return start;
 }
 
 export function chooseWindow(input: WindowInput): WindowChoice {
+  const choice = choose(input);
+  if (choice.source === 'manual') return choice;
+  return { ...choice, start: fitWorkHours(choice.start, choice.minutes, input.workStart, input.workEnd) };
+}
+
+function choose(input: WindowInput): WindowChoice {
   if (input.manual) return { ...input.manual, source: 'manual' };
   const fits = (start: string, minutes: number) => !overlapsQuiet(start, minutes, input.quietStart, input.quietEnd);
   const { learned } = input;

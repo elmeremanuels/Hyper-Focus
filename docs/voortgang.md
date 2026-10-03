@@ -616,6 +616,47 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - `npm test`: 351 groen.
 - **Open:** de echte dashboardsessie komt in fase 2a. Dan vervangt die, of komt hij naast de Telegram-aanmelding.
 
+## Stap 1.12 D — Toon en werkweek
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Besluiten van 3 oktober:**
+  - de 21 toonvoorstellen gaan door;
+  - de weekreview valt op de laatste werkdag (standaard vrijdag);
+  - werkdagen en werktijden worden uitgevraagd;
+  - punten 3 t/m 5 blijven zoals gebouwd.
+- **Datamodel (op verzoek):** op `user_settings` komen `work_days`, `work_start` en `work_end` (standaard ma t/m vr, 09:00–17:00). Migratie `0008_work_week`. `weekly_review_day` en `weekly_review_time` blijven staan, maar worden niet meer gebruikt.
+- **Gebouwd:**
+  - Toon: alle voorstellen uit `docs/toon-voorstellen.md`. Het ochtendbericht noemt het aantal: "Dit zijn je drie." of "Dit zijn je twee.".
+  - Werkweek uitvragen:
+    - na het koppelen van Telegram, met "mijn werkweek", en voor bestaande gebruikers één keer op een ochtend, na de vraag over het focusvenster;
+    - eerst de dagen: [Ma t/m vr] [Ma t/m do] [Di t/m za] [Anders];
+    - dan de tijden: [8–16] [9–17] [10–18] [Anders];
+    - vrije tekst gaat via de router-tool `set_work_week`.
+  - De planner:
+    - op een dag zonder werk: geen venster, ochtend, middag, afsluiting of escalatie (alleen de herstart na 7 dagen stilte);
+    - de weekreview komt aan het eind van de laatste werkdag (de eindtijd);
+    - de maandagmail komt op de eerste werkdag.
+  - Het ritmevoorstel en de weekopbrengst hangen aan de weekreview, en vallen dus ook op de laatste werkdag.
+  - Het focusvenster blijft binnen de werktijden; een venster dat je zelf verzet blijft waar je het zet. Kies je "Avond", dan schuift de eindtijd van je werkdag mee naar 20:30.
+  - Ritme: het gemiddelde en het voorstel gebruiken je eigen werkdagen.
+  - De batterij wijst buiten werkdagen naar het venster van de volgende werkdag.
+  - "Staat in je ideeënbak. {Dag} kijken we ernaar." noemt de reviewdag.
+  - `update_settings` neemt geen reviewdag of -tijd meer aan; dat loopt via de werkweek.
+  - Evaluatieset: 2 nieuwe gevallen (85 in totaal).
+- **Controle:**
+  - `tests/work-week.test.ts` en `tests/work-week.integration.test.ts`:
+    - vragen en bevestiging;
+    - weekreview op donderdag 16:00 bij ma t/m do;
+    - een vrije vrijdag zonder berichten;
+    - de batterij wijst naar maandag;
+    - de ideeëntekst en de router-tool;
+    - de werkdag die meeschuift bij een avondvoorkeur.
+  - Suites die over weekenddata lopen, zetten alle zeven dagen als werkdag.
+  - `sim:day --scenario rhythm` geeft het voorstel op vrijdag 16 oktober om 17:05. Een simulatie van vrijdag tot en met zondag is in het weekend stil.
+  - `npm test`: 358 groen.
+- **Nog te kiezen:** de weekreview komt op de eindtijd van de laatste werkdag. Wil je hem eerder op die dag, dan wordt dat een aparte instelling.
+
 ## Volgende stap
 
 Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.

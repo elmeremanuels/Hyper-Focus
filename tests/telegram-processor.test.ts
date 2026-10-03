@@ -186,6 +186,7 @@ describe('Telegram processor', () => {
       // After linking: when the user works best (step 1.12), then the tool questions (step 1.10).
       expect(routed).toEqual([
         expect.objectContaining({ kind: 'button', buttonId: 'fp:ask' }),
+        expect.objectContaining({ kind: 'button', buttonId: 'ww:ask' }),
         expect.objectContaining({ kind: 'button', buttonId: 'tl:start' }),
       ]);
     });

@@ -5,7 +5,7 @@ import { DateTime } from 'luxon';
 import { recordEvent } from '../core/events.js';
 import { getSettings } from '../core/settings.js';
 import type { Database } from '../db/client.js';
-import { dayReviews, events, focusBlocks, focusWindows, rhythmProfiles, scheduledNudges, tasks, users } from '../db/schema/index.js';
+import { dayReviews, events, focusBlocks, focusWindows, rhythmProfiles, scheduledNudges, tasks, userSettings, users } from '../db/schema/index.js';
 import { eventsBetween } from '../integrations/calendar/sync.js';
 import { localTimeOnDate } from '../lib/time.js';
 import { busyBlocks, freeBlocks } from '../proactive/daycalendar.js';
@@ -77,6 +77,8 @@ export async function windowInput(db: Database, userId: number, date: string): P
     prefMinutes: user?.minutes ?? DEFAULT_WINDOW_MINUTES,
     quietStart: settings.quietStart,
     quietEnd: settings.quietEnd,
+    workStart: settings.workStart.slice(0, 5),
+    workEnd: settings.workEnd.slice(0, 5),
   };
 }
 
@@ -218,6 +220,12 @@ export async function moveWindow(
 export async function setFocusPref(db: Database, userId: number, pref: FocusPref, now: Date): Promise<string> {
   const start = PREF_WINDOWS[pref];
   await db.update(users).set({ focusPref: pref, focusWindowStart: start }).where(eq(users.id, userId));
+  // Evening work means the work day runs into the evening: the window must fit in it.
+  const settings = await getSettings(db, userId);
+  const end = toTime(toMinutes(start) + DEFAULT_WINDOW_MINUTES);
+  if (pref === 'evening' && toMinutes(settings.workEnd.slice(0, 5)) < toMinutes(end)) {
+    await db.update(userSettings).set({ workEnd: end }).where(eq(userSettings.userId, userId));
+  }
   await recordEvent(db, userId, 'focus_pref_set', { pref }, now);
   return start;
 }
@@ -259,7 +267,7 @@ export async function computeRhythm(db: Database, userId: number, timezone: stri
       const at = local(t.completedAt);
       return { date: at.toISODate() ?? '', weekday: at.weekday, minute: at.hour * 60 + at.minute };
     });
-  return scoreHours(blocks, reviewRows, done, { quietStart: settings.quietStart, quietEnd: settings.quietEnd });
+  return scoreHours(blocks, reviewRows, done, { quietStart: settings.quietStart, quietEnd: settings.quietEnd, workDays: settings.workDays });
 }
 
 /**
@@ -319,7 +327,8 @@ export async function rhythmProposal(db: Database, userId: number, timezone: str
   if (lastAnswer) return undefined;
   const result = await computeRhythm(db, userId, timezone, now);
   if (!result.eligible) return undefined;
-  const strong = result.windows.filter((w) => w.weekday <= 5 && w.confidence >= MIN_CONFIDENCE);
+  const { workDays } = await getSettings(db, userId);
+  const strong = result.windows.filter((w) => workDays.includes(w.weekday) && w.confidence >= MIN_CONFIDENCE);
   if (strong.length === 0) return undefined;
   // The most common start among the work days, and the days that share it.
   const counts = new Map<string, number[]>();

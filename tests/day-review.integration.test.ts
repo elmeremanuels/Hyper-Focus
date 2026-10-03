@@ -1,12 +1,12 @@
 import { and, eq } from 'drizzle-orm';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createAssistantRouter } from '../src/conversation/assistant.js';
 import { planBlockMinutes } from '../src/conversation/blocks.js';
 import { energyWeekLine } from '../src/conversation/day-review.js';
 import { getState } from '../src/conversation/state.js';
 import { createDbMessageStore } from '../src/core/messages.js';
 import { createDbUserStore } from '../src/core/users.js';
-import { dailyFocus, dayReviews, focusBlocks, tasks, users } from '../src/db/schema/index.js';
+import { dailyFocus, dayReviews, focusBlocks, tasks, userSettings, users } from '../src/db/schema/index.js';
 import { runPlanner } from '../src/proactive/planner.js';
 import { sendDueNudges } from '../src/proactive/sender.js';
 import { scriptedClaude } from './helpers/claude.js';
@@ -16,6 +16,10 @@ import { adminUrl, useTestDatabase } from './helpers/testdb.js';
 describe.skipIf(!adminUrl)('day review (integration)', () => {
   const t = useTestDatabase();
   const db = () => t.connection.db;
+  // These tests run through weekends: every day is a work day here (the work week has its own tests).
+  beforeAll(async () => {
+    await db().update(userSettings).set({ workDays: [1, 2, 3, 4, 5, 6, 7] }).where(eq(userSettings.userId, t.userId));
+  });
   // Amsterdam is UTC+2 in October: planning at 22:05 UTC is 00:05 local the next day.
   const plan = (day: string) => runPlanner(db(), new Date(`${day}T22:05:00Z`));
   let kit: ReturnType<typeof fakeDelivery> | undefined;
@@ -152,7 +156,7 @@ describe.skipIf(!adminUrl)('day review (integration)', () => {
     const before = delivery().telegram.sent().length;
     await send('2026-10-11T06:30:10Z');
     const sent = delivery().telegram.sent().slice(before).map((call) => call.body);
-    expect(sent[0]?.text).toMatch(/^Goedemorgen Sam/);
+    expect(sent[0]?.text).toMatch(/^Goedemorgen\. /);
     expect(sent[1]?.text).toBe('Offerte bakkerij afmaken: Deze schuift al een paar dagen door. Zullen we hem opknippen of parkeren?');
     expect(JSON.stringify(sent[1]?.reply_markup)).toContain(`df:${offerte.id}:keep`);
 

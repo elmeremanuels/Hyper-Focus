@@ -71,6 +71,10 @@ export const userSettings = pgTable(
     maxCalendarNudgesPerDay: smallint('max_calendar_nudges_per_day').notNull().default(2),
     /** Reward minute and garden (step 1.9); blocks and pauses work either way. */
     rewardsEnabled: boolean('rewards_enabled').notNull().default(true),
+    /** The work week (step 1.12): ISO weekdays and local hours. The weekly review falls on the last work day. */
+    workDays: smallint('work_days').array().notNull().default(sql`ARRAY[1,2,3,4,5]::smallint[]`),
+    workStart: time('work_start').notNull().default('09:00'),
+    workEnd: time('work_end').notNull().default('17:00'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
