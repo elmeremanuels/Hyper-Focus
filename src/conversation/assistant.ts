@@ -127,7 +127,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
         system,
         messages,
         tools: anthropicTools,
-        maxTokens: 1024,
+        maxTokens: 4096,
       });
       reply = result.text.trim();
       if (result.toolCalls.length === 0 || round === MAX_TOOL_ROUNDS) break;

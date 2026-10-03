@@ -35,6 +35,7 @@ export interface ContextData {
   focus: ContextTask[];
   openTasks: ContextTask[];
   projects: Array<{ id: number; title: string; clientName: string | null }>;
+  /** Client names with their contact person, e.g. "Bakkerij De Vries (Anna)". */
   clients: string[];
   suggestions: Array<{ id: number; title: string; status: string }>;
   /** The running work session, if any. */
@@ -95,7 +96,7 @@ export async function loadContext(db: Database, userId: number, now: Date): Prom
       title: project.title,
       clientName: project.clientName,
     })),
-    clients: clientRows.map((client) => client.name),
+    clients: clientRows.map((client) => (client.contactName ? `${client.name} (${client.contactName})` : client.name)),
     suggestions: suggestionRows.map((suggestion) => ({
       id: suggestion.id,
       title: suggestion.title,
@@ -141,7 +142,7 @@ export function renderContext(data: ContextData): string {
     'Actieve projecten (id · titel · klant):',
     ...data.projects.map((p) => `- ${p.id} · ${p.title}${p.clientName ? ` · ${p.clientName}` : ''}`),
     '',
-    `Klanten: ${data.clients.join(', ') || '(geen)'}`,
+    `Klanten (contactpersoon): ${data.clients.join(', ') || '(geen)'}`,
     ...(data.session
       ? ['', `Lopende sessie: taak #${data.session.taskId}, stap #${data.session.stepId} "${data.session.stepTitle}".`]
       : []),
