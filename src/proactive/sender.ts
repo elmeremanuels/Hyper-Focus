@@ -90,12 +90,14 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
   try {
     if (now.getTime() - nudge.scheduledForUtc.getTime() > MAX_DELAY_MS) return { status: 'skipped', reason: 'too_late' };
 
-    const [user, profile, settings, status] = await Promise.all([
-      deps.users.findById(nudge.userId),
-      getProfile(deps.db, nudge.userId),
-      getSettings(deps.db, nudge.userId),
-      deps.db.select({ status: users.status, lastInboundAt: users.lastInboundAt }).from(users).where(eq(users.id, nudge.userId)),
-    ]);
+    // One query at a time: inside a transaction (sim:day) all queries share one connection.
+    const user = await deps.users.findById(nudge.userId);
+    const profile = await getProfile(deps.db, nudge.userId);
+    const settings = await getSettings(deps.db, nudge.userId);
+    const status = await deps.db
+      .select({ status: users.status, lastInboundAt: users.lastInboundAt })
+      .from(users)
+      .where(eq(users.id, nudge.userId));
     if (!user || !profile) return { status: 'skipped', reason: 'unknown_user' };
     if (status[0]?.status === 'paused' && !USER_STARTED_KINDS.has(nudge.kind)) {
       return { status: 'skipped', reason: 'user_paused' };
@@ -148,20 +150,22 @@ async function guardrailInput(
     ne(scheduledNudges.kind, 'session_checkin'),
   );
 
-  const [today, [last], overwhelm] = await Promise.all([
-    db.select({ id: scheduledNudges.id }).from(scheduledNudges).where(and(proactive, gte(scheduledNudges.updatedAt, dayStart))),
-    db
-      .select({ at: scheduledNudges.updatedAt })
-      .from(scheduledNudges)
-      .where(and(proactive, lte(scheduledNudges.updatedAt, now)))
-      .orderBy(desc(scheduledNudges.updatedAt))
-      .limit(1),
-    db
-      .select({ id: events.id })
-      .from(events)
-      .where(and(eq(events.userId, nudge.userId), eq(events.name, 'overwhelm'), sql`${events.props}->>'date' = ${yesterday}`))
-      .limit(1),
-  ]);
+  const today = await db
+    .select({ id: scheduledNudges.id })
+    .from(scheduledNudges)
+    .where(and(proactive, gte(scheduledNudges.updatedAt, dayStart)));
+  const lastRows = await db
+    .select({ at: scheduledNudges.updatedAt })
+    .from(scheduledNudges)
+    .where(and(proactive, lte(scheduledNudges.updatedAt, now)))
+    .orderBy(desc(scheduledNudges.updatedAt))
+    .limit(1);
+  const overwhelm = await db
+    .select({ id: events.id })
+    .from(events)
+    .where(and(eq(events.userId, nudge.userId), eq(events.name, 'overwhelm'), sql`${events.props}->>'date' = ${yesterday}`))
+    .limit(1);
+  const [last] = lastRows;
 
   return {
     kind: nudge.kind,
