@@ -11,3 +11,4 @@ Ideeën en extra's die buiten de huidige bouwstap vallen.
 - Middagbericht: de tijd (13:30) staat vast in de code. Een instelling `midday_time` vraagt een datamodelwijziging.
 - Database: enumwaarde `weekly_mail` voor `nudge_kind`, zodat het weekoverzicht geen `payload.part` nodig heeft (1.7).
 - Router: Haiku eerst, Sonnet 5.5 als vangnet wanneer Haiku bij een bericht van meer dan een paar woorden geen tool aanroept. Interessant zodra de kosten per klant tellen (fase 3).
+- Dagritme: geen proactieve berichten in het weekend, of een instelling met werkdagen. Vraagt een kolom in `user_settings` (datamodelwijziging). Het bouwplan noemt nu geen werkdagen.

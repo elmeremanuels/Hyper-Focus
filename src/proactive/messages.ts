@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, lt } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { dailyFocus, tasks } from '../db/schema/index.js';
 import { recordEvent } from '../core/events.js';
-import { getTask, listOpenTasks, type TaskSummary } from '../core/tasks.js';
+import { getTask, getTasksInOrder, listOpenTasks, type TaskSummary } from '../core/tasks.js';
 import type { OutboundMessage } from '../conversation/types.js';
 import { SHOW_TODAY } from '../conversation/views.js';
 
@@ -42,7 +42,7 @@ async function plannedFocus(ctx: NudgeContext, localDate: string): Promise<TaskS
     .from(dailyFocus)
     .where(and(eq(dailyFocus.userId, ctx.userId), eq(dailyFocus.localDate, localDate)));
   if (!planned) return [];
-  const found = await Promise.all(planned.taskIds.map((id) => getTask(ctx.db, ctx.userId, id)));
+  const found = await getTasksInOrder(ctx.db, ctx.userId, planned.taskIds);
   return found.filter((task): task is TaskSummary => task !== undefined);
 }
 
