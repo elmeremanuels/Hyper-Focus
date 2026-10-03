@@ -1,0 +1,1 @@
+ALTER TABLE "focus_blocks" ADD COLUMN "result_note" text;

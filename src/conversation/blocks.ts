@@ -1,6 +1,6 @@
-// Work blocks, pause missions, the return and the garden (step 1.9).
-// A block runs 15, 25 or 45 minutes. "Afgerond" starts a screen-free pause; coming back on
-// time gives an extra leaf and the reward minute. The garden only grows.
+// Work blocks, pitstops and the return (steps 1.9 and 1.12).
+// A block runs 15, 25 or 45 minutes; in the focus window 45, 60 or 90. "Af" starts a
+// screen-free pitstop; coming back gives the reward minute with today's focus log.
 import { createHash, randomBytes } from 'node:crypto';
 import { and, desc, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -9,7 +9,8 @@ import { getSettings } from '../core/settings.js';
 import { listSteps, nextStep } from '../core/steps.js';
 import { getTask, setTaskStatus } from '../core/tasks.js';
 import type { Database } from '../db/client.js';
-import { focusBlocks, focusWindows, gardenEvents, scheduledNudges, userSettings, users } from '../db/schema/index.js';
+import { focusBlocks, focusWindows, scheduledNudges, userSettings } from '../db/schema/index.js';
+import { DateTime } from 'luxon';
 import { isInWindow, windowFor } from '../focus/windows.js';
 import { localDate } from '../lib/time.js';
 import { WINDOW_BUTTONS, WINDOW_TEXTS } from '../texts/focusvenster.nl.js';
@@ -151,10 +152,6 @@ async function rewardsEnabled(db: Database, userId: number): Promise<boolean> {
   return (await getSettings(db, userId)).rewardsEnabled;
 }
 
-async function grow(db: Database, userId: number, blockId: number, kind: 'block' | 'on_time_return', now: Date) {
-  await db.insert(gardenEvents).values({ userId, blockId, kind, createdAt: now });
-  await db.update(users).set({ gardenGrowth: sql`${users.gardenGrowth} + 1` }).where(eq(users.id, userId));
-}
 
 // ---------------------------------------------------------------------------
 // Starting
@@ -339,28 +336,52 @@ async function pickMission(db: Database, userId: number): Promise<PauseMission> 
 }
 
 /** "Afgerond" or "Pauze nemen": the block is done, the pause starts (silently). */
-async function finishBlock(ctx: Ctx, block: Block): Promise<OutboundMessage[]> {
+/**
+ * "Afgerond", "Af" or "Pauze nemen": the block ends and the pitstop starts, silently.
+ * Afgerond finishes the micro step worked on. In the focus window, Af answers "how is the
+ * task?", so without steps it finishes the task itself (step 1.12).
+ */
+async function finishBlock(ctx: Ctx, block: Block, done: boolean): Promise<OutboundMessage[]> {
   const { db, userId, now } = ctx;
   await cancelBlockNudges(db, userId);
-  if (block.stepId) {
-    // The micro step worked on is done; the task itself stays open.
-    const step = await getTask(db, userId, block.stepId);
-    if (step && step.status !== 'done') await setTaskStatus(db, userId, step.id, 'done', now);
+  let finished: { title: string } | undefined;
+  const itemId = block.stepId ?? (block.inWindow ? block.taskId : null);
+  if (done && itemId !== null) {
+    const item = await getTask(db, userId, itemId);
+    if (item) {
+      if (item.status !== 'done') await setTaskStatus(db, userId, item.id, 'done', now);
+      finished = item;
+    }
   }
   const mission = await pickMission(db, userId);
   const { minutes, text } = PAUSE_MISSIONS[mission];
   const pauseDueAt = new Date(now.getTime() + minutes * 60_000);
-  await updateBlock(db, block.id, { endedAt: now, outcome: 'completed', pauseMission: mission, pauseStartedAt: now, pauseDueAt });
-  if (await rewardsEnabled(db, userId)) await grow(db, userId, block.id, 'block', now);
-  await recordEvent(db, userId, 'block_completed', { minutes: Math.round(minutesFrom(block.startedAt, now)) });
+  const worked = Math.max(1, Math.round(minutesFrom(block.startedAt, now)));
+  await updateBlock(db, block.id, {
+    endedAt: now,
+    outcome: block.extendedMinutes > 0 ? 'extended' : 'completed',
+    pauseMission: mission,
+    pauseStartedAt: now,
+    pauseDueAt,
+    ...(finished && { resultNote: `${finished.title} af` }),
+  });
+  await recordEvent(db, userId, 'block_completed', { minutes: worked });
   await recordEvent(db, userId, 'session_completed', {});
   await schedule(db, userId, 'return_reminder', pauseDueAt, { blockId: block.id });
   await schedule(db, userId, 'pause_close', new Date(pauseDueAt.getTime() + CLOSE_AFTER_MINUTES * 60_000), { blockId: block.id, phase: 'pause' });
   await setState(db, userId, 'session', { taskId: block.taskId, stepId: block.stepId, blockId: block.id, phase: 'pause', stuck: false }, new Date(pauseDueAt.getTime() + CLOSE_AFTER_MINUTES * 60_000));
-  return [{ text, buttons: [{ id: `blk:${block.id}:back`, title: BLOCK_BUTTONS.back }] }];
+  const values = { n: worked, opdracht: text, tijd: localTimeOf(ctx.timezone, pauseDueAt) };
+  return [
+    {
+      text: finished ? fill(BLOCK_TEXTS.pitstopDone, { ...values, taak: finished.title }) : fill(BLOCK_TEXTS.pitstopBreak, values),
+      buttons: [{ id: `blk:${block.id}:back`, title: BLOCK_BUTTONS.back }],
+    },
+  ];
 }
 
-/** "Ik ben terug": on time gives an extra leaf; the reward minute stays either way. */
+const localTimeOf = (timezone: string, at: Date) => DateTime.fromJSDate(at, { zone: timezone }).toFormat('HH:mm');
+
+/** "Ik ben terug": on time the battery is full again; the reward minute stays either way. */
 export async function returnFromPause(ctx: Ctx, block: Block): Promise<OutboundMessage[]> {
   const { db, userId, now } = ctx;
   const rewards = await rewardsEnabled(db, userId);
@@ -372,7 +393,6 @@ export async function returnFromPause(ctx: Ctx, block: Block): Promise<OutboundM
   await cancelBlockNudges(db, userId, ['return_reminder', 'pause_close']);
   await clearState(db, userId);
   await recordEvent(db, userId, 'pause_returned', { onTime });
-  if (onTime && rewards) await grow(db, userId, block.id, 'on_time_return', now);
 
   const buttons: Button[] = [];
   if (rewards && ctx.appBaseUrl) {
@@ -381,7 +401,7 @@ export async function returnFromPause(ctx: Ctx, block: Block): Promise<OutboundM
     buttons.push({ id: `rwd:${block.id}`, title: BLOCK_BUTTONS.reward, webApp: `${ctx.appBaseUrl.replace(/\/$/, '')}/app/beloning?t=${token}` });
   }
   if (next) buttons.push(next);
-  return [{ text: onTime && rewards ? BLOCK_TEXTS.backOnTime : BLOCK_TEXTS.backLate, ...(buttons.length > 0 && { buttons }) }];
+  return [{ text: onTime ? BLOCK_TEXTS.backOnTime : BLOCK_TEXTS.backLate, ...(buttons.length > 0 && { buttons }) }];
 }
 
 export function hashToken(token: string): string {
@@ -436,7 +456,7 @@ export function blockButtons(defaultMinutes: DefaultBlockMinutes = planBlockMinu
         return stop(ctx, block);
       case 'done':
       case 'break':
-        return block.endedAt ? [{ text: BLOCK_TEXTS.backLate }] : finishBlock(ctx, block);
+        return block.endedAt ? [{ text: BLOCK_TEXTS.backLate }] : finishBlock(ctx, block, button.action === 'done');
       case 'plus15':
         return block.endedAt ? [{ text: BLOCK_TEXTS.backLate }] : extend(ctx, block);
       case 'plus30':
@@ -494,15 +514,3 @@ const setRewardsTool = defineTool({
 });
 
 export const BLOCK_TOOLS: ToolDefinition[] = [startSessionTool, returnFromPauseTool, setRewardsTool];
-
-// ---------------------------------------------------------------------------
-// Garden
-
-/** Leaves added in the last seven days, for the weekly review. */
-export async function gardenGrowthSince(db: Database, userId: number, since: Date): Promise<number> {
-  const [row] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(gardenEvents)
-    .where(and(eq(gardenEvents.userId, userId), sql`${gardenEvents.createdAt} >= ${since}`));
-  return row?.n ?? 0;
-}

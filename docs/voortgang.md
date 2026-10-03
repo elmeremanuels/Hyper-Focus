@@ -545,6 +545,46 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - Werkdagen: het venster wordt ook in het weekend gepland. Een instelling met werkdagen staat in `docs/later.md`.
   - Extra teksten, niet uit het plan: zie `WINDOW_TEXTS` onder "to review" in `src/texts/focusvenster.nl.ts`.
 
+## Stap 1.12 A3 — Focuslog, pitstop en weekopbrengst
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Datamodel (uit het aanpasplan):** `focus_blocks.result_note`, migratie `0007_focus_log`. `garden_growth` en `garden_events` blijven staan, maar worden niet meer gevuld of getoond. Ze gaan pas weg na akkoord, in een aparte PR.
+- **Gebouwd:**
+  - De pauze heet nu pitstop: "{n} minuten, {taak} af. Pitstop: {opdracht}. Telefoon blijft liggen. Om {tijd} zie ik je terug."
+    - De vier opdrachten zijn kort, zoals in het plan.
+    - Terug op tijd: "Terug op tijd. Opgeladen." Te laat: "Welkom terug."
+    - De herinnering: "Pitstop voorbij. Terug naar je werk?"
+  - Wanneer iets "af" is:
+    - [Af] na een vensterblok maakt de stap af, of de taak zelf als die geen stappen heeft;
+    - [Afgerond] na een gewoon blok maakt alleen een microstap af, zoals in 1.9;
+    - is er niets af, dan zegt de pitstop "{n} minuten gewerkt. …".
+  - Focuslog (`src/focus/log.ts`):
+    - een query op `focus_blocks` met de uitkomst completed of extended;
+    - per regel dag, tijd, minuten en wat er af is;
+    - ■ markeert een blok in het venster.
+  - Mini-app `/app/beloning`:
+    - "Vandaag gedaan" met het focuslog van vandaag en een klok van 60 seconden, met [Terug naar je werk];
+    - geen spel en geen illustraties meer;
+    - Space Grotesk wordt zelf geserveerd uit npm (`@fontsource/space-grotesk`, OFL), zonder externe fontdienst;
+    - token, klok op de server en de controle van `initData` werken zoals in 1.9.
+  - Weekopbrengst in de weekreview, hooguit drie regels: vensters en uren diep werk; wat de deur uit ging per werksoort (offerte of factuur op basis van de titel); het beste venster. De tuinregel is weg.
+  - `stats:focus` telt nu ook hoe vaak het focuslog geopend is. "Afgeronde blokken" telt verlengde blokken mee.
+  - Toontest (`tests/tone.test.ts`): geen symptomen, behandelen, genezen, therapie of dopamine in `src`, en geen emoji in `src/texts`.
+  - Toonvoorstellen voor de overige bot-teksten staan in `docs/toon-voorstellen.md`. Daar is nog niets veranderd.
+- **Controle (Definition of Done):**
+  - *Na Af komt de pitstop in de nieuwe toon:* `tests/blocks.integration.test.ts`, `tests/session.integration.test.ts`.
+  - *De mini-app toont het focuslog van vandaag:* `tests/focus-log.integration.test.ts`. Gecontroleerd in Chromium: geen fouten, en het font laadt.
+  - *De weekreview toont de weekopbrengst en de tuin staat nergens meer:* dezelfde tests.
+  - Het focuslog toont alleen completed en extended; de tuintabellen worden niet meer gevuld.
+  - `npm test`: 339 groen.
+- **Afwijkingen en keuzes:**
+  - Teksten die niet in het plan staan:
+    - "{n} minuten gewerkt. Pitstop: …" (als niets af is);
+    - "De deur uit: {lijst}." en "Beste venster: {dag} {tijd}, {n} minuten.", gevuld zoals in het voorbeeld van het plan;
+    - "Je minuut zit erop. Terug naar je werk." (einde van de klok).
+  - [Volgende blok starten] heet nu [Volgende blok], zoals in het plan.
+
 ## Volgende stap
 
 Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.

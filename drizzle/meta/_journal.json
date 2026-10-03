@@ -50,6 +50,13 @@
       "when": 1791033818949,
       "tag": "0006_focus_window",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791035408907,
+      "tag": "0007_focus_log",
+      "breakpoints": true
     }
   ]
 }

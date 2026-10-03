@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
 import { signInitData } from '../src/channels/telegram/webapp.js';
-import { activeBlock, gardenGrowthSince, isFocusQuiet } from '../src/conversation/blocks.js';
+import { activeBlock, isFocusQuiet } from '../src/conversation/blocks.js';
 import { createAssistantRouter } from '../src/conversation/assistant.js';
 import { reviewStart } from '../src/conversation/review.js';
 import { clearState, getState } from '../src/conversation/state.js';
@@ -51,10 +51,12 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     await db().delete(gardenEvents);
     await db().delete(focusBlocks);
     await db().update(users).set({ gardenGrowth: 0 }).where(eq(users.id, t.userId));
+    // Start every test with an open banner.
+    await db().update(tasks).set({ status: 'open', completedAt: null }).where(eq(tasks.title, 'Banner voor de feestdagen'));
     await db().update(userSettings).set({ rewardsEnabled: true }).where(eq(userSettings.userId, t.userId));
   });
 
-  it('runs a block, a silent pause with a mission and an on-time return with an extra leaf', async () => {
+  it('runs a block, a silent pitstop, an on-time return and the focus log in the weekly review', async () => {
     const banner = await taskId('Banner voor de feestdagen');
     await tap(at('08:30:00'), `blk:t${banner}:m15`);
     expect(await isFocusQuiet(db(), t.userId, at('08:31:00'))).toBe(true);
@@ -70,16 +72,21 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     const blockId = blockIdFrom(lastSent(), 'done');
 
     const [pause] = await tap(at('08:46:00'), `blk:${blockId}:done`);
-    expect(pause?.text).toContain('Je telefoon blijft liggen.');
+    // A normal block without steps: the task stays open, so nothing is "af".
+    expect(pause?.text).toMatch(
+      /^16 minuten gewerkt\. Pitstop: (pak een glas water|sta op en strek je uit|loop even naar het toilet|adem drie keer diep in bij het raam)\. Telefoon blijft liggen\. Om 10:4[89] zie ik je terug\.$/,
+    );
     expect(pause?.buttons?.[0]).toEqual({ id: `blk:${blockId}:back`, title: 'Ik ben terug' });
-    expect(await garden()).toBe(1);
+    expect((await db().select().from(focusBlocks).where(eq(focusBlocks.id, blockId)))[0]?.resultNote).toBeNull();
+    // The garden is no longer filled (step 1.12).
+    expect(await garden()).toBe(0);
     expect((await activeBlock(db(), t.userId, at('08:47:00')))?.phase).toBe('pause');
 
     const [back] = await tap(at('08:47:30'), `blk:${blockId}:back`);
-    expect(back?.text).toBe('Welkom terug. Je plant kreeg een extra druppel.');
-    expect(back?.buttons?.map((b) => b.title)).toEqual(['Je minuut', 'Volgende blok starten']);
+    expect(back?.text).toBe('Terug op tijd. Opgeladen.');
+    expect(back?.buttons?.map((b) => b.title)).toEqual(['Je minuut', 'Volgende blok']);
     expect(back?.buttons?.[0]?.webApp).toMatch(/^https:\/\/hyper-focus\.invalid\/app\/beloning\?t=[\w-]{20,}$/);
-    expect(await garden()).toBe(2);
+    expect(await garden()).toBe(0);
     expect((await nudges('return_reminder')).every((n) => n.status === 'skipped')).toBe(true);
     expect((await getState(db(), t.userId, at('08:48:00'))).mode).toBe('idle');
     expect(await isFocusQuiet(db(), t.userId, at('08:48:00'))).toBe(false);
@@ -88,9 +95,10 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     expect(await send(at('08:51:00'))).toMatchObject({ postponed: 0, skipped: 1 });
     expect((await nudges('midday'))[0]).toMatchObject({ status: 'skipped', skipReason: 'main_task_started' });
 
-    // The weekly review counts the leaves.
-    expect(await gardenGrowthSince(db(), t.userId, at('00:00:00'))).toBe(2);
-    expect((await reviewStart({ db: db(), userId: t.userId, now: at('09:00:00') })).text).toContain('Je tuin groeide deze week met 2 blaadjes.');
+    // The weekly review shows the yield in work; the garden is gone.
+    const review = (await reviewStart({ db: db(), userId: t.userId, now: at('09:00:00') })).text;
+    expect(review).toContain('Deze week: 0 focusvensters, 0,5 uur diep werk.');
+    expect(review).not.toMatch(/tuin|blaadje/);
   });
 
   it('sends one return reminder with sound when the pause runs out, then closes the pause silently', async () => {
@@ -102,11 +110,11 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     const due = block!.pauseDueAt!;
 
     expect((await send(new Date(due.getTime() + 30_000))).sent).toBe(1);
-    expect(lastSent()?.text).toBe('Terug naar je blok?');
+    expect(lastSent()?.text).toBe('Pitstop voorbij. Terug naar je werk?');
     expect(lastSent()?.disable_notification).toBeUndefined();
     expect((await send(new Date(due.getTime() + 5 * 60_000))).sent).toBe(0);
 
-    // Late: a text counts as the button, without the extra leaf.
+    // Late: a text counts as the button.
     const before = await garden();
     const [late] = await say(new Date(due.getTime() + 6 * 60_000), 'ben terug');
     expect(late?.text).toBe('Welkom terug.');
@@ -189,8 +197,8 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     const blockId = Number(/blk:(\d+):stop/.exec(started!.buttons![0]!.id)?.[1]);
     await tap(at('12:15:00'), `blk:${blockId}:done`);
     const [back] = await tap(at('12:16:00'), `blk:${blockId}:back`);
-    expect(back?.text).toBe('Welkom terug.');
-    expect(back?.buttons?.map((b) => b.title)).toEqual(['Volgende blok starten']);
+    expect(back?.text).toBe('Terug op tijd. Opgeladen.');
+    expect(back?.buttons?.map((b) => b.title)).toEqual(['Volgende blok']);
     expect(await garden()).toBe(0);
     expect((await reviewStart({ db: db(), userId: t.userId, now: at('12:17:00') })).text).not.toContain('tuin');
     await clearState(db(), t.userId);
@@ -281,17 +289,17 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
       'geluid: Hoe lang ga je aan factuur september versturen?',
       'geluid: Top',
       'geluid: Je 25 minuten zitten erop',
-      'stil: Mooi gewerkt',
-      'stil: Welkom terug',
+      'stil: 30 minuten gewerkt',
+      'stil: Terug op tijd',
       'geluid: Top',
       'geluid: Je 15 minuten zitten erop',
-      'stil: Mooi gewerkt',
-      'geluid: Terug naar je blok?',
+      'stil: 20 minuten gewerkt',
+      'geluid: Pitstop voorbij',
       'stil: Welkom terug',
     ]);
     // The reminder comes the minute the pause time is up, not at the next 5-minute step.
-    const mission = hf.filter((m) => m.text.startsWith('Mooi gewerkt')).at(-1)!;
-    const reminder = hf.find((m) => m.text === 'Terug naar je blok?')!;
+    const mission = hf.filter((m) => m.text.includes('Pitstop:')).at(-1)!;
+    const reminder = hf.find((m) => m.text === 'Pitstop voorbij. Terug naar je werk?')!;
     expect([2, 3].map((n) => mission.at.getTime() + n * 60_000)).toContain(reminder.at.getTime());
     // The simulation rolls back.
     expect(await db().select().from(focusBlocks)).toHaveLength(0);
