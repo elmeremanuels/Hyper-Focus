@@ -746,6 +746,25 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - In Chromium bekeken op telefoon- en desktopformaat, met en zonder venster: geen fouten.
   - `npm test`: 371 groen.
 
+## Stap 2a.4 — Projecten en klanten
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - API onder sessie, alleen JSON:
+    - `GET /api/projects` geeft actieve en gepauzeerde projecten met hun open taken, en de klanten;
+    - `POST /api/projects` en `PATCH /api/projects/:id` voor titel, klant, deadline, prioriteit, weekfocus en status;
+    - `POST /api/projects/:id/tasks` voegt een taak toe (bron `web`);
+    - `PATCH /api/tasks/:id` voor titel, duur, datum en project. Microstappen verhuizen mee;
+    - `POST /api/tasks/:id/park` zet een taak op de parkeerplaats;
+    - `POST /api/clients` en `PATCH /api/clients/:id` voor naam, contactpersoon, notities en status.
+  - Ids van een andere gebruiker geven 404. *Losse taken* staat onderaan en houdt zijn naam en status.
+  - Het scherm heeft twee tabs: Projecten en Klanten. Je bewerkt alles op de kaart zelf. Een taak open je met een tik op de regel.
+- **Controle:**
+  - `tests/dashboard-projects.integration.test.ts` (5 tests).
+  - In Chromium bekeken op telefoon- en desktopformaat, met de lijst, een open project, een open taak en een open klant: geen fouten.
+  - `npm test`: 376 groen.
+
 ## Volgende stap
 
-Stap 2a.4: Projecten en klanten.
+Stap 2a.5: Parkeerplaats en ideeënbak.

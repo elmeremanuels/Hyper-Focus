@@ -54,3 +54,41 @@ export interface Today {
 }
 
 export const post = <T = { ok: true }>(path: string, body: unknown = {}) => api<T>(path, { method: 'POST', body: JSON.stringify(body) });
+export const patch = <T = { ok: true }>(path: string, body: unknown) => api<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
+
+export interface ProjectTask {
+  id: number;
+  title: string;
+  minutes: number | null;
+  dueDate: string | null;
+  status: string;
+}
+
+export interface Project {
+  id: number;
+  title: string;
+  clientId: number | null;
+  client: string | null;
+  deadline: string | null;
+  priority: 1 | 2 | 3;
+  isWeeklyFocus: boolean;
+  status: 'active' | 'parked';
+  loose: boolean;
+  tasks: ProjectTask[];
+}
+
+export interface Client {
+  id: number;
+  name: string;
+  contactName: string | null;
+  notes: string | null;
+  status: 'active' | 'paused';
+  projects: number;
+}
+
+export interface Projects {
+  projects: Project[];
+  clients: Client[];
+}
+
+export const ESTIMATES = [5, 15, 30, 60, 120] as const;
