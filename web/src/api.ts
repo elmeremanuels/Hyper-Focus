@@ -1,0 +1,31 @@
+// The dashboard talks to hyperfocus-web on the same host; the session cookie goes along.
+export class NotLoggedIn extends Error {}
+
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    credentials: 'same-origin',
+    headers: { accept: 'application/json', ...(init.body ? { 'content-type': 'application/json' } : {}), ...init.headers },
+  });
+  if (response.status === 401) throw new NotLoggedIn();
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return (await response.json()) as T;
+}
+
+export const toLogin = () => window.location.assign('/login');
+
+export interface Me {
+  name: string;
+  timezone: string;
+}
+
+export interface Battery {
+  state: 'charging' | 'ready' | 'focus' | 'pitstop' | 'idle';
+  segments: number;
+  dimmed: boolean;
+  windowStartsAt: string | null;
+  windowEndsAt: string | null;
+  task: { id: number; title: string } | null;
+  elapsedMinutes: number | null;
+  label: string;
+}

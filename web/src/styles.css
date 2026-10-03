@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+
+/* Space Grotesk, self-hosted by the server (OFL). */
+@font-face {
+  font-family: 'Space Grotesk';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/app/fonts/space-grotesk-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/app/fonts/space-grotesk-700.woff2') format('woff2');
+}
+
+/* House style (step 1.12): off-white base, 2 px borders, one accent colour. */
+@theme {
+  --color-paper: #f6f2e8;
+  --color-card: #fffdf8;
+  --color-ink: #1c1b19;
+  --color-muted: #5d5a53;
+  --color-accent: #2e7d4f;
+  --color-accent-soft: #dcefe3;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --shadow-hard: 4px 4px 0 #1c1b19;
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+body {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.5;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

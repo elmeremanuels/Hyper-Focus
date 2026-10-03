@@ -5,6 +5,7 @@ import { createTelegramProcessor } from './channels/telegram/processor.js';
 import { getEnv } from './config/env.js';
 import { connect } from './db/client.js';
 import { buildServices } from './wiring.js';
+import { resolve } from 'node:path';
 import { LOGIN_TEXTS } from './texts/dashboard.nl.js';
 
 const env = getEnv();
@@ -60,6 +61,7 @@ if (env.DATABASE_URL) {
   if (env.DASHBOARD_BASE_URL) {
     const dashboardBaseUrl = env.DASHBOARD_BASE_URL;
     options.dashboardApi = { db, botToken: env.TELEGRAM_BOT_TOKEN };
+    options.dashboardWeb = { dir: resolve('dist/web'), host: new URL(dashboardBaseUrl).hostname };
     options.auth = {
       db,
       dashboardBaseUrl,
