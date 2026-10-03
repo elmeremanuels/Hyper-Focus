@@ -52,8 +52,18 @@ const COMMAND_TEXT: Record<string, string> = {
   vandaag: 'vandaag',
   pauze: 'pauze',
   parkeerplaats: 'parkeerplaats',
+  weekreview: 'weekreview',
   help: 'help',
 };
+
+/** The command menu in Telegram, set by `npm run telegram:webhook`. */
+export const BOT_COMMANDS: ReadonlyArray<{ command: string; description: string }> = [
+  { command: 'vandaag', description: 'Je focus voor vandaag' },
+  { command: 'parkeerplaats', description: 'Geparkeerde taken' },
+  { command: 'weekreview', description: 'De weekreview in drie tikken' },
+  { command: 'pauze', description: 'Berichten even stilzetten' },
+  { command: 'help', description: 'Wat ik kan' },
+];
 
 export function createTelegramProcessor(deps: TelegramProcessorDeps) {
   const log = deps.log ?? console;
