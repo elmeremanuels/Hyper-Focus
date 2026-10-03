@@ -6,6 +6,7 @@ import { createCalendarRouter, type CalendarRouteConfig } from './integrations/c
 import { createRewardRouter, type RewardRouteConfig } from './web/reward.js';
 import { createDashboardApi, type DashboardApiConfig } from './web/dashboard-api.js';
 import { createAuthRouter, type AuthConfig } from './web/auth/routes.js';
+import { createDashboardStatic, type DashboardWebConfig } from './web/dashboard-static.js';
 
 export interface AppOptions {
   telegram?: {
@@ -22,6 +23,7 @@ export interface AppOptions {
   /** The dashboard (fase 2a): login and its API. Only with DASHBOARD_BASE_URL. */
   dashboardApi?: DashboardApiConfig;
   auth?: AuthConfig;
+  dashboardWeb?: DashboardWebConfig;
 }
 
 export function createApp(options: AppOptions = {}): Express {
@@ -60,6 +62,9 @@ export function createApp(options: AppOptions = {}): Express {
   }
   if (options.calendar) {
     app.use(createCalendarRouter(options.calendar));
+  }
+  if (options.dashboardWeb) {
+    app.use(createDashboardStatic(options.dashboardWeb));
   }
 
   return app;

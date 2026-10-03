@@ -709,6 +709,23 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 
   `npm test`: 364 groen.
 
+## Stap 2a.2 — Basis van het dashboard
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - `web/`: React 19, Vite en Tailwind 4, zonder router-bibliotheek; de History API volstaat voor vier schermen.
+  - Huisstijl als Tailwind-thema: gebroken wit, 2 px randen, een harde schaduw, één accentkleur, Space Grotesk en tabulaire cijfers.
+  - Kop met de batterij rechtsboven. Die ververst eens per minuut; het label is er voor schermlezers.
+  - Navigatie: op een telefoon een balk onderin met korte labels, breder een tabbalk onder de kop.
+  - `npm run build` bouwt nu ook de app naar `dist/web`; `npm run typecheck` controleert ook `web/`. `npm run dev:web` draait de app lokaal met een proxy naar de server.
+  - De server serveert de app alleen op de host van `DASHBOARD_BASE_URL`. Paden van de server zelf (`/api`, `/auth`, `/login`, `/app`, webhooks) blijven van de server. `index.html` wordt niet gecachet, de assets een jaar.
+  - Zonder sessie stuurt de app je naar `/login`.
+- **Controle:**
+  - `tests/dashboard-static.test.ts`.
+  - In Chromium bekeken op telefoon- en desktopformaat: geen fouten, en de labels passen.
+  - `npm test`: 366 groen.
+
 ## Volgende stap
 
 1.12 ronde 3 live testen (werkweek). Daarna fase 2a, stap 2a.1, zodra het datamodel en de brief er zijn.
