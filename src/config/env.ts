@@ -34,6 +34,8 @@ export const envSchema = z.object({
   ),
   PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(65535).default(3000)),
   APP_BASE_URL: optionalUrl,
+  /** Step 1.12 A4: the battery and focus-log API for the dashboard. Off unless "on". */
+  DASHBOARD_API: z.preprocess(emptyToUndefined, z.enum(['on', 'off']).optional()),
   DATABASE_URL: optionalString,
   DEFAULT_TIMEZONE: z.preprocess(emptyToUndefined, ianaTimezone.default('Europe/Amsterdam')),
 
