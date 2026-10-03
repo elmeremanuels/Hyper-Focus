@@ -1,0 +1,79 @@
+// "Exporteer mijn gegevens" and "verwijder mijn gegevens" (BOUWPLAN.md, 14 AVG).
+import { eq, getTableColumns, getTableName } from 'drizzle-orm';
+import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
+import { disconnectCalendars } from '../conversation/calendar.js';
+import type { Database } from '../db/client.js';
+import {
+  aiUsage,
+  businesses,
+  calendarConnections,
+  calendarEvents,
+  clients,
+  dailyFocus,
+  dayReviews,
+  events,
+  focusBlocks,
+  focusWindows,
+  gardenEvents,
+  ideas,
+  messages,
+  projects,
+  researchCache,
+  rhythmProfiles,
+  scheduledNudges,
+  suggestions,
+  tasks,
+  users,
+  userSettings,
+  userTools,
+} from '../db/schema/index.js';
+import type { CalendarService } from '../integrations/calendar/service.js';
+
+/**
+ * Everything stored for a user. Left out: login links and sessions (hashes only), the short-lived
+ * conversation state, and encrypted calendar tokens.
+ */
+const EXPORTED: PgTable[] = [
+  userSettings,
+  businesses,
+  clients,
+  projects,
+  tasks,
+  ideas,
+  dailyFocus,
+  userTools,
+  focusBlocks,
+  focusWindows,
+  rhythmProfiles,
+  dayReviews,
+  gardenEvents,
+  suggestions,
+  researchCache,
+  messages,
+  scheduledNudges,
+  calendarConnections,
+  calendarEvents,
+  events,
+  aiUsage,
+];
+const SECRET_COLUMNS = new Set(['accessTokenEnc', 'refreshTokenEnc']);
+
+export async function exportUserData(db: Database, userId: number, now: Date) {
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user) return undefined;
+  const data: Record<string, unknown[]> = {};
+  for (const table of EXPORTED) {
+    const columns = Object.fromEntries(Object.entries(getTableColumns(table)).filter(([key]) => !SECRET_COLUMNS.has(key)));
+    const owner = (columns as Record<string, PgColumn>).userId;
+    if (!owner) continue;
+    data[getTableName(table)] = await db.select(columns).from(table).where(eq(owner, userId));
+  }
+  return { exportedAt: now.toISOString(), user, ...data };
+}
+
+/** Revokes calendar access, then deletes the user; every table cascades on the user. */
+export async function deleteUserData(db: Database, userId: number, calendar: CalendarService | undefined): Promise<boolean> {
+  await disconnectCalendars(db, userId, calendar);
+  const deleted = await db.delete(users).where(eq(users.id, userId)).returning({ id: users.id });
+  return deleted.length > 0;
+}

@@ -4,11 +4,14 @@ import { ZodError } from 'zod';
 import type { ButtonContext } from '../../conversation/buttons.js';
 import { getProfile } from '../../core/profile.js';
 import type { Database } from '../../db/client.js';
+import type { CalendarService } from '../../integrations/calendar/service.js';
 import { LOGIN_TEXTS } from '../../texts/dashboard.nl.js';
 
 export interface DashboardRoutesConfig {
   db: Database;
   dashboardBaseUrl: string;
+  /** For the connect link and revoking access; the calendar settings show "not available" without it. */
+  calendar?: CalendarService | undefined;
   now?: () => Date;
 }
 
@@ -20,9 +23,12 @@ export async function userContext(config: DashboardRoutesConfig, res: Response):
   return { db: config.db, userId, timezone: profile.timezone, now: (config.now ?? (() => new Date()))(), name: profile.name };
 }
 
-/** Changes only as JSON: a cross-site form cannot send that without a CORS preflight. */
+/**
+ * Changes only as JSON: a cross-site form cannot send that without a CORS preflight. A DELETE
+ * always needs a preflight, so it may come without a body.
+ */
 export function jsonOnly(req: Request, res: Response, next: NextFunction) {
-  if (req.method !== 'GET' && !req.is('application/json')) return void res.status(415).json({ error: 'JSON verwacht' });
+  if (req.method !== 'GET' && req.method !== 'DELETE' && !req.is('application/json')) return void res.status(415).json({ error: 'JSON verwacht' });
   next();
 }
 
