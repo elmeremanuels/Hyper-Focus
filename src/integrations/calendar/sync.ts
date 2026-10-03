@@ -44,13 +44,14 @@ export async function syncUserCalendars(
       const { events, refreshed } = await provider.listEvents(credentials, from, to);
       if (refreshed) await updateTokens(db, connection.id, refreshed, service.encryptionKey);
 
-      const [clientRows, projectRows] = await Promise.all([
-        db.select({ id: clients.id, name: clients.name }).from(clients).where(and(eq(clients.userId, userId), eq(clients.status, 'active'))),
-        db
-          .select({ id: projects.id, clientId: projects.clientId, title: projects.title })
-          .from(projects)
-          .where(and(eq(projects.userId, userId), eq(projects.status, 'active'))),
-      ]);
+      const clientRows = await db
+        .select({ id: clients.id, name: clients.name })
+        .from(clients)
+        .where(and(eq(clients.userId, userId), eq(clients.status, 'active')));
+      const projectRows = await db
+        .select({ id: projects.id, clientId: projects.clientId, title: projects.title })
+        .from(projects)
+        .where(and(eq(projects.userId, userId), eq(projects.status, 'active')));
 
       await db.transaction(async (tx) => {
         // Only this window is kept; older appointments disappear here (BOUWPLAN.md, 14).
