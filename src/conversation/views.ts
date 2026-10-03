@@ -5,6 +5,7 @@ import { dailyFocus, tasks } from '../db/schema/index.js';
 import { getTasksInOrder, listOpenTasks, listParkedTasks, type TaskSummary } from '../core/tasks.js';
 import { getSettings } from '../core/settings.js';
 import { eventsBetween } from '../integrations/calendar/sync.js';
+import { windowFor } from '../focus/windows.js';
 import { localDate, localNow } from '../lib/time.js';
 import type { Button, OutboundMessage } from './types.js';
 
@@ -35,6 +36,8 @@ export interface FocusExtras {
   /** First open micro step per task id. */
   firstSteps?: Map<number, string>;
   quickWinTaskId?: number | null;
+  /** The task in today's focus window goes last, with its time (step 1.12). */
+  window?: { taskId: number; label: string } | undefined;
 }
 
 /** Tasks from today's planned focus that are still open, in focus order. */
@@ -50,12 +53,15 @@ export async function openFocusTasks(db: Database, userId: number, timezone: str
   );
 }
 
-export function focusMessage(focus: TaskSummary[], extras: FocusExtras = {}): OutboundMessage {
-  if (focus.length === 0) {
+export function focusMessage(tasks: TaskSummary[], extras: FocusExtras = {}): OutboundMessage {
+  if (tasks.length === 0) {
     return { text: 'Er staat niets open. Stuur me een taak, dan zet ik hem klaar.' };
   }
+  // Quick wins and steps fill the moments around the window; the window task comes last.
+  const windowTask = extras.window ? tasks.find((task) => task.id === extras.window?.taskId) : undefined;
+  const focus = windowTask ? [...tasks.filter((task) => task !== windowTask), windowTask] : tasks;
   const lines = focus.map((task, index) => {
-    const minutes = task.estimatedMinutes ? ` · ${task.estimatedMinutes} min` : '';
+    const minutes = task === windowTask ? ` · focusvenster ${extras.window?.label ?? ''}` : task.estimatedMinutes ? ` · ${task.estimatedMinutes} min` : '';
     const step = (task.estimatedMinutes ?? 0) > BIG_TASK_MINUTES ? extras.firstSteps?.get(task.id) : undefined;
     return `${index + 1}. ${task.title}${minutes}${step ? `\n   Eerste stap: ${step}` : ''}`;
   });
@@ -79,9 +85,12 @@ export async function focusView(db: Database, userId: number, timezone: string, 
     .select({ quickWinTaskId: dailyFocus.quickWinTaskId })
     .from(dailyFocus)
     .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, localDate(timezone, now))));
+  const window = await windowFor(db, userId, localDate(timezone, now));
+  const time = (d: Date) => localNow(timezone, d).toFormat('HH:mm');
   const message = focusMessage(focus, {
     firstSteps: await firstSteps(db, userId, focus.map((task) => task.id)),
     quickWinTaskId: planned?.quickWinTaskId ?? null,
+    window: window?.taskId && (window.status === 'planned' || window.status === 'used') ? { taskId: window.taskId, label: `${time(window.startsAt)}–${time(window.endsAt)}` } : undefined,
   });
   const appointments = await appointmentsLine(db, userId, timezone, now);
   return appointments ? { ...message, text: `${appointments}\n\n${message.text}` } : message;

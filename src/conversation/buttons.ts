@@ -20,12 +20,16 @@ export type ParsedButton =
   | { kind: 'plan'; taskId: number; time: string }
   | { kind: 'block'; action: 'start'; taskId: number; minutes: number }
   | { kind: 'block'; action: 'next'; taskId: number }
-  | { kind: 'block'; action: 'stop' | 'done' | 'break' | 'plus15' | 'back'; blockId: number }
+  | { kind: 'block'; action: 'stop' | 'done' | 'break' | 'plus15' | 'plus30' | 'back'; blockId: number }
   | { kind: 'rewards'; enabled: boolean }
   | { kind: 'day'; action: 'task'; taskId: number; choice: 'tomorrow' | 'split' | 'park' | 'done' }
   | { kind: 'day'; action: 'rest' | 'close' }
   | { kind: 'day'; action: 'energy'; energy: 'low' | 'normal' | 'high' }
   | { kind: 'defer'; taskId: number; action: 'split' | 'park' | 'keep' }
+  | { kind: 'pref'; pref: 'morning' | 'afternoon' | 'evening' | 'unknown' | 'ask' }
+  | { kind: 'window'; windowId: number; action: 'start' | 'move' | 'shift' | 'tomorrow' | 'yes' | 'no' | 'skip'; value?: string }
+  | { kind: 'rhythm'; action: 'yes'; start: string; weekdays: number[] }
+  | { kind: 'rhythm'; action: 'keep' }
   | { kind: 'tools'; action: 'start' | 'missing' | 'pick' | 'skip' | 'other' | 'paste' | 'keep' | 'edit' | 'del'; workType?: string; toolKey?: string }
   | { kind: 'help' };
 
@@ -49,7 +53,7 @@ export function parseButtonId(id: string): ParsedButton | undefined {
   if (match) return { kind: 'block', action: 'start', taskId: Number(match[1]), minutes: Number(match[2]) };
   match = /^blk:t(\d+):next$/.exec(id);
   if (match) return { kind: 'block', action: 'next', taskId: Number(match[1]) };
-  match = /^blk:(\d+):(stop|done|break|plus15|back)$/.exec(id);
+  match = /^blk:(\d+):(stop|done|break|plus15|plus30|back)$/.exec(id);
   if (match) return { kind: 'block', action: match[2] as never, blockId: Number(match[1]) };
   match = /^dr:(\d+):(tomorrow|split|park|done)$/.exec(id);
   if (match) return { kind: 'day', action: 'task', taskId: Number(match[1]), choice: match[2] as never };
@@ -58,6 +62,18 @@ export function parseButtonId(id: string): ParsedButton | undefined {
   if (match) return { kind: 'day', action: 'energy', energy: match[1] as never };
   match = /^df:(\d+):(split|park|keep)$/.exec(id);
   if (match) return { kind: 'defer', taskId: Number(match[1]), action: match[2] as never };
+  match = /^fp:(morning|afternoon|evening|unknown|ask)$/.exec(id);
+  if (match) return { kind: 'pref', pref: match[1] as never };
+  match = /^fw:(\d+):(start|move|shift|tomorrow|no|skip)$/.exec(id);
+  if (match) return { kind: 'window', windowId: Number(match[1]), action: match[2] as never };
+  match = /^fw:(\d+):yes:([tm](?:[01]\d|2[0-3])[0-5]\d)$/.exec(id);
+  if (match) return { kind: 'window', windowId: Number(match[1]), action: 'yes', value: match[2] ?? '' };
+  match = /^rh:yes:((?:[01]\d|2[0-3])[0-5]\d):([1-7]{1,7})$/.exec(id);
+  if (match) {
+    const time = match[1] ?? '0000';
+    return { kind: 'rhythm', action: 'yes', start: `${time.slice(0, 2)}:${time.slice(2)}`, weekdays: [...(match[2] ?? '')].map(Number) };
+  }
+  if (id === 'rh:keep') return { kind: 'rhythm', action: 'keep' };
   if (id === 'rw:on' || id === 'rw:off') return { kind: 'rewards', enabled: id === 'rw:on' };
   if (id === 'tl:start' || id === 'tl:missing') return { kind: 'tools', action: id === 'tl:start' ? 'start' : 'missing' };
   match = /^tl:([a-z]+):pick:([a-z_]+)$/.exec(id);
@@ -163,6 +179,9 @@ export async function handleButton(
     case 'rewards':
     case 'day':
     case 'defer':
+    case 'pref':
+    case 'window':
+    case 'rhythm':
     case 'plan':
       return [UNKNOWN];
   }

@@ -14,6 +14,12 @@ export interface FocusStats {
   rewardsEnabled: boolean;
   toolButtonsShown: number;
   quickStartsAfterButton: number;
+  /** Focus window (step 1.12). */
+  windowsPlanned: number;
+  windowsUsed: number;
+  blocksInWindow: number;
+  blocksOutsideWindow: number;
+  avgWindowMinutes: number | null;
 }
 
 type Row = Record<string, unknown>;
@@ -38,7 +44,13 @@ export async function focusStats(db: Database, since: Date): Promise<FocusStats[
       (select count(*) from events e where e.user_id = u.id and e.name = 'tool_button_shown' and e.created_at >= ${since}
          and exists (select 1 from events f where f.user_id = u.id
            and (f.name in ('block_started', 'session_started') or (f.name = 'task_status_changed' and f.props->>'status' = 'done'))
-           and f.created_at >= e.created_at and f.created_at <= e.created_at + interval '2 minutes')) as quick_starts
+           and f.created_at >= e.created_at and f.created_at <= e.created_at + interval '2 minutes')) as quick_starts,
+      (select count(*) from focus_windows w where w.user_id = u.id and w.starts_at >= ${since} and w.starts_at <= now() and w.status <> 'moved') as windows_planned,
+      (select count(*) from focus_windows w where w.user_id = u.id and w.starts_at >= ${since} and w.status = 'used') as windows_used,
+      (select count(*) from focus_blocks b where b.user_id = u.id and b.started_at >= ${since} and b.in_window and b.outcome in ('completed', 'extended')) as blocks_in_window,
+      (select count(*) from focus_blocks b where b.user_id = u.id and b.started_at >= ${since} and not b.in_window and b.outcome in ('completed', 'extended')) as blocks_outside_window,
+      (select round(avg(extract(epoch from (b.ended_at - b.started_at)) / 60)) from focus_blocks b
+         where b.user_id = u.id and b.started_at >= ${since} and b.in_window and b.ended_at is not null) as avg_window_minutes
     from users u
     left join user_settings s on s.user_id = u.id
     order by u.id
@@ -55,6 +67,11 @@ export async function focusStats(db: Database, since: Date): Promise<FocusStats[
     rewardsEnabled: row.rewards_enabled !== false,
     toolButtonsShown: n(row.buttons_shown),
     quickStartsAfterButton: n(row.quick_starts),
+    windowsPlanned: n(row.windows_planned),
+    windowsUsed: n(row.windows_used),
+    blocksInWindow: n(row.blocks_in_window),
+    blocksOutsideWindow: n(row.blocks_outside_window),
+    avgWindowMinutes: row.avg_window_minutes === null || row.avg_window_minutes === undefined ? null : n(row.avg_window_minutes),
   }));
 }
 
@@ -70,6 +87,9 @@ export function formatFocusStats(stats: FocusStats[], days: number): string {
       row('Terug op tijd', ratio(s.returnedOnTime, s.pauses)),
       row('Terug naar werk na beloning', ratio(s.backToWorkAfterReward, s.rewardsFinished)),
       row('Snelle start na werkplek-knop', ratio(s.quickStartsAfterButton, s.toolButtonsShown)),
+      row('Venster gebruikt', ratio(s.windowsUsed, s.windowsPlanned)),
+      row('Afgeronde blokken in venster', `${s.blocksInWindow} · erbuiten ${s.blocksOutsideWindow}`),
+      row('Gemiddelde vensterduur', s.avgWindowMinutes === null ? '–' : `${s.avgWindowMinutes} min`),
       row('Beloningen', s.rewardsEnabled ? 'aan' : 'uit'),
       '',
     );

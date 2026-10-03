@@ -10,7 +10,7 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { engineFrequency, preferredChannel, userStatus } from './enums.js';
+import { engineFrequency, focusPref, preferredChannel, userStatus } from './enums.js';
 
 export const users = pgTable('users', {
   id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
@@ -28,6 +28,10 @@ export const users = pgTable('users', {
   lastInboundAt: timestamp('last_inbound_at', { withTimezone: true }),
   /** Leaves in the garden (step 1.9). Only grows. */
   gardenGrowth: integer('garden_growth').notNull().default(0),
+  /** Focus window (step 1.12): preference, chosen start (local time) and length. */
+  focusPref: focusPref('focus_pref'),
+  focusWindowStart: time('focus_window_start'),
+  focusWindowMinutes: smallint('focus_window_minutes').notNull().default(90),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()

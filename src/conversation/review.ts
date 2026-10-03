@@ -5,6 +5,8 @@ import { getSettings } from '../core/settings.js';
 import { BLOCK_TEXTS, fill } from '../texts/werkblokken.nl.js';
 import { gardenGrowthSince } from './blocks.js';
 import { energyWeekLine } from './day-review.js';
+import { rhythmProposalMessage } from './focus-window.js';
+import { getProfile } from '../core/profile.js';
 import { listOpenSuggestions } from '../core/suggestions.js';
 import type { Database } from '../db/client.js';
 import { ideas, projects, tasks } from '../db/schema/index.js';
@@ -148,7 +150,10 @@ async function finish(ctx: ButtonContext, prefix: string): Promise<OutboundMessa
     .where(and(eq(ideas.userId, ctx.userId), eq(ideas.status, 'inbox')));
   await clearState(ctx.db, ctx.userId);
   await recordEvent(ctx.db, ctx.userId, 'weekly_review_done', {});
-  return [{ text: `${prefix}De weekreview is klaar. Fijne week.` }];
+  // Once enough data is in: the learned focus window (step 1.12, A2).
+  const timezone = (await getProfile(ctx.db, ctx.userId))?.timezone ?? 'Europe/Amsterdam';
+  const proposal = await rhythmProposalMessage({ db: ctx.db, userId: ctx.userId, timezone, now: ctx.now });
+  return [{ text: `${prefix}De weekreview is klaar. Fijne week.` }, ...(proposal ? [proposal] : [])];
 }
 
 // ---------------------------------------------------------------------------

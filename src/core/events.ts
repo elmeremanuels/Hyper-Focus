@@ -8,8 +8,9 @@ export async function recordEvent(
   userId: number,
   name: EventName,
   props: Record<string, unknown> = {},
+  at?: Date,
 ) {
-  await db.insert(events).values({ userId, name, props });
+  await db.insert(events).values({ userId, name, props, ...(at && { createdAt: at }) });
 }
 
 export async function recordAiUsage(

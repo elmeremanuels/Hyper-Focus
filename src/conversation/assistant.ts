@@ -7,7 +7,8 @@ import { getProfile, type UserProfile } from '../core/profile.js';
 import type { Database } from '../db/client.js';
 import { handleButton, helpMessage, type ButtonContext, type ButtonExtension } from './buttons.js';
 import { dayReviewButtons, dayReviewModeHandler, DAY_REVIEW_TOOLS } from './day-review.js';
-import { blockButtons, BLOCK_TOOLS, pauseModeHandler, planBlockMinutes, setRewards, startBlock, type DefaultBlockMinutes } from './blocks.js';
+import { FOCUS_WINDOW_TOOLS, focusWindowButtons, landingModeHandler, PREF_QUESTION } from './focus-window.js';
+import { askDuration, blockButtons, BLOCK_TOOLS, pauseModeHandler, planBlockMinutes, setRewards, startBlock, type DefaultBlockMinutes } from './blocks.js';
 import { loadContext, renderContext } from './context.js';
 import type { Router } from './router.js';
 import { getState, type ConversationMode, type ConversationStateRow } from './state.js';
@@ -52,6 +53,7 @@ export const ROUTER_TOOLS: ToolDefinition[] = [
   ...SESSION_TOOLS,
   ...BLOCK_TOOLS,
   ...DAY_REVIEW_TOOLS,
+  ...FOCUS_WINDOW_TOOLS,
   ...CALENDAR_TOOLS,
   ...WORKPLACE_TOOLS,
   crisisTool,
@@ -69,7 +71,8 @@ export const TEXTS = {
 } as const;
 
 // Fixed words that never need an AI call (the Telegram commands map to these).
-const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools' | 'rewards_off' | 'rewards_on'> = {
+const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools' | 'rewards_off' | 'rewards_on' | 'rhythm'> = {
+  'mijn ritme': 'rhythm',
   'zet beloningen uit': 'rewards_off',
   'zet beloningen aan': 'rewards_on',
   'mijn tools': 'tools',
@@ -85,6 +88,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
   const buttonExtensions = [
     blockButtons(deps.defaultBlockMinutes),
     dayReviewButtons(),
+    focusWindowButtons((c, taskId) => askDuration(c, taskId)),
     sessionButtons(),
     reviewButtons(),
     planSessionButton(),
@@ -93,6 +97,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
   ];
   const modeHandlers: Partial<Record<ConversationMode, ModeHandler>> = {
     session: async (message, state, ctx) =>
+      (await landingModeHandler(message.text, state.data, ctx)) ??
       (await pauseModeHandler(message.text, state.data, ctx)) ??
       sessionModeHandler(message.text, state.data as SessionData, ctx, async (c, taskId) =>
         startBlock(c, taskId, await (deps.defaultBlockMinutes ?? planBlockMinutes)(c)),
@@ -156,6 +161,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     if (fixed === 'rewards_off' || fixed === 'rewards_on') return [await setRewards(ctx, fixed === 'rewards_on')];
     if (fixed === 'review') return [await reviewStart(ctx)];
     if (fixed === 'tools') return [await toolsOverview(ctx)];
+    if (fixed === 'rhythm') return [PREF_QUESTION];
 
     if (!deps.claude) return [{ text: TEXTS.noAi, buttons: [SHOW_TODAY] }];
 

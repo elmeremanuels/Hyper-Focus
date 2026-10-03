@@ -6,8 +6,10 @@ import { checkGuardrails, type GuardrailInput } from '../src/proactive/guardrail
 import { BLOCK_TEXTS, PAUSE_MISSIONS } from '../src/texts/werkblokken.nl.js';
 
 describe('work block units', () => {
-  it('rounds any duration to 15, 25 or 45 minutes', () => {
-    expect([1, 15, 19, 20, 21, 25, 30, 35, 40, 45, 90].map(roundToPreset)).toEqual([15, 15, 15, 15, 25, 25, 25, 25, 45, 45, 45]);
+  it('rounds any duration to 15, 25, 45, 60 or 90 minutes', () => {
+    expect([1, 15, 19, 20, 21, 25, 30, 35, 40, 45, 52, 53, 75, 90, 120].map(roundToPreset)).toEqual([
+      15, 15, 15, 15, 25, 25, 25, 25, 45, 45, 45, 60, 60, 90, 90,
+    ]);
   });
 
   it('ends every pause mission with the phone staying down', () => {

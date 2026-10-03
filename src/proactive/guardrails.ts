@@ -7,7 +7,15 @@ export const USER_STARTED_KINDS = new Set(['session_checkin']);
 /** Heads-ups and follow-ups: limited by max_calendar_nudges_per_day when planned. */
 export const CALENDAR_KINDS = new Set(['meeting_heads_up', 'meeting_followup']);
 /** Messages of a running work block (step 1.9). */
-export const WORK_BLOCK_KINDS = new Set(['block_end', 'return_reminder', 'pause_close', 'hyperfocus_break']);
+export const WORK_BLOCK_KINDS = new Set([
+  'block_end',
+  'return_reminder',
+  'pause_close',
+  'hyperfocus_break',
+  // Inside a running block of the focus window (step 1.12)
+  'window_quiet_check',
+  'soft_landing',
+]);
 /** At least this long between two proactive messages. */
 export const BREATHING_MINUTES = 45;
 
@@ -59,13 +67,16 @@ export function checkGuardrails(input: GuardrailInput): GuardrailVerdict {
 
   // Mail and appointment messages have their own limits (BOUWPLAN.md, 11.7–11.8).
   if (input.mailOnly || CALENDAR_KINDS.has(input.kind)) return { send: true };
+  // A missed window gets one silent message (step 1.12); it does not push out the day review.
+  if (input.kind === 'window_missed') return input.overwhelmedYesterday ? { send: false, reason: 'after_overwhelm' } : { send: true };
 
   const limit = input.overwhelmedYesterday ? 1 : settings.maxProactivePerDay;
   if (input.sentToday >= limit) {
     return { send: false, reason: input.overwhelmedYesterday ? 'after_overwhelm' : 'daily_limit' };
   }
 
-  if (input.lastProactiveAt) {
+  // The heads-up before the focus window is tied to its time (step 1.12).
+  if (input.lastProactiveAt && input.kind !== 'window_heads_up') {
     const next = input.lastProactiveAt.getTime() + BREATHING_MINUTES * 60_000;
     if (next > now.getTime()) return { send: false, reason: 'breathing_room', retryAt: new Date(next) };
   }

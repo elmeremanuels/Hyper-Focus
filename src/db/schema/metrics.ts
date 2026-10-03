@@ -26,6 +26,13 @@ export const EVENT_NAMES = [
   'rewards_toggled',
   'day_review_done',
   'day_energy_set',
+  'focus_pref_asked',
+  'focus_pref_set',
+  'focus_window_moved',
+  'soft_landing_note',
+  'rhythm_proposed',
+  'rhythm_accepted',
+  'rhythm_kept',
   'overwhelm',
   'nudge_skipped',
 ] as const;

@@ -16,3 +16,4 @@ Ideeën en extra's die buiten de huidige bouwstap vallen.
 - Dagritme: geen proactieve berichten in het weekend, of een instelling met werkdagen. Vraagt een kolom in `user_settings` (datamodelwijziging). Het bouwplan noemt nu geen werkdagen.
 - Werkplek-links: klikmeting via een getekende redirect `/go/<id>` met tabel `tool_clicks`, aan te zetten met een `.env`-vlag (brief 1.10). Wacht op akkoord voor de nieuwe variabele.
 - Export van gegevens ("exporteer mijn gegevens", BOUWPLAN 14): bij de bouw meenemen: `user_tools`, `focus_blocks`, `garden_events`, `day_reviews`.
+- Werkdagen: het focusvenster (1.12) wordt nu ook in het weekend gepland. Een instelling met werkdagen vraagt een kolom in `user_settings` (datamodelwijziging).

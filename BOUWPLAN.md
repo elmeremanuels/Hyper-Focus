@@ -756,6 +756,15 @@ Context:
 
 Voor 1.9 t/m 1.11 geldt verder: eval ≥ 90%, crisisgevallen 100%, tests groen. Voortgang zonder telling: geen XP, levels, streaks of ranglijsten. Alles is met één tik uit te zetten.
 
+**1.12 Focusvenster, ritme en beloning** (aanpasplan 3 oktober 2026). De dag draait om één focusvenster van 60 tot 90 minuten op het eigen piekuur, voor de taak die het bedrijf vooruit helpt. Kleine en opgeknipte taken vullen de hypermomenten eromheen. Hyper&Focus leert het venster uit de eigen data. De beloning wordt volwassen: een focuslog, een pitstop en een weekopbrengst in plaats van de tuin. Drie PR's:
+- *A1+A2 Focusvenster en ritme.* Voorkeur (ochtend, middag, avond, weet ik niet), het venster in het ochtendbericht, een seintje 15 minuten vooraf, blokken van 45, 60 of 90 minuten in het venster, één stil bericht na 50 minuten, een zachte landing 10 minuten voor een afspraak of de stille uren, één stil bericht bij een gemist venster. Na 10 werkdagen met minstens 6 afgeronde blokken stelt de bot een geleerd venster voor; daarna schuift het hooguit 30 minuten per week.
+- *A3 Focuslog, pitstop en weekopbrengst.* Per afgerond blok een regel in het focuslog. De mini-app toont het log van vandaag met een klok van 60 seconden. De weekreview noemt vensters, uren diep werk en wat de deur uit ging.
+- *A4 Batterij.* Een pure functie en `GET /api/battery` (achter `DASHBOARD_API=on`) met de stand: opladen, klaar, focus, pitstop of rust. Nooit leeg.
+
+*Klaar als:* het ochtendbericht noemt het venster met de belangrijkste taak · het seintje komt 15 minuten vooraf, met de werkplek-knop als die er is · in een vensterblok van 60 minuten komt na 50 minuten één stil bericht en verder niets tot het einde · na *Af* komt de pitstop in de nieuwe toon en de mini-app toont het focuslog · de weekreview toont de weekopbrengst en de tuin staat nergens meer · `sim:day` scenario `rhythm` geeft een voorstel rond 13:30 · `GET /api/battery` geeft de juiste stand op elk tijdstip.
+
+Toon voor bot, dashboard en website: kort (hooguit 12 woorden per zin), direct, ik-vorm en je, hooguit één droge knipoog per bericht, zonder medische claims, zonder kinderpraat of emoji.
+
 ### Fase 2 — Verbetermotor en web
 
 **2.1 Bedrijfsintake** (12.1).

@@ -6,8 +6,10 @@ import {
   integer,
   jsonb,
   pgTable,
+  real,
   smallint,
   text,
+  time,
   timestamp,
   uniqueIndex,
   type AnyPgColumn,
@@ -18,6 +20,8 @@ import {
   clientStatus,
   dayEnergy,
   focusBlockOutcome,
+  focusWindowSource,
+  focusWindowStatus,
   gardenEventKind,
   ideaStatus,
   projectStatus,
@@ -222,12 +226,14 @@ export const focusBlocks = pgTable(
     rewardTokenHash: text('reward_token_hash'),
     rewardOpenedAt: timestamp('reward_opened_at', { withTimezone: true }),
     rewardFinishedAt: timestamp('reward_finished_at', { withTimezone: true }),
+    /** Started inside the focus window (step 1.12). */
+    inWindow: boolean('in_window').notNull().default(false),
     ...timestamps,
   },
   (table) => [
     index('focus_blocks_user_started_idx').on(table.userId, table.startedAt),
     uniqueIndex('focus_blocks_reward_token').on(table.rewardTokenHash),
-    check('focus_blocks_planned_minutes', sql`${table.plannedMinutes} IN (15, 25, 45)`),
+    check('focus_blocks_planned_minutes', sql`${table.plannedMinutes} IN (15, 25, 45, 60, 90)`),
   ],
 );
 
@@ -257,4 +263,37 @@ export const dayReviews = pgTable(
     ...timestamps,
   },
   (table) => [uniqueIndex('day_reviews_user_date').on(table.userId, table.date)],
+);
+
+/** The focus window of a day (step 1.12): 60–90 minutes for the most important task. */
+export const focusWindows = pgTable(
+  'focus_windows',
+  {
+    id: id(),
+    userId: userId(),
+    date: date('date').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    source: focusWindowSource('source').notNull(),
+    taskId: integer('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    startedBlockId: integer('started_block_id').references(() => focusBlocks.id, { onDelete: 'set null' }),
+    status: focusWindowStatus('status').notNull().default('planned'),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex('focus_windows_user_date_start').on(table.userId, table.date, table.startsAt)],
+);
+
+/** The learned window per weekday (step 1.12, A2). Weekday 1 = Monday … 7 = Sunday. */
+export const rhythmProfiles = pgTable(
+  'rhythm_profiles',
+  {
+    id: id(),
+    userId: userId(),
+    weekday: smallint('weekday').notNull(),
+    windowStart: time('window_start').notNull(),
+    minutes: smallint('minutes').notNull().default(90),
+    confidence: real('confidence').notNull(),
+    computedAt: timestamp('computed_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [uniqueIndex('rhythm_profiles_user_weekday').on(table.userId, table.weekday)],
 );

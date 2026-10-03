@@ -276,7 +276,7 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
 
   it('plays two blocks and a late return in sim:day, with sound only on the transitions', async () => {
     const { sent } = await simulateDays({ db: db(), userId: t.userId, start: '2026-10-07', days: 1, silent: false, actions: blocksScenario(0) });
-    const hf = sent.filter((m) => !m.user && m.at >= at('08:00:00') && m.at < at('09:30:00'));
+    const hf = sent.filter((m) => !m.user && m.at >= at('11:00:00') && m.at < at('12:30:00'));
     expect(hf.map((m) => `${m.silent ? 'stil' : 'geluid'}: ${m.text.split('.')[0]}`)).toEqual([
       'geluid: Hoe lang ga je aan factuur september versturen?',
       'geluid: Top',

@@ -8,6 +8,8 @@ import example from '../../src/db/seed/example.js';
 import { loadSeed } from '../../src/db/seed/load.js';
 
 export const adminUrl = process.env.TEST_DATABASE_URL;
+/** Creating and dropping a database can be slow while other test files run. */
+const HOOK_TIMEOUT_MS = 30_000;
 
 export interface TestDatabase {
   connection: DbConnection;
@@ -39,12 +41,12 @@ export function useTestDatabase(): TestDatabase {
     await runMigrations(state.url);
     state.connection = connect(state.url);
     state.userId = (await loadSeed(state.connection.db, example)).userId;
-  });
+  }, HOOK_TIMEOUT_MS);
 
   afterAll(async () => {
     await state.connection?.close();
     await admin(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
-  });
+  }, HOOK_TIMEOUT_MS);
 
   return state;
 }

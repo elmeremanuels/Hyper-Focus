@@ -52,9 +52,12 @@ describe.skipIf(!adminUrl)('calendar (integration)', { timeout: 30_000 }, () => 
     await db().update(users).set({ telegramChatId: 55 }).where(eq(users.id, t.userId));
     const { delivery, telegram } = fakeDelivery(createDbMessageStore(db()));
     await sendDueNudges({ db: db(), delivery, users: createDbUserStore(db()), log: quiet }, new Date('2026-10-07T06:30:30Z'));
-    expect(telegram.sent().at(-1)?.body.text).toBe(
+    const morning = telegram.sent().find((call) => String(call.body.text).startsWith('Goedemorgen'));
+    expect(String(morning?.body.text).split('\n')).toEqual([
       'Goedemorgen Sam. Vandaag: Koningsdag. Twee afspraken vandaag, de eerste om 09:00. Tussen 11:00 en 12:00 heb je ruimte. Je focus voor vandaag staat klaar.',
-    );
+      // The focus window (step 1.12) moves out of the appointments, to the free hour.
+      expect.stringMatching(/^Je focusvenster vandaag: 11:00–12:00\. Daar zet ik .+\.$/),
+    ]);
   });
 
   it('gives a heads-up with open points ten minutes before a client appointment', async () => {

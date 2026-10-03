@@ -7,6 +7,7 @@ import { getTask, getTasksInOrder, listOpenTasks, type TaskSummary } from '../co
 import type { OutboundMessage } from '../conversation/types.js';
 import { SHOW_TODAY } from '../conversation/views.js';
 import { composeDayReview } from '../conversation/day-review.js';
+import { morningWindowLine, prefQuestionOnce } from '../conversation/focus-window.js';
 import { workplaceButton } from '../conversation/workplace.js';
 import { REVIEW_BUTTONS, REVIEW_TEXTS } from '../texts/dagreview.nl.js';
 import { DEFERRED_PROPOSAL_AT } from './tomorrow.js';
@@ -34,6 +35,8 @@ export type Composed =
       mailOnly?: boolean;
       /** Sent right after the message, on the same channel. */
       followUps?: OutboundMessage[];
+      /** Always without sound (step 1.12). */
+      silent?: boolean;
     }
   | { skip: string };
 
@@ -76,24 +79,31 @@ export async function composeMorning(ctx: NudgeContext, localDate: string): Prom
     .where(and(eq(tasks.userId, ctx.userId), inArray(tasks.id, focus.map((task) => task.id)), gte(tasks.deferredCount, DEFERRED_PROPOSAL_AT)))
     .limit(1);
   const deferredTask = deferred ? focus.find((task) => task.id === deferred.id) : undefined;
+  // The focus window (step 1.12): one line and [Schuif venster]; the preference question once.
+  const window = await morningWindowLine(ctx, localDate);
+  const prefQuestion = await prefQuestionOnce(ctx.db, ctx.userId, ctx.now);
+  const followUps: OutboundMessage[] = [
+    ...(deferredTask
+      ? [
+          {
+            text: `${deferredTask.title}: ${REVIEW_TEXTS.deferred}`,
+            buttons: [
+              { id: `df:${deferredTask.id}:split`, title: REVIEW_BUTTONS.split },
+              { id: `df:${deferredTask.id}:park`, title: REVIEW_BUTTONS.park },
+              { id: `df:${deferredTask.id}:keep`, title: REVIEW_BUTTONS.keep },
+            ],
+          },
+        ]
+      : []),
+    ...(prefQuestion ? [prefQuestion] : []),
+  ];
   return {
     subject: 'Je focus voor vandaag',
     message: {
-      text: `Goedemorgen ${ctx.name}.${day ? ` ${day}` : ''} Je focus voor vandaag staat klaar.`,
-      buttons: [SHOW_TODAY, DAY_OFF, ...(link ? [link] : [])],
+      text: `Goedemorgen ${ctx.name}.${day ? ` ${day}` : ''} Je focus voor vandaag staat klaar.${window ? `\n${window.line}` : ''}`,
+      buttons: [SHOW_TODAY, DAY_OFF, ...(window ? [window.button] : []), ...(link ? [link] : [])],
     },
-    ...(deferredTask && {
-      followUps: [
-        {
-          text: `${deferredTask.title}: ${REVIEW_TEXTS.deferred}`,
-          buttons: [
-            { id: `df:${deferredTask.id}:split`, title: REVIEW_BUTTONS.split },
-            { id: `df:${deferredTask.id}:park`, title: REVIEW_BUTTONS.park },
-            { id: `df:${deferredTask.id}:keep`, title: REVIEW_BUTTONS.keep },
-          ],
-        },
-      ],
-    }),
+    ...(followUps.length > 0 && { followUps }),
   };
 }
 
