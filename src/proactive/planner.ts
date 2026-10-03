@@ -13,6 +13,7 @@ import { ESCALATION_TIME, pickEscalation } from './escalation.js';
 import { silentDays } from './guardrails.js';
 import { composeFocus, type ComposedFocus, type FocusCandidate } from './focus.js';
 import { tomorrowPlan } from './tomorrow-signals.js';
+import { learnRhythm, planWindow, windowFor } from '../focus/windows.js';
 
 export const PLANNER_TIME = '00:05';
 export const MIDDAY_TIME = '13:30';
@@ -82,6 +83,10 @@ export async function planDay(
     if (!planned) withCalendar = (await syncUserCalendars(db, options.calendar, userId, timezone, now)).ok;
   }
 
+  // The nightly rhythm job (step 1.12, A2): rewrites the learned windows at most once a week.
+  const [planned] = await db.select({ id: dailyFocus.id }).from(dailyFocus).where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, today)));
+  if (!planned) await learnRhythm(db, userId, timezone, now);
+
   return db.transaction(async (tx) => {
     // The unique (user, date) row makes planning idempotent across ticks and processes.
     const [claimed] = await tx
@@ -98,14 +103,20 @@ export async function planDay(
       .set({ skipped: true })
       .where(and(eq(dayReviews.userId, userId), lt(dayReviews.date, today), isNull(dayReviews.completedAt), eq(dayReviews.skipped, false)));
     const shape = await tomorrowPlan(db2, userId, timezone, now);
+    // A task moved to today's window by hand goes on top (step 1.12).
+    const manual = await windowFor(db2, userId, today);
+    const pinTaskId = manual?.taskId ?? shape.pinTaskId;
 
     const candidates = await focusCandidates(tx, userId, now);
-    const focus = composeFocus(candidates, today, now, shape);
+    const focus = composeFocus(candidates, today, now, { ...shape, pinTaskId });
     if (withCalendar) await fitToCalendar(tx as unknown as Database, userId, timezone, today, settings, candidates, focus);
     await tx
       .update(dailyFocus)
       .set({ taskIds: focus.taskIds, quickWinTaskId: focus.quickWinTaskId })
       .where(eq(dailyFocus.id, claimed.id));
+
+    // The most important task gets today's focus window (step 1.12).
+    const window = await planWindow(db2, userId, timezone, today, focus.mainTaskId, now);
 
     // Carried-over tasks got their bonus; it ends once they are in a focus.
     if (focus.taskIds.length > 0) {
@@ -120,7 +131,8 @@ export async function planDay(
       }
     };
     add('morning', settings.morningTime);
-    if (settings.middayEnabled && focus.mainTaskId !== null) {
+    // The heads-up before the focus window takes over the midday nudge (step 1.12).
+    if (settings.middayEnabled && focus.mainTaskId !== null && !window?.taskId) {
       add('midday', MIDDAY_TIME, { taskId: focus.mainTaskId });
     }
     add('wrapup', settings.wrapupTime);

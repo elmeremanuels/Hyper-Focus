@@ -183,8 +183,11 @@ describe('Telegram processor', () => {
       expect(await process(start(code, 600003))).toBe('ignored');
       const texts = telegram.sent().map((call) => call.body.text);
       expect([texts[0], texts[1], texts.at(-1)]).toEqual([TEXTS.linkInvalid, TEXTS.linked, TEXTS.linkInvalid]);
-      // After linking, the tool questions start (step 1.10).
-      expect(routed).toEqual([expect.objectContaining({ kind: 'button', buttonId: 'tl:start' })]);
+      // After linking: when the user works best (step 1.12), then the tool questions (step 1.10).
+      expect(routed).toEqual([
+        expect.objectContaining({ kind: 'button', buttonId: 'fp:ask' }),
+        expect.objectContaining({ kind: 'button', buttonId: 'tl:start' }),
+      ]);
     });
 
     it('asks an allowed but unlinked user to open the link', async () => {

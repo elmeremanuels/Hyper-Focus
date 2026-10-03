@@ -19,7 +19,10 @@ describe.skipIf(!adminUrl)('guardrails, escalation, restart and crisis (integrat
     const { sent } = await simulateDays({ db: db(), userId: t.userId, start: '2026-10-06', days: 8, silent: true });
     expect(sent.map((m) => `${day(m)} ${m.channel} ${m.text.slice(0, 20)}`)).toEqual([
       '06 08:30 telegram Goedemorgen Sam. Je ', // day 1: the normal rhythm
-      '06 16:00 telegram Tijd om de dag af te', // (midday skipped: the main task is in progress)
+      '06 08:30 telegram Wanneer werk je mees', // once: the focus preference (step 1.12)
+      '06 10:15 telegram Over een kwartier je', // the focus window replaces the midday nudge
+      '06 11:00 telegram Venster liep anders.',
+      '06 16:00 telegram Tijd om de dag af te',
       '07 08:30 telegram Goedemorgen Sam. Je ', // day 2: morning only
       '08 08:30 telegram Welkom terug. Ik heb', // day 3: morning only, as a soft restart
       // days 4–6: silent
@@ -27,7 +30,7 @@ describe.skipIf(!adminUrl)('guardrails, escalation, restart and crisis (integrat
       '12 08:30 email Welkom terug. Ik heb',
       // day 8: silent until the user writes
     ]);
-    expect(sent[3]?.buttons).toEqual(['Ja', 'Morgen']);
+    expect(sent[6]?.buttons).toEqual(['Ja', 'Morgen']);
   });
 
   it('climbs the escalation ladder one task and one message a day, and parks at level 3', async () => {
@@ -39,16 +42,18 @@ describe.skipIf(!adminUrl)('guardrails, escalation, restart and crisis (integrat
     const parked = escalations.find((m) => /in je parkeerplaats gezet/.test(m.text));
     expect(parked?.buttons).toEqual(['Terughalen']);
 
-    // Never more than four proactive messages on a day.
+    // Never more than four proactive messages on a day. Not counted: the one-time preference
+    // question, the silent missed-window message and the Monday mail.
+    const counted = sent.filter((m) => !/^(Wanneer werk je|Venster liep anders)/.test(m.text) && m.channel === 'telegram');
     const perDay = new Map<string, number>();
-    for (const message of sent) perDay.set(day(message).slice(0, 2), (perDay.get(day(message).slice(0, 2)) ?? 0) + 1);
+    for (const message of counted) perDay.set(day(message).slice(0, 2), (perDay.get(day(message).slice(0, 2)) ?? 0) + 1);
     expect(Math.max(...perDay.values())).toBeLessThanOrEqual(4);
   });
 
   it('sends one message the day after overwhelm', async () => {
     await db().insert(events).values({ userId: t.userId, name: 'overwhelm', props: { date: '2026-10-19' } });
     const { sent, skipped } = await simulateDays({ db: db(), userId: t.userId, start: '2026-10-20', days: 1, silent: false });
-    expect(sent).toHaveLength(1);
+    expect(sent.filter((m) => !m.text.startsWith('Wanneer werk je'))).toHaveLength(1);
     expect(skipped.some((s) => s.reason === 'after_overwhelm')).toBe(true);
   });
 

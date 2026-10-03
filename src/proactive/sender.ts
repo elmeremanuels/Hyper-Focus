@@ -11,6 +11,7 @@ import { events, scheduledNudges, users } from '../db/schema/index.js';
 import { localDate, localNow } from '../lib/time.js';
 import { composeWeeklyMail, reviewStart } from '../conversation/review.js';
 import { composeCheckin } from '../conversation/session.js';
+import { composeSoftLanding, composeWindowHeadsUp, composeWindowMissed, composeWindowQuietCheck } from '../conversation/focus-window.js';
 import {
   activeBlock,
   BLOCK_NUDGE_KINDS,
@@ -46,6 +47,11 @@ export const DEFAULT_COMPOSERS: Partial<Record<NudgeRow['kind'], Composer>> = {
   hyperfocus_break: (ctx, nudge) => composeHyperfocusBreak(ctx, Number(nudge.payload.blockId)),
   return_reminder: (ctx, nudge) => composeReturnReminder(ctx, Number(nudge.payload.blockId)),
   pause_close: (ctx, nudge) => closeQuietly(ctx, Number(nudge.payload.blockId), String(nudge.payload.phase)),
+  window_heads_up: (ctx, nudge) => composeWindowHeadsUp(ctx, Number(nudge.payload.windowId)),
+  window_quiet_check: (ctx, nudge) => composeWindowQuietCheck(ctx, Number(nudge.payload.blockId)),
+  soft_landing: (ctx, nudge) =>
+    composeSoftLanding(ctx, Number(nudge.payload.windowId), typeof nudge.payload.title === 'string' ? nudge.payload.title : null),
+  window_missed: (ctx, nudge) => composeWindowMissed(ctx, Number(nudge.payload.windowId)),
   weekly_review: async (ctx, nudge) =>
     nudge.payload.part === 'mail'
       ? { ...(await composeWeeklyMail(ctx)), mailOnly: true }
@@ -170,7 +176,7 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
     if ('skip' in composed) return { status: 'skipped', reason: composed.skip };
 
     // Transitions make a sound; anything else during a block or pause is silent.
-    const quiet = Boolean(focus) && !SOUND_KINDS.has(nudge.kind);
+    const quiet = composed.silent === true || (Boolean(focus) && !SOUND_KINDS.has(nudge.kind));
     const via = await deps.delivery.send(user, composed.message, {
       ...(composed.mailOnly && { via: 'email' as const }),
       context: { subject: composed.subject, silent: quiet },
@@ -210,6 +216,9 @@ async function guardrailInput(
       'return_reminder',
       'pause_close',
       'hyperfocus_break',
+      'window_quiet_check',
+      'soft_landing',
+      'window_missed',
     ]),
     // The Monday mail does not count against Telegram messages.
     sql`not (${scheduledNudges.kind} = 'weekly_review' and ${scheduledNudges.payload}->>'part' = 'mail')`,

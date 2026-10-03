@@ -9,7 +9,10 @@ import { getSettings } from '../core/settings.js';
 import { listSteps, nextStep } from '../core/steps.js';
 import { getTask, setTaskStatus } from '../core/tasks.js';
 import type { Database } from '../db/client.js';
-import { focusBlocks, gardenEvents, scheduledNudges, userSettings, users } from '../db/schema/index.js';
+import { focusBlocks, focusWindows, gardenEvents, scheduledNudges, userSettings, users } from '../db/schema/index.js';
+import { isInWindow, windowFor } from '../focus/windows.js';
+import { localDate } from '../lib/time.js';
+import { WINDOW_BUTTONS, WINDOW_TEXTS } from '../texts/focusvenster.nl.js';
 import { BLOCK_BUTTONS, BLOCK_TEXTS, fill, PAUSE_MISSIONS, type PauseMission } from '../texts/werkblokken.nl.js';
 import type { Composed } from '../proactive/messages.js';
 import type { ButtonContext, ButtonExtension, ParsedButton } from './buttons.js';
@@ -20,29 +23,44 @@ import type { Button, OutboundMessage } from './types.js';
 import { tomorrowPlan } from '../proactive/tomorrow-signals.js';
 import { SHOW_TODAY } from './views.js';
 import { workplaceButton } from './workplace.js';
+import { whereYouWere } from './focus-window.js';
 
 export const BLOCK_PRESETS = [15, 25, 45] as const;
-export type BlockMinutes = (typeof BLOCK_PRESETS)[number];
+/** In the focus window (step 1.12): 45, 60 or 90 minutes, 60 by default. */
+export const WINDOW_PRESETS = [45, 60, 90] as const;
+const ALL_PRESETS = [15, 25, 45, 60, 90] as const;
+export type BlockMinutes = (typeof ALL_PRESETS)[number];
 export const DEFAULT_BLOCK_MINUTES: BlockMinutes = 15;
+export const DEFAULT_WINDOW_BLOCK_MINUTES: BlockMinutes = 60;
 export const EXTEND_MINUTES = 15;
-/** Continuous work before the hyperfocus catcher steps in. */
+export const WINDOW_EXTEND_MINUTES = 30;
+/** Continuous work before the hyperfocus catcher steps in; 90 inside the focus window. */
 export const HYPERFOCUS_MINUTES = 60;
+export const WINDOW_HYPERFOCUS_MINUTES = 90;
+/** The one silent message in a window block comes after this many minutes. */
+export const QUIET_CHECK_MINUTES = 50;
 /** A pause or an unanswered block end closes this long after it was due. */
 export const CLOSE_AFTER_MINUTES = 30;
 /** Blocks this close together count as one stretch of work. */
 const CHAIN_GAP_MINUTES = 30;
 
 /** Nudges of the block flow: they only follow quiet hours and /pauze. */
-export const BLOCK_NUDGE_KINDS = new Set(['block_end', 'return_reminder', 'pause_close', 'hyperfocus_break']);
+export const BLOCK_NUDGE_KINDS = new Set(['block_end', 'return_reminder', 'pause_close', 'hyperfocus_break', 'window_quiet_check', 'soft_landing']);
 /** Transitions make a sound; everything else during a block or pause is silent. */
-export const SOUND_KINDS = new Set(['block_end', 'return_reminder', 'hyperfocus_break']);
+export const SOUND_KINDS = new Set(['block_end', 'return_reminder', 'hyperfocus_break', 'window_heads_up', 'soft_landing']);
 
 type Block = typeof focusBlocks.$inferSelect;
 type Ctx = ButtonContext & { appBaseUrl?: string | undefined };
 
-/** Rounds any duration to the nearest preset; ties go to the shorter block. */
+/** Rounds any duration to the nearest preset (15, 25, 45, 60, 90); ties go to the shorter block. */
 export function roundToPreset(minutes: number): BlockMinutes {
-  return [...BLOCK_PRESETS].sort((a, b) => Math.abs(a - minutes) - Math.abs(b - minutes) || a - b)[0] ?? DEFAULT_BLOCK_MINUTES;
+  return [...ALL_PRESETS].sort((a, b) => Math.abs(a - minutes) - Math.abs(b - minutes) || a - b)[0] ?? DEFAULT_BLOCK_MINUTES;
+}
+
+/** Today's window when now counts as inside it. */
+async function currentWindow(ctx: Pick<Ctx, 'db' | 'userId' | 'timezone' | 'now'>) {
+  const window = await windowFor(ctx.db, ctx.userId, localDate(ctx.timezone, ctx.now));
+  return isInWindow(window, ctx.now) ? window : undefined;
 }
 
 const lowerFirst = (value: string) => value.charAt(0).toLowerCase() + value.slice(1);
@@ -94,7 +112,7 @@ export async function chainMinutes(db: Database, userId: number, block: Block, n
   return total;
 }
 
-async function cancelBlockNudges(db: Database, userId: number, kinds: string[] = [...BLOCK_NUDGE_KINDS]) {
+async function cancelBlockNudges(db: Database, userId: number, kinds: string[] = ['block_end', 'return_reminder', 'pause_close', 'hyperfocus_break', 'window_quiet_check']) {
   await db
     .update(scheduledNudges)
     .set({ status: 'skipped', skipReason: 'block_changed' })
@@ -119,7 +137,13 @@ async function cancelBlockNudges(db: Database, userId: number, kinds: string[] =
     );
 }
 
-async function schedule(db: Database, userId: number, kind: 'block_end' | 'return_reminder' | 'pause_close' | 'hyperfocus_break', at: Date, payload: Record<string, unknown>) {
+async function schedule(
+  db: Database,
+  userId: number,
+  kind: 'block_end' | 'return_reminder' | 'pause_close' | 'hyperfocus_break' | 'window_quiet_check',
+  at: Date,
+  payload: Record<string, unknown>,
+) {
   await db.insert(scheduledNudges).values({ userId, kind, scheduledForUtc: at, payload });
 }
 
@@ -140,11 +164,20 @@ export async function askDuration(ctx: Ctx, taskId: number, defaultMinutes: Bloc
   if (!task || task.status === 'done' || task.status === 'released') {
     return [{ text: 'Die taak kan ik niet meer vinden.', buttons: [SHOW_TODAY] }];
   }
-  const order = [defaultMinutes, ...BLOCK_PRESETS.filter((m) => m !== defaultMinutes)].sort((a, b) => a - b);
+  // In the focus window: 45, 60 or 90 minutes of deep work.
+  if (await currentWindow(ctx)) {
+    return [
+      {
+        text: fill(WINDOW_TEXTS.askDeep, { taak: lowerFirst(task.title) }),
+        buttons: WINDOW_PRESETS.map((m) => ({ id: `blk:t${task.id}:m${m}`, title: `${m} min` })),
+      },
+    ];
+  }
+  const order = [defaultMinutes, ...BLOCK_PRESETS.filter((m) => m !== defaultMinutes)].filter((m) => m <= 45).sort((a, b) => a - b);
   return [
     {
       text: fill(BLOCK_TEXTS.askDuration, { taak: lowerFirst(task.title) }),
-      buttons: order.map((m) => ({ id: `blk:t${task.id}:m${m}`, title: `${m} min` })),
+      buttons: [...new Set(order)].map((m) => ({ id: `blk:t${task.id}:m${m}`, title: `${m} min` })),
     },
   ];
 }
@@ -178,12 +211,23 @@ export async function startBlock(ctx: Ctx, taskId: number, minutes: BlockMinutes
   if (step.id !== task.id && step.status !== 'in_progress') await setTaskStatus(db, userId, step.id, 'in_progress', now);
 
   const endsAt = new Date(now.getTime() + minutes * 60_000);
+  // Before the new block exists: the sentence from the last soft landing.
+  const where = await whereYouWere(db, userId, task.id);
+  const window = await currentWindow(ctx);
   const [block] = await db
     .insert(focusBlocks)
-    .values({ userId, taskId: task.id, stepId: step.id === task.id ? null : step.id, plannedMinutes: minutes, startedAt: now, endsAt })
+    .values({ userId, taskId: task.id, stepId: step.id === task.id ? null : step.id, plannedMinutes: minutes, startedAt: now, endsAt, inWindow: Boolean(window) })
     .returning();
   if (!block) throw new Error('Starting a block failed');
   await schedule(db, userId, 'block_end', endsAt, { blockId: block.id });
+  if (window) {
+    await db
+      .update(focusWindows)
+      .set({ status: 'used', ...(window.startedBlockId === null && { startedBlockId: block.id }) })
+      .where(eq(focusWindows.id, window.id));
+    // One silent message after 50 minutes, nothing else until the end.
+    if (minutes > QUIET_CHECK_MINUTES) await schedule(db, userId, 'window_quiet_check', new Date(now.getTime() + QUIET_CHECK_MINUTES * 60_000), { blockId: block.id });
+  }
   await setState(db, userId, 'session', { taskId: task.id, stepId: step.id, blockId: block.id, phase: 'block', stuck: false }, new Date(endsAt.getTime() + 2 * 3_600_000));
   await recordEvent(db, userId, 'session_started', { minutes, taskId: task.id });
   await recordEvent(db, userId, 'block_started', { minutes });
@@ -191,7 +235,7 @@ export async function startBlock(ctx: Ctx, taskId: number, minutes: BlockMinutes
   const link = await workplaceButton(db, userId, task);
   const stepLine = step.id !== task.id ? `\n${fill(BLOCK_TEXTS.firstStep, { stap: lowerFirst(step.title) })}` : '';
   replies.push({
-    text: `${fill(BLOCK_TEXTS.started, { n: minutes, taak: lowerFirst(task.title) })}${stepLine}`,
+    text: `${fill(BLOCK_TEXTS.started, { n: minutes, taak: lowerFirst(task.title) })}${stepLine}${where ? `\n${where}` : ''}`,
     buttons: [{ id: `blk:${block.id}:stop`, title: BLOCK_BUTTONS.stop }, ...(link ? [link] : [])],
   });
   return replies;
@@ -205,6 +249,14 @@ function endButtons(blockId: number): Button[] {
     { id: `blk:${blockId}:done`, title: BLOCK_BUTTONS.done },
     { id: `blk:${blockId}:plus15`, title: BLOCK_BUTTONS.plus15 },
     { id: `blk:${blockId}:stop`, title: BLOCK_BUTTONS.stop },
+  ];
+}
+
+function windowEndButtons(blockId: number): Button[] {
+  return [
+    { id: `blk:${blockId}:done`, title: WINDOW_BUTTONS.done },
+    { id: `blk:${blockId}:plus30`, title: WINDOW_BUTTONS.plus30 },
+    { id: `blk:${blockId}:stop`, title: WINDOW_BUTTONS.stop },
   ];
 }
 
@@ -224,9 +276,18 @@ export async function composeBlockEnd(ctx: { db: Database; userId: number; now: 
   if (!block || block.endedAt) return { skip: 'block_closed' };
   await schedule(ctx.db, ctx.userId, 'pause_close', new Date(ctx.now.getTime() + CLOSE_AFTER_MINUTES * 60_000), { blockId, phase: 'block' });
 
-  if (block.hyperfocusPrompts === 0 && (await chainMinutes(ctx.db, ctx.userId, block, ctx.now)) >= HYPERFOCUS_MINUTES) {
+  const threshold = block.inWindow ? WINDOW_HYPERFOCUS_MINUTES : HYPERFOCUS_MINUTES;
+  if (block.hyperfocusPrompts === 0 && (await chainMinutes(ctx.db, ctx.userId, block, ctx.now)) >= threshold) {
     await updateBlock(ctx.db, block.id, { hyperfocusPrompts: 1 });
     return { subject: 'Tijd voor een pauze', message: hyperfocusMessage(block.id) };
+  }
+  if (block.inWindow) {
+    const task = block.taskId ? await getTask(ctx.db, ctx.userId, block.taskId) : undefined;
+    const worked = Math.round(minutesFrom(block.startedAt, ctx.now));
+    return {
+      subject: 'Je venster zit erop',
+      message: { text: fill(WINDOW_TEXTS.windowEnd, { n: worked, taak: lowerFirst(task?.title ?? 'je taak') }), buttons: windowEndButtons(block.id) },
+    };
   }
   const n = block.extendedMinutes > 0 ? EXTEND_MINUTES : block.plannedMinutes;
   return { subject: 'Je blok zit erop', message: { text: fill(BLOCK_TEXTS.end, { n }), buttons: endButtons(block.id) } };
@@ -327,14 +388,15 @@ export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-async function extend(ctx: Ctx, block: Block): Promise<OutboundMessage[]> {
+async function extend(ctx: Ctx, block: Block, minutes = EXTEND_MINUTES): Promise<OutboundMessage[]> {
   const { db, userId, now } = ctx;
   await cancelBlockNudges(db, userId);
-  const endsAt = new Date(now.getTime() + EXTEND_MINUTES * 60_000);
-  await updateBlock(db, block.id, { endsAt, outcome: 'extended', extendedMinutes: block.extendedMinutes + EXTEND_MINUTES });
+  const endsAt = new Date(now.getTime() + minutes * 60_000);
+  await updateBlock(db, block.id, { endsAt, outcome: 'extended', extendedMinutes: block.extendedMinutes + minutes });
   // After the first hyperfocus message one more follows; after that only the normal question.
   await schedule(db, userId, block.hyperfocusPrompts === 1 ? 'hyperfocus_break' : 'block_end', endsAt, { blockId: block.id });
-  return [{ text: BLOCK_TEXTS.extended, buttons: [{ id: `blk:${block.id}:stop`, title: BLOCK_BUTTONS.stop }] }];
+  const text = minutes === EXTEND_MINUTES ? BLOCK_TEXTS.extended : fill(BLOCK_TEXTS.extendedBy, { n: minutes });
+  return [{ text, buttons: [{ id: `blk:${block.id}:stop`, title: BLOCK_BUTTONS.stop }] }];
 }
 
 async function stop(ctx: Ctx, block: Block): Promise<OutboundMessage[]> {
@@ -355,8 +417,9 @@ export async function setRewards(ctx: Pick<Ctx, 'db' | 'userId'>, enabled: boole
 
 export type DefaultBlockMinutes = (ctx: Ctx) => Promise<BlockMinutes>;
 
-/** The block length follows the last day review (step 1.11): 25 after high energy, else 15. */
-export const planBlockMinutes: DefaultBlockMinutes = async (ctx) => (await tomorrowPlan(ctx.db, ctx.userId, ctx.timezone, ctx.now)).blockMinutes;
+/** In the focus window 60; otherwise the last day review decides (step 1.11): 25 after high energy, else 15. */
+export const planBlockMinutes: DefaultBlockMinutes = async (ctx) =>
+  (await currentWindow(ctx)) ? DEFAULT_WINDOW_BLOCK_MINUTES : (await tomorrowPlan(ctx.db, ctx.userId, ctx.timezone, ctx.now)).blockMinutes;
 
 /** blk:t{task}:m{15|25|45} · blk:t{task}:next · blk:{block}:{stop|done|break|plus15|back} · rw:on|off · t:{task}:start */
 export function blockButtons(defaultMinutes: DefaultBlockMinutes = planBlockMinutes): ButtonExtension {
@@ -376,6 +439,8 @@ export function blockButtons(defaultMinutes: DefaultBlockMinutes = planBlockMinu
         return block.endedAt ? [{ text: BLOCK_TEXTS.backLate }] : finishBlock(ctx, block);
       case 'plus15':
         return block.endedAt ? [{ text: BLOCK_TEXTS.backLate }] : extend(ctx, block);
+      case 'plus30':
+        return block.endedAt ? [{ text: BLOCK_TEXTS.backLate }] : extend(ctx, block, WINDOW_EXTEND_MINUTES);
       case 'back':
         return returnFromPause(ctx, block);
     }
@@ -396,8 +461,8 @@ export async function pauseModeHandler(text: string, data: Record<string, unknow
 export const startSessionTool = defineTool({
   name: 'start_session',
   description:
-    'Start een werkblok op een taak ("start", "ik ga nu aan de offerte"). Noemt de gebruiker een duur, geef minutes (15, 25 of 45; ' +
-    'andere waarden rond ik af). Zonder duur vraag ik hoe lang.',
+    'Start een werkblok op een taak ("start", "ik ga nu aan de offerte"). Noemt de gebruiker een duur, geef minutes (15, 25, 45, 60 of 90; ' +
+    '"anderhalf uur" is 90; andere waarden rond ik af). Zonder duur vraag ik hoe lang.',
   input: z.object({ task_id: z.number().int(), minutes: z.number().int().min(1).max(240).optional() }),
   async run(input, ctx) {
     const replies =

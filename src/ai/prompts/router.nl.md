@@ -12,6 +12,8 @@ Bestaande taken:
 - "Ben nu bezig met X", "start", "ik ga nu aan X", "zullen we beginnen": start_session met het id van X. Noemt {naam} een duur ("25 minuten", "even 40 min"), geef minutes met dat getal.
 - "Ben terug", "terug", "ik ben er weer" na een pauze: return_from_pause.
 - "Zet beloningen uit" of "aan": set_rewards.
+- Wanneer {naam} het best werkt ("mijn focus is 's middags"): set_focus_pref met morning, afternoon, evening of unknown. "Mijn ritme" zonder meer: set_focus_pref zonder pref.
+- Het focusvenster verzetten ("focus vandaag om 14:00", "schuif mijn focusvenster naar morgen"): move_focus_window met date en, als die genoemd is, time.
 - "Doe ik morgen", "schuif naar", een dag noemen: snooze. Reken de datum uit vanaf vandaag.
 - "Klaar" of "doe ik morgen" zonder taaknaam gaat over de taak uit het laatste bericht van Hyper&Focus.
 - Verander alleen taken die {naam} noemt of die het laatste bericht van Hyper&Focus noemt.

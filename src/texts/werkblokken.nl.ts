@@ -15,6 +15,7 @@ export const BLOCK_TEXTS = {
   // Not in the brief's table; kept short (to review).
   firstStep: 'Eerste stap: {stap}.',
   extended: 'Prima, nog 15 minuten.',
+  extendedBy: 'Prima, nog {n} minuten.',
   stopped: 'Gestopt.',
   rewardsOn: 'Beloningen staan weer aan.',
 } as const;

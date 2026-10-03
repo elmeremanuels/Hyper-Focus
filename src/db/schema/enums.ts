@@ -30,6 +30,11 @@ export const nudgeKind = pgEnum('nudge_kind', [
   'return_reminder',
   'pause_close',
   'hyperfocus_break',
+  // Focus window (step 1.12)
+  'window_heads_up',
+  'window_quiet_check',
+  'soft_landing',
+  'window_missed',
 ]);
 
 // Phase 2 lenses. Later lenses (swot, offer_pricing, retention, visibility, time_saving)
@@ -73,3 +78,8 @@ export const gardenEventKind = pgEnum('garden_event_kind', ['block', 'on_time_re
 
 /** Energy at the end of the day (step 1.11). */
 export const dayEnergy = pgEnum('day_energy', ['low', 'normal', 'high']);
+
+/** When someone works best (step 1.12). */
+export const focusPref = pgEnum('focus_pref', ['morning', 'afternoon', 'evening', 'unknown']);
+export const focusWindowSource = pgEnum('focus_window_source', ['pref', 'learned', 'manual']);
+export const focusWindowStatus = pgEnum('focus_window_status', ['planned', 'used', 'missed', 'moved']);

@@ -159,7 +159,13 @@ export function createTelegramProcessor(deps: TelegramProcessorDeps) {
 
     const linkedUser = { ...user, telegramChatId: update.chatId };
     await deps.delivery.send(linkedUser, { text: TEXTS.linked, buttons: [{ id: 'f:show', title: 'Laat zien' }] }, { via: 'telegram' });
-    // Then, once, which tools the user works in (step 1.10). The first question can be skipped.
+    // Then, once, when the user works best (step 1.12) and which tools they use (step 1.10).
+    try {
+      const [pref] = await deps.router({ kind: 'button', userId: user.id, buttonId: 'fp:ask', title: 'Mijn ritme', source: 'telegram' });
+      if (pref) await deps.delivery.send(linkedUser, pref, { via: 'telegram' });
+    } catch (error) {
+      log.error('Asking the focus preference failed:', error);
+    }
     try {
       const questions = await deps.router({ kind: 'button', userId: user.id, buttonId: 'tl:start', title: 'Tools instellen', source: 'telegram' });
       for (const reply of questions) await deps.delivery.send(linkedUser, reply, { via: 'telegram' });

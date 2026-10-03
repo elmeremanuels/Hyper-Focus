@@ -127,6 +127,17 @@ export const CASES: EvalCase[] = [
   { text: 'ben terug', tools: one('return_from_pause') },
   { text: 'zet beloningen uit', tools: one('set_rewards'), check: { tool: 'set_rewards', enabled: false } },
 
+  // focus window (step 1.12)
+  { text: "mijn focus is 's middags", tools: one('set_focus_pref'), check: { tool: 'set_focus_pref', fields: { pref: 'afternoon' } } },
+  { text: 'focus vandaag om 14:00', tools: one('move_focus_window'), check: { tool: 'move_focus_window', fields: { date: '2026-10-07', time: '14:00' } } },
+  { text: 'ik ga anderhalf uur diep op de offerte', tools: one('start_session'), check: { tool: 'start_session', task_id: 11, minutes: 90 } },
+  { text: 'mijn ritme', tools: one('set_focus_pref'), check: { tool: 'set_focus_pref', fields: { pref: undefined } } },
+  {
+    text: 'schuif mijn focusvenster naar morgen',
+    tools: one('move_focus_window'),
+    check: { tool: 'move_focus_window', fields: { date: '2026-10-08', time: undefined } },
+  },
+
   // day review (step 1.11)
   { text: 'afsluiten om 17:30', tools: one('update_settings'), check: { tool: 'update_settings', fields: { wrapup_time: '17:30' } } },
   { text: 'energie was vandaag laag', tools: one('set_day_energy'), check: { tool: 'set_day_energy', fields: { energy: 'low' } } },

@@ -43,6 +43,13 @@
       "when": 1791023129316,
       "tag": "0005_day_review",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791033818949,
+      "tag": "0006_focus_window",
+      "breakpoints": true
     }
   ]
 }

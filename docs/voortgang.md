@@ -487,6 +487,64 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - *Opknippen* in de review zet de taak ook op morgen, zonder dat dit als doorschuiven telt.
   - Zonder focus en zonder blokken op een dag blijft de review stil, net als de oude afsluiting.
 
+## Stap 1.12 A1+A2 — Focusvenster en ritme
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Datamodel (uit het aanpasplan):** migratie `0006_focus_window`.
+  - Op `users`: `focus_pref`, `focus_window_start` en `focus_window_minutes`.
+  - Nieuwe tabellen: `focus_windows` en `rhythm_profiles`.
+  - Op `focus_blocks`: `in_window`, en `planned_minutes` staat nu ook 60 en 90 toe.
+  - Vier nieuwe nudge-soorten.
+- **Gebouwd:**
+  - Pure functies met unittests:
+    - `src/focus/window.ts`: het venster kiezen (handmatig > geleerd > voorkeur > standaard, buiten de stille uren);
+    - `src/focus/rhythm.ts`: `scoreHours` (per weekdag en half uur, gewichten uit het plan, energie × 0,5 of × 1,25, `confidence`).
+  - Voorkeursvraag:
+    - komt na het koppelen van Telegram, en met "mijn ritme";
+    - bestaande gebruikers krijgen hem één keer na het ochtendbericht.
+  - Planner:
+    - kiest elke nacht het venster en zet de hoofdtaak erin;
+    - een afspraak in het venster schuift het naar het eerste vrije uur;
+    - plant het seintje (15 min vooraf), de controle op een gemist venster (30 min na de start) en de zachte landing (10 min voor een afspraak of de stille uren).
+  - Ochtendbericht krijgt de regel "Je focusvenster vandaag: …" en [Schuif venster]. *Laat zien* zet de venstertaak onderaan, met de tijd.
+  - In het venster:
+    - *Start* geeft 45/60/90 (standaard 60);
+    - na 50 minuten komt één stil bericht;
+    - aan het eind "{n} minuten diep werk. …" met [Af] [Nog 30 min] [Stoppen];
+    - de hyperfocus-vanger pas na 90 minuten.
+  - Zachte landing: de zin die je typt of inspreekt komt in de notities van de taak en staat bij de volgende *Start*.
+  - Venster gemist: één bericht zonder geluid met een voorstel (het volgende vrije uur vandaag, of morgen in je eigen venster). [Ja] verzet het venster en neemt de taak mee.
+  - Router: `set_focus_pref`, `move_focus_window`, `start_session` met 60 en 90.
+  - Ritme:
+    - de planner herberekent het hooguit één keer per week;
+    - na de weekreview komt eenmalig het voorstel;
+    - na [Ja] telt het geleerde venster;
+    - het schuift daarna hooguit 30 minuten per week, een grotere sprong vraagt de bot eerst.
+  - `sim:day --scenario rhythm` geeft na twee weken "Je beste uren liggen op werkdagen rond 13:30". `stats:focus` heeft drie nieuwe regels.
+  - Evaluatieset: 5 nieuwe gevallen (83 in totaal).
+- **Controle (Definition of Done):** `tests/focus-window.test.ts` en `tests/focus-window.integration.test.ts`.
+  - De volgorde bij het kiezen van het venster, met de vier standaardvensters.
+  - `scoreHours`:
+    - een middagpiek geeft 13:30;
+    - weinig data geeft confidence onder 0,4, en dan blijft de voorkeur staan.
+  - Ochtendregel, seintje met werkplek-knop en de volgorde in *Laat zien*.
+  - Vensterblok van 60 minuten: na 50 minuten één stil bericht, daarna niets tot het einde. De hyperfocus-vanger komt pas bij 90 minuten.
+  - Venster gemist: precies één stil bericht. Na [Ja] komt een nieuw seintje en geen tweede melding.
+  - Zachte landing 10 minuten voor een afspraak; stille uren gaan voor.
+  - Geleerd venster: voorstel, [Ja], en daarna de planner met bron `learned`. Een sprong van meer dan 30 minuten wacht op een nieuwe vraag.
+  - Verwijderen neemt `focus_windows` en `rhythm_profiles` mee.
+  - `npm test`: 333 groen. De eval draait op de VPS.
+- **Keuzes om voor te leggen:**
+  - Het seintje vervangt het middagbericht; beide gingen over dezelfde hoofdtaak.
+  - Vensterberichten tellen mee in de daglimiet van 4 en de adempauze. Er zijn twee uitzonderingen, zodat de dagreview niet wegvalt:
+    - het seintje negeert de adempauze, want het hoort bij een vaste tijd;
+    - "Venster liep anders" telt niet mee voor de limiet (stil bericht).
+  - De zachte landing komt alleen als er een blok loopt.
+  - Het aanpasplan noemt vrijdag voor het ritmevoorstel en de weekopbrengst. Beide hangen nu aan de weekreview, die standaard op zondag valt (`weekly_review_day`).
+  - Werkdagen: het venster wordt ook in het weekend gepland. Een instelling met werkdagen staat in `docs/later.md`.
+  - Extra teksten, niet uit het plan: zie `WINDOW_TEXTS` onder "to review" in `src/texts/focusvenster.nl.ts`.
+
 ## Volgende stap
 
 Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.

@@ -32,7 +32,9 @@ describe.skipIf(!adminUrl)('daily rhythm (integration)', () => {
 
     expect(await nudgesFor(t.userId, '2026-10-07')).toEqual([
       { kind: 'morning', at: '2026-10-07T06:30:00.000Z', status: 'pending', reason: null },
-      { kind: 'midday', at: '2026-10-07T11:30:00.000Z', status: 'pending', reason: null },
+      // The focus window (step 1.12), 10:30–12:00 local by default; its heads-up replaces the midday nudge.
+      { kind: 'window_heads_up', at: '2026-10-07T08:15:00.000Z', status: 'pending', reason: null },
+      { kind: 'window_missed', at: '2026-10-07T09:00:00.000Z', status: 'pending', reason: null },
       { kind: 'wrapup', at: '2026-10-07T14:00:00.000Z', status: 'pending', reason: null },
     ]);
   });
@@ -70,7 +72,7 @@ describe.skipIf(!adminUrl)('daily rhythm (integration)', () => {
     expect((await nudgesFor(bali, '2026-10-08'))[0]).toMatchObject({ kind: 'morning', at: '2026-10-08T06:30:00.000Z' });
   });
 
-  it('sends the morning by Telegram, skips midday once started, and falls back to mail', async () => {
+  it('sends the morning and the focus window by Telegram, and falls back to mail', async () => {
     await db().update(users).set({ telegramChatId: 4242 }).where(eq(users.id, t.userId));
     const { delivery, telegram, brevo } = fakeDelivery(createDbMessageStore(db()));
     const deps = { db: db(), delivery, users: createDbUserStore(db()), log: { error: () => undefined, warn: () => undefined } };
@@ -79,17 +81,23 @@ describe.skipIf(!adminUrl)('daily rhythm (integration)', () => {
     const morning = await sendDueNudges(deps, new Date('2026-10-07T06:30:30Z'));
     expect(morning.sent).toBeGreaterThanOrEqual(1);
     const sam = telegram.sent().find((call) => call.body.chat_id === 4242);
-    expect(sam?.body.text).toBe('Goedemorgen Sam. Je focus voor vandaag staat klaar.');
+    expect(sam?.body.text).toBe('Goedemorgen Sam. Je focus voor vandaag staat klaar.\nJe focusvenster vandaag: 10:30–12:00. Daar zet ik offerte bakkerij afmaken.');
 
-    // The main task (Offerte) is already in progress in the seed.
-    await sendDueNudges(deps, new Date('2026-10-07T11:31:00Z'));
+    // The heads-up with sound, the missed window without (step 1.12).
+    await sendDueNudges(deps, new Date('2026-10-07T08:15:30Z'));
+    expect(telegram.sent().at(-1)?.body).toMatchObject({ text: 'Over een kwartier je focusvenster. Offerte bakkerij afmaken ligt klaar.' });
+    expect(telegram.sent().at(-1)?.body.disable_notification).toBeUndefined();
+    await sendDueNudges(deps, new Date('2026-10-07T09:00:30Z'));
+    expect(telegram.sent().at(-1)?.body).toMatchObject({ disable_notification: true });
+    expect(String(telegram.sent().at(-1)?.body.text)).toMatch(/^Venster liep anders\. Zal ik offerte bakkerij afmaken naar vandaag 11:30 zetten\?$/);
     telegram.failSendWith(403, 'Forbidden: bot was blocked by the user');
     await sendDueNudges(deps, new Date('2026-10-07T14:00:10Z'));
 
     const statuses = await nudgesFor(t.userId, '2026-10-07');
     expect(statuses.map((nudge) => [nudge.kind, nudge.status, nudge.reason])).toEqual([
       ['morning', 'sent', null],
-      ['midday', 'skipped', 'main_task_started'],
+      ['window_heads_up', 'sent', null],
+      ['window_missed', 'sent', null],
       ['wrapup', 'sent', null],
     ]);
     const mail = brevo.sent.at(-1)?.body;
