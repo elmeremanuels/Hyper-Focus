@@ -783,9 +783,9 @@ DEFAULT_TIMEZONE=Europe/Amsterdam
 
 # Claude
 ANTHROPIC_API_KEY=
-CLAUDE_MODEL_FAST=claude-haiku-4-5-20251001
+CLAUDE_MODEL_FAST=claude-sonnet-5-5
 CLAUDE_MODEL_SMART=claude-opus-5-5
-CLAUDE_EFFORT_FAST=                   # optioneel: low … max; leeg laten bij Haiku 4.5
+CLAUDE_EFFORT_FAST=low                # optioneel: low … max; leeg laten bij Haiku 4.5
 CLAUDE_EFFORT_SMART=
 
 # Transcriptie

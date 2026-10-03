@@ -10,3 +10,4 @@ Ideeën en extra's die buiten de huidige bouwstap vallen.
 - Ochtendbericht: nu een vaste tekst zonder AI. Het slimme model (10.4) kan de groet persoonlijker maken, bijvoorbeeld samen met het agenda-overzicht (1.8). Eerst kijken of de vaste tekst werkt.
 - Middagbericht: de tijd (13:30) staat vast in de code. Een instelling `midday_time` vraagt een datamodelwijziging.
 - Database: enumwaarde `weekly_mail` voor `nudge_kind`, zodat het weekoverzicht geen `payload.part` nodig heeft (1.7).
+- Router: Haiku eerst, Sonnet 5.5 als vangnet wanneer Haiku bij een bericht van meer dan een paar woorden geen tool aanroept. Interessant zodra de kosten per klant tellen (fase 3).
