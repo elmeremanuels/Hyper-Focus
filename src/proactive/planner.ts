@@ -1,8 +1,8 @@
 // Plans each user's day at 00:05 local time (BOUWPLAN.md, 11.1–11.3): the daily focus and
 // the day's messages in scheduled_nudges, converted to UTC with Luxon.
-import { and, eq, inArray, isNull, lte, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, lte, or } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
-import { dailyFocus, projects, scheduledNudges, tasks, users } from '../db/schema/index.js';
+import { dailyFocus, dayReviews, projects, scheduledNudges, tasks, users } from '../db/schema/index.js';
 import { getSettings } from '../core/settings.js';
 import { localDate, localNow, localTimeOnDate } from '../lib/time.js';
 import { nextStep } from '../core/steps.js';
@@ -12,6 +12,7 @@ import { busyBlocks, fitFocus, totalMinutes } from './daycalendar.js';
 import { ESCALATION_TIME, pickEscalation } from './escalation.js';
 import { silentDays } from './guardrails.js';
 import { composeFocus, type ComposedFocus, type FocusCandidate } from './focus.js';
+import { tomorrowPlan } from './tomorrow-signals.js';
 
 export const PLANNER_TIME = '00:05';
 export const MIDDAY_TIME = '13:30';
@@ -90,8 +91,16 @@ export async function planDay(
       .returning({ id: dailyFocus.id });
     if (!claimed) return undefined;
 
+    // The last day review shapes today (step 1.11). A review left open closes silently.
+    const db2 = tx as unknown as Database;
+    await db2
+      .update(dayReviews)
+      .set({ skipped: true })
+      .where(and(eq(dayReviews.userId, userId), lt(dayReviews.date, today), isNull(dayReviews.completedAt), eq(dayReviews.skipped, false)));
+    const shape = await tomorrowPlan(db2, userId, timezone, now);
+
     const candidates = await focusCandidates(tx, userId, now);
-    const focus = composeFocus(candidates, today, now);
+    const focus = composeFocus(candidates, today, now, shape);
     if (withCalendar) await fitToCalendar(tx as unknown as Database, userId, timezone, today, settings, candidates, focus);
     await tx
       .update(dailyFocus)

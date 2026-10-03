@@ -17,6 +17,8 @@ export interface EvalCase {
     /** Block length after rounding to 15, 25 or 45. */
     minutes?: number;
     enabled?: boolean;
+    /** Other input fields that must match exactly. */
+    fields?: Record<string, unknown>;
   };
 }
 
@@ -124,6 +126,11 @@ export const CASES: EvalCase[] = [
   { text: 'even 40 min aan de offerte voor de bakkerij', tools: one('start_session'), check: { tool: 'start_session', task_id: 11, minutes: 45 } },
   { text: 'ben terug', tools: one('return_from_pause') },
   { text: 'zet beloningen uit', tools: one('set_rewards'), check: { tool: 'set_rewards', enabled: false } },
+
+  // day review (step 1.11)
+  { text: 'afsluiten om 17:30', tools: one('update_settings'), check: { tool: 'update_settings', fields: { wrapup_time: '17:30' } } },
+  { text: 'energie was vandaag laag', tools: one('set_day_energy'), check: { tool: 'set_day_energy', fields: { energy: 'low' } } },
+  { text: 'zet de factuur op morgen', tools: one('snooze'), check: { tool: 'snooze', task_id: 15, until_date: '2026-10-08' } },
 
   // forwarded mail (step 1.7)
   {

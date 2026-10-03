@@ -39,12 +39,23 @@ export function scoreTask(task: FocusCandidate, today: string, now: Date): numbe
   return score;
 }
 
+/** Shapes the focus after the day review (step 1.11); see tomorrow.ts. */
+export interface FocusShape {
+  maxTasks: number;
+  quickWinMinMinutes: number;
+  quickWinMaxMinutes: number;
+  pinTaskId: number | null;
+}
+
+const DEFAULT_SHAPE: FocusShape = { maxTasks: 3, quickWinMinMinutes: 0, quickWinMaxMinutes: QUICK_WIN_MAX_MINUTES, pinTaskId: null };
+
 /**
  * One main task (highest score), one quick win (≤ 10 minutes), and a third only while the
- * total estimate stays within 3 hours.
+ * total estimate stays within 3 hours. A pinned task becomes the main task.
  */
-export function composeFocus(candidates: FocusCandidate[], today: string, now: Date): ComposedFocus {
-  const ranked = candidates
+export function composeFocus(candidates: FocusCandidate[], today: string, now: Date, shape: Partial<FocusShape> = {}): ComposedFocus {
+  const { maxTasks, quickWinMinMinutes, quickWinMaxMinutes, pinTaskId } = { ...DEFAULT_SHAPE, ...shape };
+  const sorted = candidates
     .map((task) => ({ task, score: scoreTask(task, today, now) }))
     .sort(
       (a, b) =>
@@ -54,19 +65,22 @@ export function composeFocus(candidates: FocusCandidate[], today: string, now: D
         a.task.id - b.task.id,
     )
     .map((entry) => entry.task);
+  const pinned = sorted.find((task) => task.id === pinTaskId);
+  const ranked = pinned ? [pinned, ...sorted.filter((task) => task !== pinned)] : sorted;
 
   const main = ranked[0];
   if (!main) return { taskIds: [], mainTaskId: null, quickWinTaskId: null };
 
   const rest = ranked.slice(1);
   const quickWin = rest.find(
-    (task) => task.estimatedMinutes !== null && task.estimatedMinutes <= QUICK_WIN_MAX_MINUTES,
+    (task) =>
+      task.estimatedMinutes !== null && task.estimatedMinutes >= quickWinMinMinutes && task.estimatedMinutes <= quickWinMaxMinutes,
   );
-  const picked = [main, ...(quickWin ? [quickWin] : [])];
+  const picked = [main, ...(quickWin && maxTasks > 1 ? [quickWin] : [])];
   const minutes = (task: FocusCandidate) => task.estimatedMinutes ?? UNKNOWN_ESTIMATE;
 
   for (const task of rest) {
-    if (picked.length >= 3) break;
+    if (picked.length >= Math.min(3, maxTasks)) break;
     if (picked.includes(task)) continue;
     const total = [...picked, task].reduce((sum, t) => sum + minutes(t), 0);
     if (total <= FOCUS_MAX_MINUTES) picked.push(task);
@@ -75,6 +89,6 @@ export function composeFocus(candidates: FocusCandidate[], today: string, now: D
   return {
     taskIds: picked.map((task) => task.id),
     mainTaskId: main.id,
-    quickWinTaskId: quickWin?.id ?? null,
+    quickWinTaskId: quickWin && picked.includes(quickWin) ? quickWin.id : null,
   };
 }

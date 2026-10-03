@@ -6,7 +6,8 @@ import { fillPrompt, loadPrompt } from '../ai/prompts.js';
 import { getProfile, type UserProfile } from '../core/profile.js';
 import type { Database } from '../db/client.js';
 import { handleButton, helpMessage, type ButtonContext, type ButtonExtension } from './buttons.js';
-import { blockButtons, BLOCK_TOOLS, DEFAULT_BLOCK_MINUTES, pauseModeHandler, setRewards, startBlock, type DefaultBlockMinutes } from './blocks.js';
+import { dayReviewButtons, dayReviewModeHandler, DAY_REVIEW_TOOLS } from './day-review.js';
+import { blockButtons, BLOCK_TOOLS, pauseModeHandler, planBlockMinutes, setRewards, startBlock, type DefaultBlockMinutes } from './blocks.js';
 import { loadContext, renderContext } from './context.js';
 import type { Router } from './router.js';
 import { getState, type ConversationMode, type ConversationStateRow } from './state.js';
@@ -50,6 +51,7 @@ export const ROUTER_TOOLS: ToolDefinition[] = [
   ...CORE_TOOLS,
   ...SESSION_TOOLS,
   ...BLOCK_TOOLS,
+  ...DAY_REVIEW_TOOLS,
   ...CALENDAR_TOOLS,
   ...WORKPLACE_TOOLS,
   crisisTool,
@@ -82,6 +84,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
   const tools = deps.tools ?? ROUTER_TOOLS;
   const buttonExtensions = [
     blockButtons(deps.defaultBlockMinutes),
+    dayReviewButtons(),
     sessionButtons(),
     reviewButtons(),
     planSessionButton(),
@@ -92,9 +95,20 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     session: async (message, state, ctx) =>
       (await pauseModeHandler(message.text, state.data, ctx)) ??
       sessionModeHandler(message.text, state.data as SessionData, ctx, async (c, taskId) =>
-        startBlock(c, taskId, (await deps.defaultBlockMinutes?.(c)) ?? DEFAULT_BLOCK_MINUTES),
+        startBlock(c, taskId, await (deps.defaultBlockMinutes ?? planBlockMinutes)(c)),
       ),
     weekly_review: (message, state, ctx) => reviewModeHandler(message.text, state.data, ctx),
+    wrapup: (message, state, ctx) =>
+      dayReviewModeHandler(message.text, state.data, ctx, async (text) => {
+        const profile = await getProfile(deps.db, ctx.userId);
+        if (!deps.claude || !profile) return [];
+        try {
+          return await converse(deps.claude, profile, text, message.source ?? 'telegram', ctx);
+        } catch (error) {
+          log.error('Assistant failed:', error);
+          return [];
+        }
+      }),
     onboarding: (message, state, ctx) => onboardingModeHandler(message.text, state.data, ctx),
     ...deps.modeHandlers,
   };

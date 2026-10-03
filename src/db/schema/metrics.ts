@@ -24,6 +24,8 @@ export const EVENT_NAMES = [
   'block_completed',
   'pause_returned',
   'rewards_toggled',
+  'day_review_done',
+  'day_energy_set',
   'overwhelm',
   'nudge_skipped',
 ] as const;

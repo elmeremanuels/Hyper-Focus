@@ -4,6 +4,7 @@ import { recordEvent } from '../core/events.js';
 import { getSettings } from '../core/settings.js';
 import { BLOCK_TEXTS, fill } from '../texts/werkblokken.nl.js';
 import { gardenGrowthSince } from './blocks.js';
+import { energyWeekLine } from './day-review.js';
 import { listOpenSuggestions } from '../core/suggestions.js';
 import type { Database } from '../db/client.js';
 import { ideas, projects, tasks } from '../db/schema/index.js';
@@ -63,8 +64,11 @@ export async function reviewStart(ctx: Pick<ButtonContext, 'db' | 'userId' | 'no
   const { rewardsEnabled } = await getSettings(ctx.db, ctx.userId);
   const leaves = rewardsEnabled ? await gardenGrowthSince(ctx.db, ctx.userId, new Date(ctx.now.getTime() - WEEK_MS)) : 0;
   const garden = leaves > 0 ? `\n${fill(BLOCK_TEXTS.gardenWeek, { n: leaves })}` : '';
+  // The energy of the week (step 1.11), from the day reviews of the last seven days.
+  const energyLine = await energyWeekLine(ctx.db, ctx.userId, new Date(ctx.now.getTime() - 6 * 86_400_000).toISOString().slice(0, 10));
+  const energy = energyLine ? `\n${energyLine}` : '';
   return {
-    text: `${intro}${garden}\nWat ging goed? Tik of stuur een paar woorden.`,
+    text: `${intro}${garden}${energy}\nWat ging goed? Tik of stuur een paar woorden.`,
     buttons: [
       { id: 'wr:good:focus', title: 'Focus hield ik vast' },
       { id: 'wr:good:clients', title: 'Klanten blij' },

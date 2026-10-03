@@ -104,6 +104,12 @@ describe('eval judge', () => {
     expect(judge(snooze, []).problem).toMatch(/none/);
   });
 
+  it('checks other input fields exactly', () => {
+    const wrapup = CASES.find((c) => c.text === 'afsluiten om 17:30')!;
+    expect(judge(wrapup, [call('update_settings', { wrapup_time: '17:30' })])).toEqual({});
+    expect(judge(wrapup, [call('update_settings', { morning_time: '17:30' })]).problem).toMatch(/wrapup_time/);
+  });
+
   it('checks the block length after rounding', () => {
     const block = CASES.find((c) => c.text.startsWith('even 40 min'))!;
     expect(judge(block, [call('start_session', { task_id: 11, minutes: 40 })])).toEqual({});

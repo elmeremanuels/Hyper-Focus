@@ -30,6 +30,9 @@ export function judge(evalCase: EvalCase, calls: Anthropic.ToolUseBlock[]): { pr
   if (check.enabled !== undefined && input.enabled !== check.enabled) {
     return { problem: `enabled ${String(input.enabled)}, expected ${String(check.enabled)}` };
   }
+  for (const [key, expected] of Object.entries(check.fields ?? {})) {
+    if (input[key] !== expected) return { problem: `${key} ${String(input[key])}, expected ${String(expected)}` };
+  }
   if (check.project !== undefined) {
     const byClient = typeof input.client_name === 'string' ? projectForClient(input.client_name) : undefined;
     if (input.project_id !== check.project && byClient !== check.project) {

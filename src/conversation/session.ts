@@ -291,7 +291,7 @@ export function sessionButtons(): ButtonExtension {
   };
 }
 
-async function splitTask(ctx: ButtonContext, taskId: number): Promise<OutboundMessage[]> {
+export async function splitTask(ctx: ButtonContext, taskId: number): Promise<OutboundMessage[]> {
   const task = await getTask(ctx.db, ctx.userId, taskId);
   if (!task) return [{ text: 'Die taak kan ik niet meer vinden.', buttons: [SHOW_TODAY] }];
   const existing = await listSteps(ctx.db, ctx.userId, taskId);

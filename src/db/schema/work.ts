@@ -16,6 +16,7 @@ import { sql } from 'drizzle-orm';
 import { id, timestamps, userId } from './common.js';
 import {
   clientStatus,
+  dayEnergy,
   focusBlockOutcome,
   gardenEventKind,
   ideaStatus,
@@ -116,6 +117,8 @@ export const tasks = pgTable(
     dueDate: date('due_date'),
     snoozedUntil: timestamp('snoozed_until', { withTimezone: true }),
     carryOver: boolean('carry_over').notNull().default(false),
+    /** +1 on every move to tomorrow, from the day review or the router (step 1.11). */
+    deferredCount: integer('deferred_count').notNull().default(0),
     source: taskSource('source').notNull(),
     stuckSince: timestamp('stuck_since', { withTimezone: true }),
     lastEscalationLevel: smallint('last_escalation_level').notNull().default(0),
@@ -239,4 +242,19 @@ export const gardenEvents = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index('garden_events_user_created_idx').on(table.userId, table.createdAt)],
+);
+
+/** The day review (step 1.11): one row per user and local date. */
+export const dayReviews = pgTable(
+  'day_reviews',
+  {
+    id: id(),
+    userId: userId(),
+    date: date('date').notNull(),
+    energy: dayEnergy('energy'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    skipped: boolean('skipped').notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex('day_reviews_user_date').on(table.userId, table.date)],
 );

@@ -22,6 +22,10 @@ export type ParsedButton =
   | { kind: 'block'; action: 'next'; taskId: number }
   | { kind: 'block'; action: 'stop' | 'done' | 'break' | 'plus15' | 'back'; blockId: number }
   | { kind: 'rewards'; enabled: boolean }
+  | { kind: 'day'; action: 'task'; taskId: number; choice: 'tomorrow' | 'split' | 'park' | 'done' }
+  | { kind: 'day'; action: 'rest' | 'close' }
+  | { kind: 'day'; action: 'energy'; energy: 'low' | 'normal' | 'high' }
+  | { kind: 'defer'; taskId: number; action: 'split' | 'park' | 'keep' }
   | { kind: 'tools'; action: 'start' | 'missing' | 'pick' | 'skip' | 'other' | 'paste' | 'keep' | 'edit' | 'del'; workType?: string; toolKey?: string }
   | { kind: 'help' };
 
@@ -47,6 +51,13 @@ export function parseButtonId(id: string): ParsedButton | undefined {
   if (match) return { kind: 'block', action: 'next', taskId: Number(match[1]) };
   match = /^blk:(\d+):(stop|done|break|plus15|back)$/.exec(id);
   if (match) return { kind: 'block', action: match[2] as never, blockId: Number(match[1]) };
+  match = /^dr:(\d+):(tomorrow|split|park|done)$/.exec(id);
+  if (match) return { kind: 'day', action: 'task', taskId: Number(match[1]), choice: match[2] as never };
+  if (id === 'dr:rest' || id === 'dr:close') return { kind: 'day', action: id === 'dr:rest' ? 'rest' : 'close' };
+  match = /^dr:e:(low|normal|high)$/.exec(id);
+  if (match) return { kind: 'day', action: 'energy', energy: match[1] as never };
+  match = /^df:(\d+):(split|park|keep)$/.exec(id);
+  if (match) return { kind: 'defer', taskId: Number(match[1]), action: match[2] as never };
   if (id === 'rw:on' || id === 'rw:off') return { kind: 'rewards', enabled: id === 'rw:on' };
   if (id === 'tl:start' || id === 'tl:missing') return { kind: 'tools', action: id === 'tl:start' ? 'start' : 'missing' };
   match = /^tl:([a-z]+):pick:([a-z_]+)$/.exec(id);
@@ -150,6 +161,8 @@ export async function handleButton(
     case 'tools':
     case 'block':
     case 'rewards':
+    case 'day':
+    case 'defer':
     case 'plan':
       return [UNKNOWN];
   }

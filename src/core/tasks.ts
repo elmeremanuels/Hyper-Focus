@@ -161,7 +161,7 @@ export async function setTaskStatus(
 export async function carryOver(db: Database, userId: number, taskId: number, until: Date): Promise<boolean> {
   const updated = await db
     .update(tasks)
-    .set({ carryOver: true, snoozedUntil: until })
+    .set({ carryOver: true, snoozedUntil: until, deferredCount: sql`${tasks.deferredCount} + 1` })
     .where(and(eq(tasks.userId, userId), eq(tasks.id, taskId)))
     .returning({ id: tasks.id });
   return updated.length > 0;
@@ -170,7 +170,7 @@ export async function carryOver(db: Database, userId: number, taskId: number, un
 export async function snoozeTask(db: Database, userId: number, taskId: number, until: Date): Promise<boolean> {
   const updated = await db
     .update(tasks)
-    .set({ snoozedUntil: until })
+    .set({ snoozedUntil: until, deferredCount: sql`${tasks.deferredCount} + 1` })
     .where(and(eq(tasks.userId, userId), eq(tasks.id, taskId)))
     .returning({ id: tasks.id });
   return updated.length > 0;
