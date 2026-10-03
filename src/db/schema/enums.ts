@@ -58,3 +58,6 @@ export const conversationMode = pgEnum('conversation_mode', [
   'intake',
   'onboarding',
 ]);
+
+/** Kinds of work a workplace link can open (step 1.10). */
+export const workType = pgEnum('work_type', ['invoicing', 'email', 'calendar', 'content', 'website', 'docs']);

@@ -153,11 +153,15 @@ export function createTelegramProcessor(deps: TelegramProcessorDeps) {
     await deps.messages.touchLastInbound(user.id, update.sentAt);
     log.info(`Linked Telegram user ${mask(update.fromUserId)} to user ${user.id}`);
 
-    await deps.delivery.send(
-      { ...user, telegramChatId: update.chatId },
-      { text: TEXTS.linked, buttons: [{ id: 'f:show', title: 'Laat zien' }] },
-      { via: 'telegram' },
-    );
+    const linkedUser = { ...user, telegramChatId: update.chatId };
+    await deps.delivery.send(linkedUser, { text: TEXTS.linked, buttons: [{ id: 'f:show', title: 'Laat zien' }] }, { via: 'telegram' });
+    // Then, once, which tools the user works in (step 1.10). The first question can be skipped.
+    try {
+      const questions = await deps.router({ kind: 'button', userId: user.id, buttonId: 'tl:start', title: 'Tools instellen', source: 'telegram' });
+      for (const reply of questions) await deps.delivery.send(linkedUser, reply, { via: 'telegram' });
+    } catch (error) {
+      log.error('Starting the tool questions failed:', error);
+    }
     return 'linked';
   }
 

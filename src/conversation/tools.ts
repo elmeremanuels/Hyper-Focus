@@ -24,6 +24,8 @@ import { projects } from '../db/schema/index.js';
 import { isValidDate, isValidTime, localDate, startOfLocalDate, startOfNextLocalDay } from '../lib/time.js';
 import type { Button, InboundSource, OutboundMessage } from './types.js';
 import { focusView, parkingMessage, SHOW_TODAY } from './views.js';
+import { weeklyToolQuestion, workplaceButton } from './workplace.js';
+import { WORK_TYPES } from '../tools/catalog.js';
 
 export interface ToolContext {
   db: Database;
@@ -43,6 +45,8 @@ export interface ToolOutcome {
   isError?: boolean;
   /** Replaces Claude's reply: for lists and fixed texts. */
   reply?: OutboundMessage;
+  /** Extra messages after the reply, such as the weekly tool question. */
+  followUps?: OutboundMessage[];
   /** Only this reply goes out; Claude's text and other buttons are dropped. */
   exclusive?: boolean;
   buttons?: Button[];
@@ -141,6 +145,13 @@ const addTask = defineTool({
     client_name: z.string().optional().describe('Naam van de klant zoals de gebruiker hem noemt.'),
     due_date: date.optional().describe('Deadline als YYYY-MM-DD, alleen als de gebruiker die noemt.'),
     notes: z.string().max(1000).optional(),
+    work_type: z
+      .enum(WORK_TYPES)
+      .optional()
+      .describe(
+        'Alleen bij een duidelijk werkwoord + object: invoicing (factuur, offerte), email (mail sturen), calendar (afspraak plannen), ' +
+          'content (post, social), website (pagina, site), docs (document, contract). Bij twijfel weglaten.',
+      ),
   }),
   async run(input, ctx) {
     const { db, userId } = ctx;
@@ -154,19 +165,25 @@ const addTask = defineTool({
       dueDate: input.due_date ?? null,
       notes: input.notes ?? null,
       source: ctx.source,
+      workType: input.work_type ?? null,
     });
     const task = await getTask(db, userId, id);
+    const link = task ? await workplaceButton(db, userId, task) : undefined;
+    const question = input.work_type && !link ? await weeklyToolQuestion(ctx, input.work_type) : undefined;
+    const followUps = question ? { followUps: [question] } : {};
 
     if (needsProject) {
       const candidates = (await listActiveProjects(db, userId)).filter((p) => p.id !== projectId).slice(0, 3);
       return {
         content: `Taak #${id} "${input.title}" staat in Losse taken. Vraag kort bij welk project hij hoort; ik toon knoppen met projecten.`,
-        buttons: candidates.map((p) => ({ id: `mv:${id}:${p.id}`, title: buttonTitle(p.title) })),
+        buttons: [...candidates.map((p) => ({ id: `mv:${id}:${p.id}`, title: buttonTitle(p.title) })), ...(link ? [link] : [])],
+        ...followUps,
       };
     }
     return {
       content: `Taak #${id} "${input.title}" aangemaakt in project "${task?.projectTitle}"${input.due_date ? `, deadline ${input.due_date}` : ''}.`,
-      buttons: [{ id: `t:${id}:start`, title: 'Nu starten' }],
+      buttons: [{ id: `t:${id}:start`, title: 'Nu starten' }, ...(link ? [link] : [])],
+      ...followUps,
     };
   },
 });

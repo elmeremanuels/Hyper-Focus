@@ -16,6 +16,7 @@ import { clearState, getState, setState } from './state.js';
 import { defineTool, resolveProject, runTool, toAnthropicTools, type ToolContext, type ToolDefinition } from './tools.js';
 import type { Button, InboundSource, OutboundMessage } from './types.js';
 import { SHOW_TODAY } from './views.js';
+import { workplaceButton } from './workplace.js';
 
 type Claude = Pick<ClaudeClient, 'callWithTools'>;
 
@@ -170,7 +171,11 @@ export async function startSession(
   await setState(db, userId, 'session', { taskId: task.id, stepId: step.id, stuck: false } satisfies SessionData, expiry(now, sessionMinutes));
   await recordEvent(db, userId, 'session_started', { minutes: sessionMinutes });
 
-  replies.push({ text: `Top. Eén stap: ${lowerFirst(step.title)}. Ik check over ${sessionMinutes} minuten bij je.` });
+  const link = await workplaceButton(db, userId, task);
+  replies.push({
+    text: `Top. Eén stap: ${lowerFirst(step.title)}. Ik check over ${sessionMinutes} minuten bij je.`,
+    ...(link && { buttons: [link] }),
+  });
   return replies;
 }
 

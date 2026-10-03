@@ -18,6 +18,10 @@ export function judge(evalCase: EvalCase, calls: Anthropic.ToolUseBlock[]): { pr
       return { problem: `${key} ${String(input[key])}, expected ${check[key]}` };
     }
   }
+  if (check.work_type !== undefined) {
+    const actual = (input.work_type as string | undefined) ?? null;
+    if (actual !== check.work_type) return { problem: `work_type ${String(actual)}, expected ${String(check.work_type)}` };
+  }
   if (check.project !== undefined) {
     const byClient = typeof input.client_name === 'string' ? projectForClient(input.client_name) : undefined;
     if (input.project_id !== check.project && byClient !== check.project) {

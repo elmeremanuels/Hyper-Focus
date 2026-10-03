@@ -745,6 +745,17 @@ Context:
 **1.8 Agendakoppeling, optioneel** (11.8). Bouw je in de eerste week van eigen gebruik.
 *Klaar als:* met de agenda uit alles werkt zoals na 1.7 · een proactief bericht tijdens een afspraak direct erna komt · een dag met vijf uur afspraken maximaal twee focustaken telt · een klantafspraak tien minuten vooraf een heads-up met open punten geeft · *"ontkoppel agenda"* de toegang intrekt en tokens en afspraken verwijdert.
 
+**1.9 Werkblokken en beloning** (brief 3 oktober 2026). Bij *Start* kies je 15, 25 of 45 minuten. Na een afgerond blok volgt een pauze-opdracht zonder scherm (2 of 3 minuten) en een beloningsminuut in een Telegram-mini-app. Een tuin groeit per afgerond blok en per terugkeer op tijd, en krimpt nooit. Tijdens een blok en een pauze gaan berichten stil; alleen overgangen maken geluid. De hyperfocus-vanger stelt na 60 minuten aaneengesloten werk een pauze voor.
+*Klaar als:* *Start* vraagt 15, 25 of 45 minuten en het einde komt op het gekozen moment, met geluid · na *Afgerond* komt een pauze-opdracht zonder geluid · *Ik ben terug* binnen de tijd geeft de extra druppel en *Je minuut* · zonder tik komt precies één *Terug naar je blok?* · de mini-app loopt precies 60 seconden en sluit zichzelf · twee blokken van samen 60 minuten of meer geven het pauzebericht · "zet beloningen uit" haalt de beloningsknop en de tuinregel weg.
+
+**1.10 Werkplek-links** (brief 3 oktober 2026). De bot vraagt eenmalig per soort werk welke tool je gebruikt (facturen, mail, agenda, posts, website, documenten). Een taak met een duidelijke werksoort krijgt een knop naar je eigen tool: *Open Moneybird → nieuwe factuur*. Alleen een link: geen API-koppeling, en de server haalt de link nooit op.
+*Klaar als:* "mijn tools" doorloopt de zes vragen, met overslaan en een eigen link · "morgen factuur naar Barbara versturen" geeft de knop naar de gekozen factuurtool · een taak zonder duidelijke werksoort krijgt geen knop · een `http://`-link wordt geweigerd.
+
+**1.11 Dagreview** (brief 3 oktober 2026). Het afrondbericht wordt een review van hooguit een minuut: per open taak één keuze, dan je energie, dan optioneel wat morgen vastzit. Dat bepaalt de lijst van morgen: aantal taken, lengte van de werkblokken, wat bovenaan staat en welke doorschuiver een voorstel krijgt.
+*Klaar als:* bij twee taken is de review in drie tikken klaar · energie *laag* geeft de volgende ochtend twee taken en blokken van 15 minuten · een taak die drie keer is doorgeschoven, krijgt het voorstel om op te knippen of te parkeren · een overgeslagen review wordt de volgende dag niet genoemd.
+
+Voor 1.9 t/m 1.11 geldt verder: eval ≥ 90%, crisisgevallen 100%, tests groen. Voortgang zonder telling: geen XP, levels, streaks of ranglijsten. Alles is met één tik uit te zetten.
+
 ### Fase 2 — Verbetermotor en web
 
 **2.1 Bedrijfsintake** (12.1).
@@ -762,7 +773,7 @@ Context:
 **2.5 Feedback** (12.7).
 *Klaar als:* elke knop de juiste status zet en *Niet relevant* de reden meeneemt in de volgende generatie.
 
-**2.6 Minimale web-UI.** Magic-link login. Schermen: Vandaag · Projecten & klanten · Parkeerplaats & ideeënbak · Suggesties (met concepten) · Instellingen. Mobile-first. Laat grafieken en statistieken weg.
+**2.6 Minimale web-UI.** Magic-link login. Schermen: Vandaag · Projecten & klanten · Parkeerplaats & ideeënbak · Suggesties (met concepten) · Instellingen. Mobile-first. Laat grafieken en statistieken weg. Het dashboard toont ook de tuin uit 1.9, en een assistent die een braindump structureert tot taken, klantnotities en ideeën voor de parkeerplaats, met hetzelfde brein als de Telegram-bot (werknaam Kiki; de naam wordt eerst bevestigd). Bekijk daarvoor eerst de smart assistant in Publicato en oogst wat herbruikbaar is.
 *Klaar als:* ik alles uit Telegram ook op mijn telefoon in de browser kan bekijken en bijwerken, en instellingen direct effect hebben op de planning.
 
 ### Fase 3 — Verkoopklaar (na de verkooppoort)

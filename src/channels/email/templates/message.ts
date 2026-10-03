@@ -6,8 +6,11 @@ export function renderMessageMail(
   message: OutboundMessage,
   linkFor: ((buttonId: string) => string) | undefined,
 ): { text: string; html: string } {
-  const buttons = message.choices ?? message.buttons ?? [];
-  const links = linkFor ? buttons.map((button) => ({ title: button.title, url: linkFor(button.id) })) : [];
+  const buttons = message.rows?.flat() ?? message.choices ?? message.buttons ?? [];
+  // Link buttons go straight to their URL; other buttons become signed action links.
+  const links = buttons.flatMap((button) =>
+    button.url ? [{ title: button.title, url: button.url }] : linkFor ? [{ title: button.title, url: linkFor(button.id) }] : [],
+  );
 
   const text = [
     message.text,

@@ -391,6 +391,29 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - Live koppelen en de checks uit `docs/agenda.md` doen.
   - Meer dan één ICS-link per gebruiker staat in `docs/later.md`.
 
+## Stap 1.10 — Werkplek-links
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Datamodel (uit de brief):** enum `work_type` (`invoicing`, `email`, `calendar`, `content`, `website`, `docs`), tabel `user_tools` (uniek op gebruiker en werksoort) en kolom `tasks.work_type`. Migratie `0003_workplace_links`.
+- **Gebouwd:**
+  - `src/tools/catalog.ts`: 17 tools met hun standaardpagina. URL's zijn bevestigd via officiële hulppagina's en zoekresultaten. Jortt en WordPress hebben geen bevestigde startpagina; daar vraagt de bot om een link.
+  - Linkcontrole: alleen `https://`, maximaal 2.048 tekens, een geldige hostnaam. Anders volgt de melding uit de brief. De server haalt een link nooit op.
+  - `conversation/workplace.ts`: de vragenronde (één vraag per bericht, met *Overslaan* en *Anders: plak je link*), de vraag om een link van het startscherm, "mijn tools" met per regel *Wijzig* en *Verwijder*, en eens per week de vraag als een werksoort nog geen tool heeft.
+  - Na het koppelen van Telegram start de vragenronde. `/help` noemt "mijn tools".
+  - De knop *Open {tool} → {actie}* staat bij de bevestiging van een nieuwe taak, bij *Start* en in het ochtendbericht bij de bovenste taak. In de mail is het een gewone link. Elke getoonde knop wordt gelogd (`tool_button_shown`) voor de meting.
+  - Router: `add_task` krijgt `work_type` (alleen bij een duidelijk werkwoord met object), plus de nieuwe tools `list_tools`, `set_tool` en `remove_tool`.
+  - Evaluatieset: 4 nieuwe gevallen en 1 aangescherpt (71 in totaal).
+- **Controle (Definition of Done)** in `tests/workplace.integration.test.ts` en `tests/workplace.test.ts`:
+  - *"mijn tools" doorloopt de zes vragen; overslaan en een eigen link werken:* `walks through the six questions…`.
+  - *De factuurtaak geeft [Open Moneybird → nieuwe factuur]:* `shows [Open Moneybird → nieuwe factuur]…`.
+  - *Een taak zonder werksoort krijgt geen knop:* dezelfde test.
+  - *Een `http://`-link wordt geweigerd:* in de vragenronde en in de unittests (ook `javascript:`, `data:`, `file:`, te lang, ongeldige host).
+  - *Eval ≥ 90%:* nog te draaien op de VPS. `npm test`: 272 groen.
+- **Niet gebouwd, eerst voorleggen:**
+  - De klikmeting via `/go/<id>` vraagt een nieuwe `.env`-vlag. Die leg ik je eerst voor (zie `docs/later.md`).
+  - Export van gegevens bestaat nog niet (BOUWPLAN 14, fase 2). Verwijderen werkt via de cascade op de gebruiker, dus `user_tools` gaat mee.
+
 ## Volgende stap
 
 Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.
