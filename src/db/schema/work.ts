@@ -228,6 +228,8 @@ export const focusBlocks = pgTable(
     rewardFinishedAt: timestamp('reward_finished_at', { withTimezone: true }),
     /** Started inside the focus window (step 1.12). */
     inWindow: boolean('in_window').notNull().default(false),
+    /** What got done, for the focus log (step 1.12): "{taak} af" after Af with a finished task. */
+    resultNote: text('result_note'),
     ...timestamps,
   },
   (table) => [

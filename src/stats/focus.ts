@@ -20,6 +20,7 @@ export interface FocusStats {
   blocksInWindow: number;
   blocksOutsideWindow: number;
   avgWindowMinutes: number | null;
+  focusLogOpened: number;
 }
 
 type Row = Record<string, unknown>;
@@ -32,7 +33,7 @@ export async function focusStats(db: Database, since: Date): Promise<FocusStats[
       u.name,
       s.rewards_enabled,
       (select count(*) from focus_blocks b where b.user_id = u.id and b.started_at >= ${since}) as blocks_started,
-      (select count(*) from focus_blocks b where b.user_id = u.id and b.started_at >= ${since} and b.outcome = 'completed') as blocks_completed,
+      (select count(*) from focus_blocks b where b.user_id = u.id and b.started_at >= ${since} and b.outcome in ('completed', 'extended')) as blocks_completed,
       (select count(*) from focus_blocks b where b.user_id = u.id and b.pause_started_at >= ${since}) as pauses,
       (select count(*) from focus_blocks b where b.user_id = u.id and b.pause_started_at >= ${since}
          and b.returned_at is not null and b.returned_at <= b.pause_due_at) as returned_on_time,
@@ -50,7 +51,8 @@ export async function focusStats(db: Database, since: Date): Promise<FocusStats[
       (select count(*) from focus_blocks b where b.user_id = u.id and b.started_at >= ${since} and b.in_window and b.outcome in ('completed', 'extended')) as blocks_in_window,
       (select count(*) from focus_blocks b where b.user_id = u.id and b.started_at >= ${since} and not b.in_window and b.outcome in ('completed', 'extended')) as blocks_outside_window,
       (select round(avg(extract(epoch from (b.ended_at - b.started_at)) / 60)) from focus_blocks b
-         where b.user_id = u.id and b.started_at >= ${since} and b.in_window and b.ended_at is not null) as avg_window_minutes
+         where b.user_id = u.id and b.started_at >= ${since} and b.in_window and b.ended_at is not null) as avg_window_minutes,
+      (select count(*) from events e where e.user_id = u.id and e.name = 'focus_log_opened' and e.created_at >= ${since}) as focus_log_opened
     from users u
     left join user_settings s on s.user_id = u.id
     order by u.id
@@ -72,6 +74,7 @@ export async function focusStats(db: Database, since: Date): Promise<FocusStats[
     blocksInWindow: n(row.blocks_in_window),
     blocksOutsideWindow: n(row.blocks_outside_window),
     avgWindowMinutes: row.avg_window_minutes === null || row.avg_window_minutes === undefined ? null : n(row.avg_window_minutes),
+    focusLogOpened: n(row.focus_log_opened),
   }));
 }
 
@@ -90,6 +93,7 @@ export function formatFocusStats(stats: FocusStats[], days: number): string {
       row('Venster gebruikt', ratio(s.windowsUsed, s.windowsPlanned)),
       row('Afgeronde blokken in venster', `${s.blocksInWindow} · erbuiten ${s.blocksOutsideWindow}`),
       row('Gemiddelde vensterduur', s.avgWindowMinutes === null ? '–' : `${s.avgWindowMinutes} min`),
+      row('Focuslog geopend', String(s.focusLogOpened)),
       row('Beloningen', s.rewardsEnabled ? 'aan' : 'uit'),
       '',
     );

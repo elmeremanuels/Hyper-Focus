@@ -12,13 +12,16 @@ describe('work block units', () => {
     ]);
   });
 
-  it('ends every pause mission with the phone staying down', () => {
-    for (const { minutes, text } of Object.values(PAUSE_MISSIONS)) {
-      expect(text).toContain('Je telefoon blijft liggen.');
-      expect(text).toContain(`Over ${minutes} minuten zie ik je terug.`);
-    }
+  it('keeps the four short pitstop missions, the toilet with 3 minutes', () => {
+    expect(Object.values(PAUSE_MISSIONS).map((m) => m.text)).toEqual([
+      'pak een glas water',
+      'sta op en strek je uit',
+      'loop even naar het toilet',
+      'adem drie keer diep in bij het raam',
+    ]);
     expect(PAUSE_MISSIONS.toilet.minutes).toBe(3);
-    expect(BLOCK_TEXTS.returnReminder).toBe('Terug naar je blok?');
+    expect(BLOCK_TEXTS.pitstopDone).toContain('Telefoon blijft liggen.');
+    expect(BLOCK_TEXTS.returnReminder).toBe('Pitstop voorbij. Terug naar je werk?');
   });
 
   it('renders the reward minute as a Telegram web app button', () => {

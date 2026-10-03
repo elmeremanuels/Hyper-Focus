@@ -94,7 +94,7 @@ describe.skipIf(!adminUrl)('break down and body double (integration)', () => {
     const blockId = Number(/blk:(\d+):done/.exec(JSON.stringify(sent?.reply_markup))?.[1]);
     const later = createAssistantRouter({ db: db(), claude: scriptedClaude([]), now: () => new Date('2026-10-07T08:56:00Z') });
     const [pause] = await tap(later, `blk:${blockId}:done`);
-    expect(pause?.text).toMatch(/^Mooi gewerkt\. .* Je telefoon blijft liggen\. Over [23] minuten zie ik je terug\.$/);
+    expect(pause?.text).toMatch(/^26 minuten gewerkt\. Pitstop: .+\. Telefoon blijft liggen\. Om 10:5[89] zie ik je terug\.$/);
     expect((await getState(db(), t.userId, new Date('2026-10-07T08:56:00Z'))).data).toMatchObject({ phase: 'pause', blockId });
   });
 
