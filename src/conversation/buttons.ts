@@ -18,6 +18,7 @@ export type ParsedButton =
   | { kind: 'review'; step: string; value: string }
   | { kind: 'move'; taskId: number; projectId: number }
   | { kind: 'plan'; taskId: number; time: string }
+  | { kind: 'tools'; action: 'start' | 'missing' | 'pick' | 'skip' | 'other' | 'paste' | 'keep' | 'edit' | 'del'; workType?: string; toolKey?: string }
   | { kind: 'help' };
 
 /** Parses the button ids from BOUWPLAN.md 9.4. */
@@ -36,6 +37,11 @@ export function parseButtonId(id: string): ParsedButton | undefined {
   if (match) return { kind: 'move', taskId: Number(match[1]), projectId: Number(match[2]) };
   match = /^ps:(\d+):([01]\d|2[0-3])([0-5]\d)$/.exec(id);
   if (match) return { kind: 'plan', taskId: Number(match[1]), time: `${match[2]}${match[3]}` };
+  if (id === 'tl:start' || id === 'tl:missing') return { kind: 'tools', action: id === 'tl:start' ? 'start' : 'missing' };
+  match = /^tl:([a-z]+):pick:([a-z_]+)$/.exec(id);
+  if (match) return { kind: 'tools', action: 'pick', workType: match[1] ?? '', toolKey: match[2] ?? '' };
+  match = /^tl:([a-z]+):(skip|other|paste|keep|edit|del)$/.exec(id);
+  if (match) return { kind: 'tools', action: match[2] as never, workType: match[1] ?? '' };
   if (id === 'help') return { kind: 'help' };
   return undefined;
 }
@@ -52,8 +58,10 @@ export interface ButtonContext {
 export type ButtonExtension = (button: ParsedButton, ctx: ButtonContext) => Promise<OutboundMessage[] | undefined>;
 
 export const HELP_MESSAGE: OutboundMessage = {
-  text: 'Stuur me wat je moet doen, een idee of een vraag in gewone woorden. "Vandaag" laat je focus zien.',
-  buttons: [SHOW_TODAY],
+  text:
+    'Stuur me wat je moet doen, een idee of een vraag in gewone woorden. "Vandaag" laat je focus zien. ' +
+    '"Mijn tools" zet knoppen klaar die je direct naar je eigen tools brengen.',
+  buttons: [SHOW_TODAY, { id: 'tl:start', title: 'Tools instellen' }],
 };
 
 const UNKNOWN: OutboundMessage = { text: 'Die knop ken ik niet.', buttons: [SHOW_TODAY] };
@@ -114,6 +122,7 @@ export async function handleButton(
 
     case 'session':
     case 'review':
+    case 'tools':
     case 'plan':
       return [UNKNOWN];
   }

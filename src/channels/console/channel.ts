@@ -11,9 +11,13 @@ export class ConsoleChannel {
 
   async send(message: OutboundMessage): Promise<void> {
     this.write(`\nHyper&Focus: ${message.text}`);
-    this.lastButtons = message.choices ?? message.buttons ?? [];
+    this.lastButtons = message.rows?.flat() ?? message.choices ?? message.buttons ?? [];
     if (this.lastButtons.length > 0) {
-      this.write(this.lastButtons.map((button, index) => `  [${index + 1}] ${button.title}`).join('\n'));
+      this.write(
+        this.lastButtons
+          .map((button, index) => `  [${index + 1}] ${button.title}${button.url ? ` → ${button.url}` : ''}`)
+          .join('\n'),
+      );
     }
     for (const file of message.attachments ?? []) this.write(`  [bijlage] ${file.filename}`);
   }

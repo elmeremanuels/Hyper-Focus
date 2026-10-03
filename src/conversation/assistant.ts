@@ -11,6 +11,8 @@ import type { Router } from './router.js';
 import { getState, type ConversationMode, type ConversationStateRow } from './state.js';
 import type { CalendarService } from '../integrations/calendar/service.js';
 import { CALENDAR_TOOLS, planSessionButton } from './calendar.js';
+import { onboardingModeHandler, toolsOverview, workplaceButtons } from './workplace.js';
+import { WORKPLACE_TOOLS } from './workplace-tools.js';
 import { reviewButtons, reviewModeHandler, reviewStart } from './review.js';
 import { sessionButtons, sessionModeHandler, SESSION_TOOLS, type SessionData } from './session.js';
 import { CRISIS_REPLY, crisisTool, flagCrisis, looksLikeCrisis } from './wellbeing.js';
@@ -39,7 +41,7 @@ export interface AssistantDeps {
 }
 
 /** All tools the router offers Claude. */
-export const ROUTER_TOOLS: ToolDefinition[] = [...CORE_TOOLS, ...SESSION_TOOLS, ...CALENDAR_TOOLS, crisisTool];
+export const ROUTER_TOOLS: ToolDefinition[] = [...CORE_TOOLS, ...SESSION_TOOLS, ...CALENDAR_TOOLS, ...WORKPLACE_TOOLS, crisisTool];
 
 /** Tool rounds per message; after that the reply goes out as it is. */
 export const MAX_TOOL_ROUNDS = 3;
@@ -53,7 +55,8 @@ export const TEXTS = {
 } as const;
 
 // Fixed words that never need an AI call (the Telegram commands map to these).
-const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review'> = {
+const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools'> = {
+  'mijn tools': 'tools',
   weekreview: 'review',
   vandaag: 'today',
   focus: 'today',
@@ -63,10 +66,17 @@ const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review'> = {
 
 export function createAssistantRouter(deps: AssistantDeps): Router {
   const tools = deps.tools ?? ROUTER_TOOLS;
-  const buttonExtensions = [sessionButtons(), reviewButtons(), planSessionButton(), ...(deps.buttonExtensions ?? [])];
+  const buttonExtensions = [
+    sessionButtons(),
+    reviewButtons(),
+    planSessionButton(),
+    workplaceButtons(),
+    ...(deps.buttonExtensions ?? []),
+  ];
   const modeHandlers: Partial<Record<ConversationMode, ModeHandler>> = {
     session: (message, state, ctx) => sessionModeHandler(message.text, state.data as SessionData, ctx),
     weekly_review: (message, state, ctx) => reviewModeHandler(message.text, state.data, ctx),
+    onboarding: (message, state, ctx) => onboardingModeHandler(message.text, state.data, ctx),
     ...deps.modeHandlers,
   };
   const anthropicTools = toAnthropicTools(tools);
@@ -110,6 +120,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     if (fixed === 'parking') return [await parkingMessage(deps.db, profile.id)];
     if (fixed === 'help') return [HELP_MESSAGE];
     if (fixed === 'review') return [await reviewStart(ctx)];
+    if (fixed === 'tools') return [await toolsOverview(ctx)];
 
     if (!deps.claude) return [{ text: TEXTS.noAi, buttons: [SHOW_TODAY] }];
 
@@ -184,15 +195,16 @@ export function compose(text: string, outcomes: ToolOutcome[]): OutboundMessage[
   if (exclusive?.reply) return [exclusive.reply];
 
   const replies = outcomes.flatMap((outcome) => (outcome.reply ? [outcome.reply] : []));
+  const followUps = outcomes.flatMap((outcome) => outcome.followUps ?? []);
   const buttons = dedupe(outcomes.flatMap((outcome) => (outcome.reply ? [] : (outcome.buttons ?? [])))).slice(0, 9);
   const withoutReply = outcomes.some((outcome) => !outcome.reply);
 
-  if (replies.length > 0 && !withoutReply) return replies;
+  if (replies.length > 0 && !withoutReply) return [...replies, ...followUps];
   const first: OutboundMessage = {
     text: text || (outcomes.length > 0 ? TEXTS.saved : TEXTS.empty),
     ...(buttons.length > 0 && { buttons }),
   };
-  return [first, ...replies];
+  return [first, ...replies, ...followUps];
 }
 
 function dedupe(buttons: Button[]): Button[] {

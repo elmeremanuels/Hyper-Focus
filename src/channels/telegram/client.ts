@@ -1,9 +1,6 @@
 // Telegram Bot API over fetch, without a library (BOUWPLAN.md, 5).
 
-export interface InlineKeyboardButton {
-  text: string;
-  callback_data: string;
-}
+export type InlineKeyboardButton = { text: string; callback_data: string } | { text: string; url: string };
 
 export interface InlineKeyboardMarkup {
   inline_keyboard: InlineKeyboardButton[][];

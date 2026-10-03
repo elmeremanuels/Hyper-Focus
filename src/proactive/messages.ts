@@ -6,6 +6,7 @@ import { recordEvent } from '../core/events.js';
 import { getTask, getTasksInOrder, listOpenTasks, type TaskSummary } from '../core/tasks.js';
 import type { OutboundMessage } from '../conversation/types.js';
 import { SHOW_TODAY } from '../conversation/views.js';
+import { workplaceButton } from '../conversation/workplace.js';
 import { localDate } from '../lib/time.js';
 import { calendarDayLine, calendarErrorLine, freeSlotOffer } from './calendar-messages.js';
 
@@ -60,11 +61,14 @@ export async function composeMorning(ctx: NudgeContext, localDate: string): Prom
     };
   }
   const day = await calendarDayLine(ctx, localDate);
+  // Only the top task gets a workplace button (step 1.10).
+  const top = focus[0];
+  const link = top ? await workplaceButton(ctx.db, ctx.userId, top) : undefined;
   return {
     subject: 'Je focus voor vandaag',
     message: {
       text: `Goedemorgen ${ctx.name}.${day ? ` ${day}` : ''} Je focus voor vandaag staat klaar.`,
-      buttons: [SHOW_TODAY, DAY_OFF],
+      buttons: [SHOW_TODAY, DAY_OFF, ...(link ? [link] : [])],
     },
   };
 }

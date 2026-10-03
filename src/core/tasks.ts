@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { clients, projects, tasks } from '../db/schema/index.js';
 import { recordEvent } from './events.js';
+import type { WorkType } from '../tools/catalog.js';
 import type { CaptureSource } from './ideas.js';
 
 export type TaskStatus = 'open' | 'in_progress' | 'parked' | 'done' | 'released';
@@ -20,6 +21,7 @@ export interface TaskSummary {
   carryOver: boolean;
   createdAt: Date;
   parentTaskId: number | null;
+  workType: WorkType | null;
 }
 
 const summaryColumns = {
@@ -34,6 +36,7 @@ const summaryColumns = {
   carryOver: tasks.carryOver,
   createdAt: tasks.createdAt,
   parentTaskId: tasks.parentTaskId,
+  workType: tasks.workType,
 };
 
 /**
@@ -109,6 +112,7 @@ export interface NewTask {
   notes?: string | null;
   source: CaptureSource;
   parentTaskId?: number | null;
+  workType?: WorkType | null;
 }
 
 export async function createTask(db: Database, task: NewTask): Promise<{ id: number }> {
@@ -123,6 +127,7 @@ export async function createTask(db: Database, task: NewTask): Promise<{ id: num
       estimatedMinutes: task.estimatedMinutes,
       dueDate: task.dueDate,
       source: task.source,
+      workType: task.workType ?? null,
     })
     .returning({ id: tasks.id });
   if (!row) throw new Error('Failed to create task');

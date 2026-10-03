@@ -86,17 +86,16 @@ export function createActionRouter(config: ActionRouteConfig): Router {
   });
 
   function renderReply(reply: OutboundMessage, userId: number): string {
-    const buttons = reply.choices ?? reply.buttons ?? [];
+    const buttons = reply.rows?.flat() ?? reply.choices ?? reply.buttons ?? [];
     const { secret, baseUrl } = config;
-    const links =
-      secret && baseUrl
-        ? buttons
-            .map((button) => {
-              const url = actionUrl(baseUrl, createActionToken(userId, button.id, secret, now()));
-              return `<a class="button" href="${escapeHtml(url)}">${escapeHtml(button.title)}</a>`;
-            })
-            .join(' ')
-        : '';
+    const links = buttons
+      .flatMap((button) => {
+        if (button.url) return [`<a class="button" href="${escapeHtml(button.url)}" rel="noreferrer">${escapeHtml(button.title)}</a>`];
+        if (!secret || !baseUrl) return [];
+        const url = actionUrl(baseUrl, createActionToken(userId, button.id, secret, now()));
+        return [`<a class="button" href="${escapeHtml(url)}">${escapeHtml(button.title)}</a>`];
+      })
+      .join(' ');
     const files = (reply.attachments ?? [])
       .map((file) => {
         const href = `data:${file.mimeType};base64,${Buffer.from(file.content, 'utf8').toString('base64')}`;

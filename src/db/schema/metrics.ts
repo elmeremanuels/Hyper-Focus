@@ -18,6 +18,8 @@ export const EVENT_NAMES = [
   'escalation',
   'crisis_flagged',
   'weekly_review_done',
+  'tool_button_shown',
+  'tool_prompt',
   'overwhelm',
   'nudge_skipped',
 ] as const;

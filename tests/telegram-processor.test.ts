@@ -163,18 +163,17 @@ describe('Telegram processor', () => {
     });
 
     it('refuses a code that is expired or already used', async () => {
-      const { telegram, process } = setup({ linked: false });
+      const { telegram, process, routed } = setup({ linked: false });
       const old = createLinkCode(1, LINK_SECRET, new Date('2026-10-01T07:00:00Z'));
       expect(await process(start(old))).toBe('ignored');
 
       const code = createLinkCode(1, LINK_SECRET, new Date('2026-10-01T07:55:00Z'));
       expect(await process(start(code, 600002))).toBe('linked');
       expect(await process(start(code, 600003))).toBe('ignored');
-      expect(telegram.sent().map((call) => call.body.text)).toEqual([
-        TEXTS.linkInvalid,
-        TEXTS.linked,
-        TEXTS.linkInvalid,
-      ]);
+      const texts = telegram.sent().map((call) => call.body.text);
+      expect([texts[0], texts[1], texts.at(-1)]).toEqual([TEXTS.linkInvalid, TEXTS.linked, TEXTS.linkInvalid]);
+      // After linking, the tool questions start (step 1.10).
+      expect(routed).toEqual([expect.objectContaining({ kind: 'button', buttonId: 'tl:start' })]);
     });
 
     it('asks an allowed but unlinked user to open the link', async () => {

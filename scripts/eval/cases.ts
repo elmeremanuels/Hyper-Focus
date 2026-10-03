@@ -12,6 +12,8 @@ export interface EvalCase {
     status?: string;
     until_date?: string;
     project?: number;
+    /** A kind of work, or null when work_type must be left out. */
+    work_type?: string | null;
   };
 }
 
@@ -31,7 +33,7 @@ export const CASES: EvalCase[] = [
   { text: 'moet de bakker nog belle over de fotos voor de site', tools: one('add_task'), check: { tool: 'add_task', project: 1 } },
   { text: 'fix the contact form for boho asap', tools: one('add_task'), check: { tool: 'add_task', project: 2 } },
   { text: 'ehm ja dus voor jansen moet er eh nog een nieuwe foto van de winkel op de site', tools: one('add_task'), check: { tool: 'add_task', project: 3 } },
-  { text: 'offerte maken voor een nieuwe klant, bloemenwinkel Roos', tools: one('add_task') },
+  { text: 'offerte maken voor een nieuwe klant, bloemenwinkel Roos', tools: one('add_task'), check: { tool: 'add_task', work_type: 'invoicing' } },
   { text: 'herinner me om de domeinnaam van boho te verlengen', tools: one('add_task'), check: { tool: 'add_task', project: 2 } },
   { text: 'taak: facturen oktober klaarzetten', tools: one('add_task') },
   { text: 'kun je toevoegen: logo de vries in hogere resolutie opvragen', tools: one('add_task'), check: { tool: 'add_task', project: 1 } },
@@ -129,6 +131,12 @@ export const CASES: EvalCase[] = [
   { text: 'koppel mijn agenda', tools: one('connect_calendar') },
   { text: 'ontkoppel agenda', tools: one('disconnect_calendar') },
   { text: 'wanneer heb ik vandaag een uur vrij?', tools: one('find_free_slot') },
+
+  // workplace links (step 1.10)
+  { text: 'morgen factuur naar Barbara versturen', tools: one('add_task'), check: { tool: 'add_task', work_type: 'invoicing' } },
+  { text: 'post over de nieuwe dienst plannen', tools: one('add_task'), check: { tool: 'add_task', work_type: 'content' } },
+  { text: 'nadenken over de jaarplanning', tools: [['add_task'], ['add_idea']], check: { tool: 'add_task', work_type: null } },
+  { text: 'mijn tools', tools: one('list_tools') },
 
   // more than one thing
   {

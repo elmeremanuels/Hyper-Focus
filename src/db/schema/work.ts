@@ -14,7 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { id, timestamps, userId } from './common.js';
-import { clientStatus, ideaStatus, projectStatus, taskSource, taskStatus } from './enums.js';
+import { clientStatus, ideaStatus, projectStatus, taskSource, taskStatus, workType } from './enums.js';
 
 export interface Competitor {
   name: string;
@@ -111,6 +111,8 @@ export const tasks = pgTable(
     stuckSince: timestamp('stuck_since', { withTimezone: true }),
     lastEscalationLevel: smallint('last_escalation_level').notNull().default(0),
     completedAt: timestamp('completed_at', { withTimezone: true }),
+    /** Set by the router when the task clearly belongs to a kind of work (step 1.10). */
+    workType: workType('work_type'),
     ...timestamps,
   },
   (table) => [
@@ -163,4 +165,21 @@ export const dailyFocus = pgTable(
     uniqueIndex('daily_focus_user_date').on(table.userId, table.localDate),
     check('daily_focus_max_three', sql`cardinality(${table.taskIds}) <= 3`),
   ],
+);
+
+/** The tool a user works in per kind of work: one per kind in this version (step 1.10). */
+export const userTools = pgTable(
+  'user_tools',
+  {
+    id: id(),
+    userId: userId(),
+    workType: workType('work_type').notNull(),
+    /** Catalogue key such as `moneybird`, or `other` for a pasted link. */
+    toolKey: text('tool_key').notNull(),
+    label: text('label').notNull(),
+    /** Pasted link or the catalogue default. Only shown, never fetched. */
+    url: text('url').notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex('user_tools_user_work_type').on(table.userId, table.workType)],
 );
