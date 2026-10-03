@@ -1,6 +1,6 @@
-// The data for the dashboard (step 1.12, A4): GET /api/battery and GET /api/focus-log.
-// Only mounted with DASHBOARD_API=on. Until the dashboard has its own login, a request signs
-// in with Telegram Web App data: "Authorization: tma <initData>".
+// The data for the dashboard (step 1.12, A4): GET /api/battery, GET /api/focus-log and
+// GET /api/me. Mounted with DASHBOARD_BASE_URL (fase 2a). A request signs in with the dashboard
+// session cookie, or with Telegram Web App data: "Authorization: tma <initData>".
 import { and, desc, eq, gte, isNotNull, lte } from 'drizzle-orm';
 import { Router, type Request } from 'express';
 import { DateTime } from 'luxon';
@@ -16,6 +16,7 @@ import { focusLog } from '../focus/log.js';
 import { chooseWindow } from '../focus/window.js';
 import { windowFor, windowInput } from '../focus/windows.js';
 import { localDate, localTimeOnDate } from '../lib/time.js';
+import { readCookie, SESSION_COOKIE, sessionUser } from './auth/sessions.js';
 
 export interface DashboardApiConfig {
   db: Database;
@@ -34,6 +35,12 @@ export function createDashboardApi(config: DashboardApiConfig): Router {
   const now = config.now ?? (() => new Date());
 
   async function user(req: Request, at: Date) {
+    const cookie = readCookie(req.get('cookie'), SESSION_COOKIE);
+    const session = cookie ? await sessionUser(config.db, cookie, at) : undefined;
+    if (session) {
+      const [row] = await config.db.select({ id: users.id, timezone: users.timezone }).from(users).where(eq(users.id, session.userId));
+      return row;
+    }
     const header = req.get('authorization') ?? '';
     const match = /^tma (.+)$/.exec(header);
     if (!match?.[1] || !config.botToken) return undefined;
@@ -43,11 +50,22 @@ export function createDashboardApi(config: DashboardApiConfig): Router {
     return row;
   }
 
+  router.get('/api/me', async (req, res, next) => {
+    try {
+      const me = await user(req, now());
+      if (!me) return void res.status(401).json({ error: 'Niet ingelogd' });
+      const [row] = await config.db.select({ name: users.name, timezone: users.timezone }).from(users).where(eq(users.id, me.id));
+      res.set('Cache-Control', 'no-store').json(row);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get('/api/battery', async (req, res, next) => {
     try {
       const at = now();
       const me = await user(req, at);
-      if (!me) return void res.status(401).json({ error: 'unauthorized' });
+      if (!me) return void res.status(401).json({ error: 'Niet ingelogd' });
       res.set('Cache-Control', CACHE).json(batteryState(await batteryInput(config.db, me.id, me.timezone, at)));
     } catch (error) {
       next(error);
@@ -58,7 +76,7 @@ export function createDashboardApi(config: DashboardApiConfig): Router {
     try {
       const at = now();
       const me = await user(req, at);
-      if (!me) return void res.status(401).json({ error: 'unauthorized' });
+      if (!me) return void res.status(401).json({ error: 'Niet ingelogd' });
       const days = Math.min(MAX_LOG_DAYS, Math.max(1, Number(req.query.days) || 7));
       const from = DateTime.fromJSDate(at, { zone: me.timezone }).startOf('day').minus({ days: days - 1 }).toJSDate();
       const lines = await focusLog(config.db, me.id, me.timezone, from, at);

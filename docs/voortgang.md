@@ -684,6 +684,31 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - de inhoud van de demoweek;
   - voor de deploy een DNS-record voor `app.hyper-focus.pro` en de webserverregel (Cowork).
 
+## Stap 2a.1 — Inloggen op het dashboard
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Datamodel (akkoord 3 oktober):** tabellen `login_tokens` en `web_sessions`. Migratie `0009_dashboard_login`. Alleen hashes van tokens worden opgeslagen; verwijderen gaat mee met de gebruiker.
+- **`.env`:** `DASHBOARD_BASE_URL` vervangt `DASHBOARD_API`. Zonder deze variabele staan login en API uit.
+- **Gebouwd:**
+  - `/login`: je vult je mailadres in en krijgt een magic link via Brevo. Het antwoord is altijd hetzelfde, dus de pagina verraadt niet welke adressen bestaan. Je krijgt hooguit drie links per kwartier.
+  - In Telegram: "dashboard" of [Open dashboard] in /help geeft een eenmalige link als knop.
+  - Een link werkt 15 minuten en één keer. Openen toont eerst een pagina met [Inloggen]; pas die tik logt in. Zo kunnen mailscanners en linkvoorbeelden de link niet opgebruiken.
+  - Sessie: cookie `hf_session`, HttpOnly, SameSite=Lax en Secure. Hij geldt 30 dagen en schuift mee met gebruik. Uitloggen wist de sessie.
+  - `/api/me`, `/api/battery` en `/api/focus-log` werken met de sessie. Telegram-`initData` blijft ook werken.
+  - Uit Publicato is alleen het patroon van `server/middleware/auth.ts` geoogst: 401 "Niet ingelogd" en de gebruiker op het request. De wachtwoordlogin en express-session zijn niet overgenomen.
+- **Controle:** `tests/auth.integration.test.ts`:
+  - een onbekend adres krijgt hetzelfde antwoord;
+  - alleen de hash wordt opgeslagen;
+  - openen logt niet in, de tik wel, en maar één keer;
+  - de cookie-attributen kloppen;
+  - een link verloopt na 15 minuten, en per kwartier gaan er hooguit drie uit;
+  - de sessie schuift mee en uitloggen werkt;
+  - de link in Telegram werkt;
+  - verwijderen neemt alles mee.
+
+  `npm test`: 364 groen.
+
 ## Volgende stap
 
 1.12 ronde 3 live testen (werkweek). Daarna fase 2a, stap 2a.1, zodra het datamodel en de brief er zijn.
