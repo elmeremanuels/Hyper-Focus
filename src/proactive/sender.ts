@@ -175,6 +175,10 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
       ...(composed.mailOnly && { via: 'email' as const }),
       context: { subject: composed.subject, silent: quiet },
     });
+    // Follow-ups only in Telegram; by mail they would be a second mail.
+    for (const followUp of via === 'telegram' ? (composed.followUps ?? []) : []) {
+      await deps.delivery.send(user, followUp, { via, context: { subject: composed.subject, silent: quiet } });
+    }
     if (composed.alsoByMail && via !== 'email') {
       await deps.delivery.send(user, composed.message, { via: 'email', context: { subject: composed.subject } });
     }

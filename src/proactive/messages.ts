@@ -1,12 +1,15 @@
 // The messages of the daily rhythm (BOUWPLAN.md, 11.2 and 13). Deterministic: no AI call.
-import { and, eq, inArray, isNull, lt } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lt } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { dailyFocus, tasks } from '../db/schema/index.js';
 import { recordEvent } from '../core/events.js';
 import { getTask, getTasksInOrder, listOpenTasks, type TaskSummary } from '../core/tasks.js';
 import type { OutboundMessage } from '../conversation/types.js';
 import { SHOW_TODAY } from '../conversation/views.js';
+import { composeDayReview } from '../conversation/day-review.js';
 import { workplaceButton } from '../conversation/workplace.js';
+import { REVIEW_BUTTONS, REVIEW_TEXTS } from '../texts/dagreview.nl.js';
+import { DEFERRED_PROPOSAL_AT } from './tomorrow.js';
 import { localDate } from '../lib/time.js';
 import { calendarDayLine, calendarErrorLine, freeSlotOffer } from './calendar-messages.js';
 
@@ -29,6 +32,8 @@ export type Composed =
       alsoByMail?: boolean;
       /** Send by mail only. */
       mailOnly?: boolean;
+      /** Sent right after the message, on the same channel. */
+      followUps?: OutboundMessage[];
     }
   | { skip: string };
 
@@ -64,12 +69,31 @@ export async function composeMorning(ctx: NudgeContext, localDate: string): Prom
   // Only the top task gets a workplace button (step 1.10).
   const top = focus[0];
   const link = top ? await workplaceButton(ctx.db, ctx.userId, top) : undefined;
+  // A task that keeps moving to tomorrow gets one proposal (step 1.11).
+  const [deferred] = await ctx.db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.userId, ctx.userId), inArray(tasks.id, focus.map((task) => task.id)), gte(tasks.deferredCount, DEFERRED_PROPOSAL_AT)))
+    .limit(1);
+  const deferredTask = deferred ? focus.find((task) => task.id === deferred.id) : undefined;
   return {
     subject: 'Je focus voor vandaag',
     message: {
       text: `Goedemorgen ${ctx.name}.${day ? ` ${day}` : ''} Je focus voor vandaag staat klaar.`,
       buttons: [SHOW_TODAY, DAY_OFF, ...(link ? [link] : [])],
     },
+    ...(deferredTask && {
+      followUps: [
+        {
+          text: `${deferredTask.title}: ${REVIEW_TEXTS.deferred}`,
+          buttons: [
+            { id: `df:${deferredTask.id}:split`, title: REVIEW_BUTTONS.split },
+            { id: `df:${deferredTask.id}:park`, title: REVIEW_BUTTONS.park },
+            { id: `df:${deferredTask.id}:keep`, title: REVIEW_BUTTONS.keep },
+          ],
+        },
+      ],
+    }),
   };
 }
 
@@ -91,38 +115,12 @@ export async function composeMidday(ctx: NudgeContext, taskId: number): Promise<
   };
 }
 
+/** The wrapup is the day review (step 1.11), with the calendar error when there is one. */
 export async function composeWrapup(ctx: NudgeContext, localDate: string): Promise<Composed> {
-  const focus = await plannedFocus(ctx, localDate);
-  if (focus.length === 0) return { skip: 'no_focus' };
+  const composed = await composeDayReview(ctx, localDate);
+  if ('skip' in composed) return composed;
   const calendarError = await calendarErrorLine(ctx);
-  const note = calendarError ? `\n${calendarError}` : '';
-
-  const done = focus.filter((task) => task.status === 'done');
-  const open = focus.filter(isOpen);
-  const intro = 'Tijd om de dag af te ronden.';
-
-  if (open.length === 0) {
-    return { subject: 'De dag afronden', message: { text: `${intro} Alles uit je focus is af ✔ Sterk gedaan. Tot morgen.${note}` } };
-  }
-
-  const first = open[0] as TaskSummary;
-  const doneLine =
-    done.length === 0
-      ? ''
-      : ` ${countWord(done.length)} van de ${countWord(focus.length).toLowerCase()} ${done.length === 1 ? 'is' : 'zijn'} af: ${listTitles(done)} ✔`;
-  return {
-    subject: 'De dag afronden',
-    message: {
-      text: `${intro}${doneLine} Wat doen we met ${lowerFirst(first.title)}?${note}`,
-      buttons: [
-        { id: `t:${first.id}:tomorrow`, title: 'Morgen verder' },
-        { id: `t:${first.id}:split`, title: 'Opknippen' },
-        { id: `t:${first.id}:park`, title: 'Parkeren' },
-        ...(open.length > 1 ? [{ id: 'f:carry', title: 'Alles morgen' }] : []),
-        { id: 'f:alldone', title: 'Alles gedaan' },
-      ],
-    },
-  };
+  return calendarError ? { ...composed, message: { ...composed.message, text: `${composed.message.text}\n${calendarError}` } } : composed;
 }
 
 /**
@@ -162,16 +160,6 @@ export async function composeReentry(ctx: NudgeContext, alsoByMail = true): Prom
       ],
     },
   };
-}
-
-const WORDS = ['Nul', 'Eén', 'Twee', 'Drie'];
-function countWord(n: number): string {
-  return WORDS[n] ?? String(n);
-}
-
-function listTitles(tasks: TaskSummary[]): string {
-  const titles = tasks.map((task) => lowerFirst(task.title));
-  return titles.length <= 1 ? (titles[0] ?? '') : `${titles.slice(0, -1).join(', ')} en ${titles.at(-1)}`;
 }
 
 function lowerFirst(value: string): string {

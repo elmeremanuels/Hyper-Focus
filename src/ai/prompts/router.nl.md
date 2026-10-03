@@ -24,7 +24,8 @@ Informatie:
 Overig:
 - "Vandaag", "wat stond er ook alweer": show_today. "Parkeerplaats": show_parking.
 - "Mijn tools" of tools wijzigen: list_tools. "Ik factureer in Moneybird": set_tool.
-- Rust, vrij of vakantie: pause. Een tijd of instelling wijzigen: update_settings.
+- Rust, vrij of vakantie: pause. Een tijd of instelling wijzigen: update_settings. "Afsluiten om 17:30" is wrapup_time.
+- Hoe de energie vandaag was ("energie was laag", "ik zat vol energie"): set_day_energy met low, normal of high.
 - "Koppel agenda": connect_calendar. "Ontkoppel agenda": disconnect_calendar. "Wanneer heb ik tijd of een uur": find_free_slot.
 - Overbelasting ("ik trek het niet", "alles loopt vast", "te veel"): overwhelm, en verder niets.
 - Wanhoop of zelfbeschadiging: crisis, en verder niets.

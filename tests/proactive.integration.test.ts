@@ -95,7 +95,7 @@ describe.skipIf(!adminUrl)('daily rhythm (integration)', () => {
     const mail = brevo.sent.at(-1)?.body;
     expect(mail?.subject).toBe('De dag afronden');
     expect(mail?.textContent).toContain('Tijd om de dag af te ronden.');
-    expect(mail?.textContent).toContain('Morgen verder');
+    expect(mail?.textContent).toContain('Wat doen we met');
   });
 
   it('skips messages during a pause and messages that are far too late', async () => {

@@ -17,6 +17,7 @@ import { generateSteps, SPLIT_ABOVE_MINUTES } from './session.js';
 import { clearState, getState, setState } from './state.js';
 import { defineTool, type ToolDefinition } from './tools.js';
 import type { Button, OutboundMessage } from './types.js';
+import { tomorrowPlan } from '../proactive/tomorrow-signals.js';
 import { SHOW_TODAY } from './views.js';
 import { workplaceButton } from './workplace.js';
 
@@ -352,11 +353,13 @@ export async function setRewards(ctx: Pick<Ctx, 'db' | 'userId'>, enabled: boole
     : { text: BLOCK_TEXTS.rewardsOff, buttons: [{ id: 'rw:on', title: BLOCK_BUTTONS.rewardsOnAgain }] };
 }
 
-/** Defaults to 15 minutes; step 1.11 makes this follow the day review. */
 export type DefaultBlockMinutes = (ctx: Ctx) => Promise<BlockMinutes>;
 
+/** The block length follows the last day review (step 1.11): 25 after high energy, else 15. */
+export const planBlockMinutes: DefaultBlockMinutes = async (ctx) => (await tomorrowPlan(ctx.db, ctx.userId, ctx.timezone, ctx.now)).blockMinutes;
+
 /** blk:t{task}:m{15|25|45} · blk:t{task}:next · blk:{block}:{stop|done|break|plus15|back} · rw:on|off · t:{task}:start */
-export function blockButtons(defaultMinutes: DefaultBlockMinutes = async () => DEFAULT_BLOCK_MINUTES): ButtonExtension {
+export function blockButtons(defaultMinutes: DefaultBlockMinutes = planBlockMinutes): ButtonExtension {
   return async (button: ParsedButton, ctx: Ctx) => {
     if (button.kind === 'task' && button.action === 'start') return askDuration(ctx, button.taskId, await defaultMinutes(ctx));
     if (button.kind === 'rewards') return [await setRewards(ctx, button.enabled)];
@@ -398,7 +401,7 @@ export const startSessionTool = defineTool({
   input: z.object({ task_id: z.number().int(), minutes: z.number().int().min(1).max(240).optional() }),
   async run(input, ctx) {
     const replies =
-      input.minutes === undefined ? await askDuration(ctx, input.task_id) : await startBlock(ctx, input.task_id, roundToPreset(input.minutes));
+      input.minutes === undefined ? await askDuration(ctx, input.task_id, await planBlockMinutes(ctx)) : await startBlock(ctx, input.task_id, roundToPreset(input.minutes));
     const last = replies.at(-1) ?? { text: '' };
     return { content: 'Werkblok afgehandeld.', reply: { ...last, text: replies.map((r) => r.text).join('\n\n') } };
   },

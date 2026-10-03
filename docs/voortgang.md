@@ -449,6 +449,44 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - Space Grotesk staat in de CSS, maar wordt niet extern geladen (geen extra dienst); de pagina valt terug op de systeemletter.
   - De oude knoppen uit stap 1.4 (*Gedaan*, *Nog 10 min*, *Vastgelopen*) blijven werken voor berichten die al verstuurd zijn.
 
+## Stap 1.11 — Dagreview
+
+- **Datum:** 2026-10-03
+- **Status:** klaar in code.
+- **Datamodel (uit de brief):** enum `day_energy`, tabel `day_reviews` (uniek op gebruiker en datum) en kolom `tasks.deferred_count`. Migratie `0005_day_review`. `wrapup_time` bestond al in `user_settings`; de brief noemt `users`, ik heb de bestaande kolom gehouden.
+- **Gebouwd:**
+  - De afsluiting (nudge `wrapup`) is nu de dagreview, in drie stappen:
+    - stap 1, per open focustaak (maximaal drie): [Morgen] [Opknippen] [Parkeren] [Klaar], met [Alles morgen] zolang er meer dan één over is;
+    - stap 2: de energie;
+    - stap 3: "Zit er morgen iets vast?" Getypte of ingesproken tekst gaat eerst naar de router, daarna volgt de afsluiting.
+  - Zonder antwoord sluit de review om middernacht. De planner zet de rij de volgende nacht op `skipped`, en de bot noemt het niet.
+  - `src/proactive/tomorrow.ts`: de regels als pure functie, met unittests. Het gaat om:
+    - energie laag, gewoon of hoog;
+    - doorschuiven: drie keer of vaker geeft een voorstel;
+    - een blok verlengd na 45 minuten: die taak staat morgen bovenaan;
+    - te laat terug uit 2 van de laatste 3 pauzes: blokken van 15 minuten.
+
+    `tomorrow-signals.ts` leest de gegevens; de planner en de standaard bloklengte gebruiken ze. De regel van maximaal drie taken blijft gelden.
+  - `deferred_count` telt +1 bij elke *Morgen*: in de review, met de oude knoppen en via `snooze` van de router.
+  - Het ochtendbericht krijgt bij een taak die drie keer of vaker is doorgeschoven een tweede bericht met [Opknippen] [Parkeren] [Laat staan]. Elke keuze zet de teller op 0. Alleen in Telegram; per mail zou het een tweede mail worden.
+  - De weekreview heeft een regel als "Deze week: 2× laag, 3× gewoon."
+  - Router: de nieuwe tool `set_day_energy` en een regel voor "afsluiten om 17:30".
+  - `npm run sim:day -- --date … --days 3 --scenario review` toont een dag met lage en een dag met hoge energie, met de ochtenden erna.
+  - Evaluatieset: 3 nieuwe gevallen (78 in totaal).
+- **Controle (Definition of Done)** in `tests/day-review.integration.test.ts` en `tests/tomorrow.test.ts`:
+  - *Per taak één keuze, dan energie, dan wat vastzit; drie tikken bij twee taken:* `asks per open task, then the energy…`. Twee taken en de energie zijn drie tikken; de laatste vraag is optioneel.
+  - *Energie laag geeft twee taken en blokken van 15:* `gives two tasks with a quick win and blocks of 15…` en de unittests.
+  - *Drie keer doorgeschoven geeft het voorstel:* `proposes to split or park a task that moved to tomorrow three times`.
+  - *Een overgeslagen review wordt niet genoemd:* `closes a skipped review silently and never mentions it`.
+  - *sim:day toont twee dagen met verschillende energie:* het scenario `review`. `npm test`: 313 groen. Eval: op de VPS.
+- **Afwijkingen en keuzes om voor te leggen:**
+  - De regel "Vandaag {n} blokken afgerond." valt weg bij 0 blokken, en bij 1 blok staat er "1 blok".
+  - Het tijdstip in "Morgen om 08:30" volgt de ochtendtijd van de gebruiker.
+  - Twee teksten staan niet in de brief: "Genoteerd. Morgen houd ik daar rekening mee." (na `set_day_energy`) en "Prima, hij blijft staan." (na *Laat staan*).
+  - Het doorschuifvoorstel begint met de taaknaam: "{taak}: Deze schuift al een paar dagen door. …", zodat je ziet over welke taak het gaat.
+  - *Opknippen* in de review zet de taak ook op morgen, zonder dat dit als doorschuiven telt.
+  - Zonder focus en zonder blokken op een dag blijft de review stil, net als de oude afsluiting.
+
 ## Volgende stap
 
 Stap 1.8 live zetten (`docs/agenda.md`) en koppelen. Fase 1 is daarmee af; eigen gebruik en de meting voor de verkooppoort lopen.

@@ -1,5 +1,6 @@
 // Scripted user behaviour for sim:day (npm run sim:day -- --scenario …).
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { getState } from '../conversation/state.js';
 import type { Database } from '../db/client.js';
 import { focusBlocks, tasks } from '../db/schema/index.js';
 import type { SimulatedAction } from './simulate.js';
@@ -39,6 +40,41 @@ export function blocksScenario(day = 0): SimulatedAction[] {
   ];
 }
 
+/** Answers the open day review: every task to tomorrow, then the energy, then "Nee, klaar". */
+function answerReview(day: number, time: string, energy: 'low' | 'normal' | 'high'): SimulatedAction {
+  return {
+    day,
+    time,
+    message: async (ctx) => {
+      const state = await getState(ctx.db, ctx.userId, ctx.now);
+      if (state.mode !== 'wrapup') return undefined;
+      const data = state.data as { step?: string; queue?: number[] };
+      if (data.step === 'tasks' && data.queue?.[0]) return tap(ctx.userId, `dr:${data.queue[0]}:tomorrow`, 'Morgen');
+      if (data.step === 'energy') return tap(ctx.userId, `dr:e:${energy}`, { low: 'Laag', normal: 'Gewoon', high: 'Hoog' }[energy]);
+      if (data.step === 'stuck') return tap(ctx.userId, 'dr:close', 'Nee, klaar');
+      return undefined;
+    },
+  };
+}
+
+const showFocus = (day: number): SimulatedAction => ({ day, time: '08:35', message: async (ctx) => tap(ctx.userId, 'f:show', 'Laat zien') });
+
+/** Step 1.11: a day with low energy, then a day with high energy, and their mornings. */
+export function reviewScenario(): SimulatedAction[] {
+  const answers = (day: number, energy: 'low' | 'high') => Array.from({ length: 6 }, () => answerReview(day, '16:05', energy));
+  return [
+    showFocus(0),
+    ...answers(0, 'low'),
+    showFocus(1),
+    { day: 1, time: '09:00', message: async (ctx) => { const id = await firstOpenTask(ctx); return id ? tap(ctx.userId, `blk:t${id}:next`, 'Start') : undefined; } },
+    { day: 1, time: '09:15', message: async (ctx) => { const b = await lastBlock(ctx); return b ? tap(ctx.userId, `blk:${b.id}:stop`, 'Stoppen') : undefined; } },
+    ...answers(1, 'high'),
+    showFocus(2),
+    { day: 2, time: '09:00', message: async (ctx) => { const id = await firstOpenTask(ctx); return id ? tap(ctx.userId, `blk:t${id}:next`, 'Start') : undefined; } },
+  ];
+}
+
 export const SCENARIOS: Record<string, () => SimulatedAction[]> = {
   blocks: () => blocksScenario(0),
+  review: reviewScenario,
 };
