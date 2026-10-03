@@ -8,10 +8,10 @@ import {
 import { TelegramChannel } from '../src/channels/telegram/channel.js';
 import { TelegramClient } from '../src/channels/telegram/client.js';
 import { createLinkCode } from '../src/channels/telegram/link.js';
-import { createTelegramProcessor, TEXTS } from '../src/channels/telegram/processor.js';
+import { createTelegramProcessor, TEXTS, type VoiceTranscriber } from '../src/channels/telegram/processor.js';
 import { createMemoryRouterDeps } from '../src/conversation/deps.js';
 import { createRouter } from '../src/conversation/router.js';
-import type { OutboundMessage } from '../src/conversation/types.js';
+import type { InboundMessage, OutboundMessage } from '../src/conversation/types.js';
 import { fixture } from './helpers/fixtures.js';
 import {
   fakeTelegramFetch,
@@ -23,7 +23,7 @@ import {
 
 const LINK_SECRET = 's'.repeat(32);
 
-function setup(options: { linked?: boolean; mail?: Channel } = {}) {
+function setup(options: { linked?: boolean; mail?: Channel; transcriber?: VoiceTranscriber } = {}) {
   const telegram = fakeTelegramFetch();
   const client = new TelegramClient('test-token', telegram.fetchImpl);
   const messages = new MemoryMessageStore();
@@ -37,22 +37,28 @@ function setup(options: { linked?: boolean; mail?: Channel } = {}) {
     { telegram: new TelegramChannel(client, messages), ...(options.mail && { email: options.mail }) },
     log,
   );
+  const routed: InboundMessage[] = [];
+  const keywordRouter = createRouter(
+      createMemoryRouterDeps('Sam', [
+        { id: 11, title: 'Factuur versturen', estimatedMinutes: 5, projectTitle: 'Losse taken' },
+      ]),
+  );
   const process = createTelegramProcessor({
     client,
     users,
     messages,
     delivery,
-    router: createRouter(
-      createMemoryRouterDeps('Sam', [
-        { id: 11, title: 'Factuur versturen', estimatedMinutes: 5, projectTitle: 'Losse taken' },
-      ]),
-    ),
+    router: async (message) => {
+      routed.push(message);
+      return keywordRouter(message);
+    },
     allowedUserIds: [SAM_TELEGRAM_ID],
     linkSecret: LINK_SECRET,
+    transcriber: options.transcriber,
     log,
     now: () => new Date('2026-10-01T08:00:00Z'),
   });
-  return { telegram, messages, users, log, process };
+  return { telegram, messages, users, log, process, routed };
 }
 
 describe('Telegram processor', () => {
@@ -220,5 +226,50 @@ describe('createDelivery', () => {
     const delivery = createDelivery({ telegram, email }, { warn: () => undefined });
     await expect(delivery.send(user, { text: 'Hoi' })).rejects.toThrow('network down');
     expect(email.send).not.toHaveBeenCalled();
+  });
+
+  describe('voice messages', () => {
+    const transcriber = (text: string | Error) => ({
+      isConfigured: () => true,
+      transcribe: vi.fn(async (audio: Buffer) => {
+        expect(audio.length).toBeGreaterThan(0);
+        if (text instanceof Error) throw text;
+        return text;
+      }),
+    });
+
+    it('transcribes, stores the transcript and routes it as text from voice', async () => {
+      const voice = transcriber('  zet op de lijst: banner voor boho ');
+      const { telegram, messages, process, routed } = setup({ transcriber: voice });
+      const started = Date.now();
+      await process(fixture('telegram', 'voice'));
+
+      expect(Date.now() - started).toBeLessThan(8000);
+      expect(telegram.calls.map((call) => call.method)).toEqual(['sendChatAction', 'getFile', 'download', 'sendMessage']);
+      expect(routed).toEqual([{ kind: 'text', userId: 1, text: 'zet op de lijst: banner voor boho', source: 'voice' }]);
+      const [inbound] = messages.inbound();
+      expect(inbound).toMatchObject({ type: 'audio', body: null, transcript: 'zet op de lijst: banner voor boho' });
+    });
+
+    it('asks to type when transcription fails or is not configured', async () => {
+      const failing = setup({ transcriber: transcriber(new Error('bad audio')) });
+      await failing.process(fixture('telegram', 'voice'));
+      expect(failing.telegram.sent().at(-1)?.body.text).toBe(TEXTS.voiceFailed);
+      expect(failing.routed).toHaveLength(0);
+
+      const off = setup({ transcriber: { isConfigured: () => false, transcribe: vi.fn() } });
+      await off.process(fixture('telegram', 'voice'));
+      expect(off.telegram.sent().at(-1)?.body.text).toBe(TEXTS.voice);
+    });
+
+    it('does not transcribe messages over five minutes', async () => {
+      const voice = transcriber('lang');
+      const { telegram, process } = setup({ transcriber: voice });
+      const update = fixture<{ message: { voice: { duration: number } } }>('telegram', 'voice');
+      update.message.voice.duration = 301;
+      await process(update);
+      expect(voice.transcribe).not.toHaveBeenCalled();
+      expect(telegram.sent().at(-1)?.body.text).toBe(TEXTS.voiceTooLong);
+    });
   });
 });

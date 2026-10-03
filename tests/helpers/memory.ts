@@ -3,6 +3,7 @@ import type { LinkableUser, UserStore } from '../../src/core/users.js';
 
 export interface StoredMessage extends MessageRecord {
   direction: 'in' | 'out';
+  transcript?: string;
   deliveryStatus?: 'sent' | 'failed';
 }
 
@@ -23,6 +24,11 @@ export class MemoryMessageStore implements MessageStore {
 
   async recordOutbound(record: MessageRecord & { deliveryStatus: 'sent' | 'failed' }) {
     this.messages.push({ ...record, direction: 'out' });
+  }
+
+  async setTranscript(channel: string, externalId: string, transcript: string) {
+    const message = this.messages.find((m) => m.channel === channel && m.externalId === externalId);
+    if (message) Object.assign(message, { transcript });
   }
 
   async touchLastInbound(userId: number, at: Date) {
@@ -85,6 +91,10 @@ export function fakeTelegramFetch() {
   let failWith: { code: number; description: string } | undefined;
 
   const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
+    if (String(url).includes('/file/bot')) {
+      calls.push({ method: 'download', body: { url: String(url) } });
+      return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53]), { status: 200 });
+    }
     const method = String(url).split('/').pop()!;
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
     calls.push({ method, body });
@@ -94,7 +104,12 @@ export function fakeTelegramFetch() {
         { status: failWith.code },
       );
     }
-    const result = method === 'sendMessage' ? { message_id: ++messageId } : true;
+    const result =
+      method === 'sendMessage'
+        ? { message_id: ++messageId }
+        : method === 'getFile'
+          ? { file_id: body.file_id, file_size: 19210, file_path: 'voice/file_1.oga' }
+          : true;
     return new Response(JSON.stringify({ ok: true, result }), { status: 200 });
   };
 
