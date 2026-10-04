@@ -952,6 +952,33 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - `npm run site:shots` en `npm run build` lopen zonder fouten.
   - De pagina in Chromium bekeken op 1440 en 390 px: geen fouten, en de beelden laden.
 
+## Stap 2b.3 — Wachtlijst en privacyblok
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code. Live nadat Brevo is ingericht (zie de brief).
+- **Gebouwd:**
+  - Het formulier op de landingspagina vraagt een mailadres en een vinkje voor toestemming. `POST /wachtlijst` werkt alleen op de host van `APP_BASE_URL`.
+    - Brevo stuurt de bevestigingsmail (double opt-in) en zet het adres pas na de klik in de lijst (`POST /v3/contacts/doubleOptinConfirmation`).
+    - Hyper&Focus bewaart zelf niets en logt geen mailadressen.
+  - Bescherming tegen misbruik:
+    - een verborgen veld vangt bots, die het normale antwoord krijgen terwijl er niets gebeurt;
+    - per adres en per IP gaan hooguit 5 mails per uur uit.
+  - Drie pagina's: `/wachtlijst/bijna` ("Check je mail"), `/wachtlijst/bevestigd` (waar de link in de mail op uitkomt) en `/wachtlijst/fout`.
+  - Het privacyblok onderaan:
+    - waarvoor het adres gebruikt wordt;
+    - dat het bij Brevo staat;
+    - dat uitschrijven kan;
+    - dat de site geen cookies plaatst en niet meet;
+    - en een contactadres: `hallo@hyper-focus.pro`.
+  - Nieuw in `.env`: `BREVO_WAITLIST_LIST_ID` en `BREVO_DOI_TEMPLATE_ID`. Zonder die twee stuurt het formulier door naar de foutpagina en meldt de log waarom.
+- **Nodig van Elmer:**
+  - Controleer dat `hallo@hyper-focus.pro` mail ontvangt.
+  - Wil je je naam en KvK-nummer in het privacyblok? Die gaan dan in een `.local`-bestand.
+- **Controle:**
+  - `tests/waitlist.test.ts` (7 tests): inschrijven, weigeren, bots, de limiet per uur, de foutpagina en de aanroep naar Brevo.
+  - In Chromium op 390 px: zonder vinkje blijf je op de pagina, met vinkje kom je op "Check je mail".
+  - `npm test`: 404 groen.
+
 ## Volgende stap
 
-Stap 2b.3: de wachtlijst met Brevo (double opt-in) en het privacyblok.
+Stap 2b.4: sitemap, robots.txt, het beeld voor gedeelde links, Lighthouse en de deploy-brief.

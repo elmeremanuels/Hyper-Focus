@@ -26,6 +26,7 @@ describe('website on the main host', () => {
     mkdirSync(join(dir, 'assets'));
     writeFileSync(join(dir, 'index.html'), '<h1>Hyper&amp;Focus</h1>');
     writeFileSync(join(dir, '404.html'), '<h1>Niet gevonden</h1>');
+    writeFileSync(join(dir, 'wachtlijst-bijna.html'), '<h1>Check je mail</h1>');
     writeFileSync(join(dir, 'favicon.svg'), '<svg/>');
     writeFileSync(join(dir, 'assets', 'styles-abc.css'), 'body{}');
     server = await startServer(
@@ -38,6 +39,7 @@ describe('website on the main host', () => {
     const home = await get(server.baseUrl, '/', 'hyper-focus.invalid');
     expect([home.status, home.body, home.cache]).toEqual([200, '<h1>Hyper&amp;Focus</h1>', 'public, max-age=300']);
     expect((await get(server.baseUrl, '/favicon.svg', 'hyper-focus.invalid')).status).toBe(200);
+    expect((await get(server.baseUrl, '/wachtlijst/bijna', 'hyper-focus.invalid')).body).toBe('<h1>Check je mail</h1>');
     const asset = await get(server.baseUrl, '/assets/styles-abc.css', 'hyper-focus.invalid');
     expect([asset.status, asset.cache]).toEqual([200, 'public, max-age=31536000, immutable']);
   });

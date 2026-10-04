@@ -22,7 +22,9 @@ export default defineConfig({
   build: {
     outDir: fileURLToPath(new URL('../dist/site', import.meta.url)),
     emptyOutDir: true,
-    rollupOptions: { input: { index: `${root}index.html`, notFound: `${root}404.html` } },
+    rollupOptions: {
+      input: Object.fromEntries(['index', '404', 'wachtlijst-bijna', 'wachtlijst-bevestigd', 'wachtlijst-fout'].map((name) => [name, `${root}${name}.html`])),
+    },
   },
   server: { proxy: { '/app': 'http://localhost:3999' } },
 });

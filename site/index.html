@@ -217,14 +217,44 @@
         <div class="rounded-xl border-2 border-ink bg-card p-6 shadow-hard sm:p-8">
           <h2 class="font-display text-3xl font-bold">Op de wachtlijst</h2>
           <p class="mt-3 text-lg text-muted">Laat je mailadres achter. Je hoort het als de beta start.</p>
-          <!-- wachtlijst-formulier -->
+          <form method="post" action="/wachtlijst" class="mt-6 grid gap-4">
+            <label class="flex flex-col text-sm font-semibold">
+              Mailadres
+              <input name="email" type="email" required autocomplete="email" maxlength="254" class="mt-1 w-full rounded-lg border-2 border-ink bg-paper px-3 py-3 text-base font-normal" />
+            </label>
+            <!-- Left empty by people; bots fill it in. -->
+            <label class="absolute -left-[9999px]" aria-hidden="true">
+              Website
+              <input name="website" type="text" tabindex="-1" autocomplete="off" />
+            </label>
+            <label class="flex items-start gap-3 text-sm">
+              <input name="toestemming" type="checkbox" value="ja" required class="mt-0.5 size-5 shrink-0 accent-accent" />
+              <span>Ik wil mails over de wachtlijst en de start van de beta. Uitschrijven kan altijd.</span>
+            </label>
+            <div>
+              <button type="submit" class="rounded-xl border-2 border-ink bg-accent px-5 py-3 font-semibold text-white shadow-hard">Zet me op de wachtlijst</button>
+            </div>
+            <p class="text-sm text-muted">Je krijgt eerst een mail om je inschrijving te bevestigen.</p>
+          </form>
+        </div>
+      </section>
+
+      <!-- Privacy (for the waiting list; the full statement comes in fase 3) -->
+      <section id="privacy" class="mx-auto max-w-3xl scroll-mt-4 px-4 pb-16">
+        <h2 class="font-display text-xl font-bold">Privacy</h2>
+        <div class="mt-3 grid gap-2 text-sm text-muted">
+          <p>Je mailadres gebruik ik alleen voor de wachtlijst en de start van de beta.</p>
+          <p>Het staat bij Brevo, een Europese maildienst. Ik verkoop of deel het niet.</p>
+          <p>Uitschrijven kan met de link onderaan elke mail.</p>
+          <p>Deze site gebruikt geen cookies en meet je bezoek niet.</p>
+          <p>Vragen of je gegevens laten verwijderen? Mail naar <a href="mailto:hallo@hyper-focus.pro" class="underline underline-offset-4">hallo@hyper-focus.pro</a>.</p>
         </div>
       </section>
     </main>
 
     <footer class="mx-auto max-w-6xl px-4 pb-10">
       <div class="flex flex-wrap items-center justify-between gap-4 border-t-2 border-ink pt-6 text-sm text-muted">
-        <p>Hyper&amp;Focus · hyper-focus.pro</p>
+        <p>Hyper&amp;Focus · hyper-focus.pro · <a href="#privacy" class="underline underline-offset-4">Privacy</a></p>
         <a href="https://app.hyper-focus.pro/login" class="font-semibold underline underline-offset-4">Inloggen</a>
       </div>
     </footer>
