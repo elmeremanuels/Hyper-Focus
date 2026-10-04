@@ -787,7 +787,16 @@ Toon voor bot, dashboard en website: kort (hooguit 12 woorden per zin), direct, 
 **2.6 Dashboard (fase 2a).** Op `app.hyper-focus.pro`. React + Vite + Tailwind, mobile-first, geserveerd door `hyperfocus-web`. Inloggen met een magic link per mail én met een eenmalige link vanuit Telegram ("Open dashboard"). Schermen: Vandaag · Projecten & klanten · Parkeerplaats & ideeënbak · Instellingen. *Suggesties* komt pas na 2.5. Vandaag toont de drie taken met het focusvenster, de batterij rechtsboven (1.12 A4), het focuslog en de werkplek-knoppen. Zonder grafieken: de batterij en het focuslog zijn tekst en vorm. Instellingen omvat ritme, werkweek, dagtijden, stille uren, beloningen, agenda, tools, en *exporteer* en *verwijder mijn gegevens* (14). Een assistent structureert een braindump tot taken, klantnotities en parkeerplaats-ideeën, met dezelfde tools als de Telegram-bot (werknaam Kiki; de naam wordt eerst bevestigd). Oogst daarvoor eerst de login en de smart assistant uit Publicato. Vormgeving en toon zoals de mini-app uit 1.12: gebroken wit, 2 px rand, één accentkleur, Space Grotesk, tabulaire cijfers.
 *Klaar als:* ik alles uit Telegram ook op mijn telefoon in de browser kan bekijken en bijwerken · instellingen direct effect hebben op de planning · het dashboard met een gevulde demoweek goed genoeg is voor de printscreens van de website.
 
-**2.7 Website (fase 2b).** Op `hyper-focus.pro`, dezelfde look and feel en toon als het dashboard. Beelden: printscreens uit 2.6 en aangeleverde foto's.
+**2.7 Website (fase 2b).** Op `hyper-focus.pro`, dezelfde look and feel en toon als het dashboard. Beelden: printscreens uit 2.6 en aangeleverde foto's. Besluiten (4 oktober 2026):
+- één landingspagina met onderaan een kort privacyblok, zonder aparte pagina's;
+- een wachtlijst: het formulier zet de inschrijving in een Brevo-lijst met double opt-in, zonder eigen tabel;
+- geen prijs tot de beta;
+- een blok "Waarom ik dit bouw" in de ik-vorm, met tekst van Elmer;
+- foto's van mensen en landschappen uit Nederland komen van Elmer, en tot dan alleen printscreens, zonder stockfoto's;
+- `www` stuurt door naar `hyper-focus.pro` (nginx).
+
+Statische HTML met Tailwind in `site/`, zonder cookies of tracking.
+*Klaar als:* de pagina snel laadt op een telefoon (Lighthouse 90+) · een inschrijving na bevestiging in de Brevo-lijst staat · de printscreens met één commando opnieuw te maken zijn.
 
 ### Fase 3 — Verkoopklaar (na de verkooppoort)
 

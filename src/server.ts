@@ -58,6 +58,7 @@ if (env.DATABASE_URL) {
   };
 
   options.reward = { db, botToken: env.TELEGRAM_BOT_TOKEN };
+  if (env.APP_BASE_URL) options.site = { dir: resolve('dist/site'), host: new URL(env.APP_BASE_URL).hostname };
   if (env.DASHBOARD_BASE_URL) {
     const dashboardBaseUrl = env.DASHBOARD_BASE_URL;
     options.dashboardApi = { db, botToken: env.TELEGRAM_BOT_TOKEN };

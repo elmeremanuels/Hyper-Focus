@@ -896,6 +896,41 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - `docs/agenda.md` is bijgewerkt.
 - **Controle:** `tests/calendar.integration.test.ts`: de instructies met intrekken, de melding bij het openbare Google-adres, de melding bij de HTML-link van Outlook, en `webcal://` blijft werken.
 
+## Fase 2b — Website: besluiten en plan
+
+- **Datum:** 2026-10-04
+- **Besluiten:** zie BOUWPLAN 2.7. In het kort:
+  - één landingspagina met een privacyblok;
+  - een wachtlijst via Brevo met double opt-in;
+  - geen prijs;
+  - jouw verhaal in de ik-vorm;
+  - tot er foto's zijn alleen printscreens;
+  - `www` stuurt door.
+- **Bouwstappen (elk een eigen PR):**
+  - **2b.1 Basis.** Statische site in `site/` met het gedeelde thema, alleen op de host van `APP_BASE_URL`. Een 404-pagina en een favicon.
+  - **2b.2 Landingspagina.** Teksten en secties. Printscreens van de demoweek met één script. Het blok "Waarom ik dit bouw" verschijnt pas als Elmers tekst er is.
+  - **2b.3 Wachtlijst.** Een formulier dat via de Brevo-API inschrijft met double opt-in, en het privacyblok. Nieuw in `.env`: `BREVO_WAITLIST_LIST_ID` en `BREVO_DOI_TEMPLATE_ID`.
+  - **2b.4 Afronding.** Sitemap, `robots.txt`, een beeld voor gedeelde links, Lighthouse en de deploy-brief.
+- **Nodig van Elmer:** de tekst "Waarom ik dit bouw", de foto's, en in Brevo een lijst en een sjabloon voor de double opt-in.
+
+## Stap 2b.1 — Basis van de website
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - `site/` met `index.html`, `404.html`, een favicon (de batterij) en `styles.css`. Vite bouwt alles naar `dist/site`.
+  - Het thema staat nu in `web/src/theme.css`. Dashboard en site gebruiken hetzelfde bestand.
+  - `npm run build` bouwt ook de site. `npm run dev:site` draait hem lokaal.
+  - De server toont de site alleen op de host van `APP_BASE_URL`, als laatste route:
+    - de eigen paden van de server (webhooks, actielinks, mini-app, agenda) gaan voor;
+    - elk ander pad krijgt de 404-pagina;
+    - pagina's worden 5 minuten gecachet en assets een jaar.
+  - Er zijn geen cookies en geen scripts.
+- **Controle:**
+  - `tests/site-static.test.ts` (3 tests).
+  - In Chromium bekeken op 1440 en 390 px: geen fouten.
+  - `npm test`: 397 groen.
+
 ## Volgende stap
 
-Fase 2a is af. Eerst deployen en Kiki testen op de VPS. Daarna fase 2b: de website.
+Stap 2b.2: de landingspagina.
