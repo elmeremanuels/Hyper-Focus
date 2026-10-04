@@ -78,7 +78,7 @@ export async function composeEscalation(ctx: NudgeContext, taskId: number, level
     return {
       subject: 'Op je parkeerplaats',
       message: {
-        text: `${title} staat op je parkeerplaats. Terughalen kan altijd.`,
+        text: `${task.title} staat op je parkeerplaats. Terughalen kan altijd.`,
         buttons: [{ id: `t:${taskId}:unpark`, title: 'Terughalen' }],
       },
     };

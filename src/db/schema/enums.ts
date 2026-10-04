@@ -35,6 +35,8 @@ export const nudgeKind = pgEnum('nudge_kind', [
   'window_quiet_check',
   'soft_landing',
   'window_missed',
+  // A second morning message, 10 minutes later: never two in one minute (verbeterplan P0.1)
+  'morning_followup',
 ]);
 
 // Phase 2 lenses. Later lenses (swot, offer_pricing, retention, visibility, time_saving)

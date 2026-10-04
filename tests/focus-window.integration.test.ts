@@ -153,11 +153,13 @@ describe.skipIf(!adminUrl)('focus window (integration)', () => {
     // A new heads-up, no second missed message.
     const missed = (await nudges('window_missed')).filter((n) => n.payload.windowId === now.id);
     expect(missed).toHaveLength(0);
-    const before = delivery().telegram.sent().length;
+    // The escalation is due in the same minute: the heads-up waits two minutes (verbeterplan P0.1).
     await send(at('2026-10-09', '09:15:10'));
+    await send(at('2026-10-09', '09:17:20'));
     expect(lastSent()?.text).toBe('Over een kwartier je focusvenster. Offerte bakkerij afmaken ligt klaar.');
+    const after = delivery().telegram.sent().length;
     await send(at('2026-10-09', '10:30:10'));
-    expect(delivery().telegram.sent()).toHaveLength(before + 1);
+    expect(delivery().telegram.sent()).toHaveLength(after);
   });
 
   it('moves the window by message: today at a time, or tomorrow at the own time with the task', async () => {

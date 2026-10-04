@@ -9,6 +9,7 @@ import { getSettings } from '../core/settings.js';
 import { listSteps, nextStep } from '../core/steps.js';
 import { getTask, setTaskStatus } from '../core/tasks.js';
 import type { Database } from '../db/client.js';
+import { STALE_BLOCK_HOURS } from '../proactive/maintenance.js';
 import { focusBlocks, focusWindows, scheduledNudges, userSettings } from '../db/schema/index.js';
 import { DateTime } from 'luxon';
 import { isInWindow, windowFor } from '../focus/windows.js';
@@ -74,7 +75,11 @@ const minutesFrom = (a: Date, b: Date) => (b.getTime() - a.getTime()) / 60_000;
 export async function activeBlock(db: Database, userId: number, now: Date): Promise<{ block: Block; phase: 'block' | 'pause' } | undefined> {
   const [block] = await db.select().from(focusBlocks).where(eq(focusBlocks.userId, userId)).orderBy(desc(focusBlocks.startedAt), desc(focusBlocks.id)).limit(1);
   if (!block || block.startedAt > now) return undefined;
-  if (!block.endedAt) return { block, phase: 'block' };
+  if (!block.endedAt) {
+    // A block left open for hours is no longer running (verbeterplan P0.1); the hourly upkeep closes it.
+    if (now.getTime() - block.endsAt.getTime() > STALE_BLOCK_HOURS * 3_600_000) return undefined;
+    return { block, phase: 'block' };
+  }
   if (block.pauseStartedAt && !block.returnedAt && block.pauseDueAt && minutesFrom(block.pauseDueAt, now) < CLOSE_AFTER_MINUTES) {
     return { block, phase: 'pause' };
   }

@@ -5,6 +5,7 @@ import { getEnv } from './config/env.js';
 import { users } from './db/schema/index.js';
 import { staleConnections, syncUserCalendars } from './integrations/calendar/sync.js';
 import { connect } from './db/client.js';
+import { runMaintenance } from './proactive/maintenance.js';
 import { runPlanner } from './proactive/planner.js';
 import { startScheduler, stopScheduler } from './proactive/scheduler.js';
 import { sendDueNudges } from './proactive/sender.js';
@@ -19,10 +20,17 @@ if (!env.DATABASE_URL) {
 const connection = connect(env.DATABASE_URL);
 const services = buildServices(env, connection.db);
 
+const MAINTENANCE_MINUTE = 17;
+
 export async function tick(now: Date = new Date()): Promise<void> {
   const planned = await runPlanner(connection.db, now, { calendar: services.calendar });
   if (services.calendar) await refreshCalendars(connection.db, services.calendar, now);
   const sent = await sendDueNudges({ db: connection.db, delivery: services.delivery, users: services.users }, now);
+  // Once an hour: open blocks and retention (verbeterplan P0.1).
+  if (now.getUTCMinutes() === MAINTENANCE_MINUTE) {
+    const done = await runMaintenance(connection.db, now);
+    if (Object.values(done).some((n) => n > 0)) console.log('maintenance:', JSON.stringify(done));
+  }
   if (planned.length > 0 || sent.sent + sent.skipped + sent.failed > 0) {
     console.log(
       `tick: planned ${planned.length}, sent ${sent.sent}, skipped ${sent.skipped}, failed ${sent.failed}`,

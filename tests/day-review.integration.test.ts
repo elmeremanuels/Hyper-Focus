@@ -155,12 +155,15 @@ describe.skipIf(!adminUrl)('day review (integration)', () => {
     expect((await focusTitles('2026-10-11')).map((task) => task.id)).toContain(offerte.id);
     const before = delivery().telegram.sent().length;
     await send('2026-10-11T06:30:10Z');
+    // The proposal comes 10 minutes after the morning message, never in the same minute (P0.1).
+    expect(delivery().telegram.sent().slice(before)).toHaveLength(1);
+    await send('2026-10-11T06:40:20Z');
     const sent = delivery().telegram.sent().slice(before).map((call) => call.body);
     expect(sent[0]?.text).toMatch(/^Goedemorgen\. /);
     expect(sent[1]?.text).toBe('Offerte bakkerij afmaken: Deze schuift al een paar dagen door. Zullen we hem opknippen of parkeren?');
     expect(JSON.stringify(sent[1]?.reply_markup)).toContain(`df:${offerte.id}:keep`);
 
-    const [kept] = await tap('2026-10-11T06:31:00Z', `df:${offerte.id}:keep`);
+    const [kept] = await tap('2026-10-11T06:41:00Z', `df:${offerte.id}:keep`);
     expect(kept?.text).toBe('Prima, hij blijft staan.');
     expect((await id('Offerte bakkerij afmaken')).deferredCount).toBe(0);
   });

@@ -36,10 +36,21 @@ export type Composed =
       mailOnly?: boolean;
       /** Sent right after the message, on the same channel. */
       followUps?: OutboundMessage[];
+      /** Scheduled after a successful send by Telegram, e.g. the morning follow-up. */
+      later?: Later[];
       /** Always without sound (step 1.12). */
       silent?: boolean;
     }
   | { skip: string };
+
+export interface Later {
+  kind: 'morning_followup';
+  afterMinutes: number;
+  payload: Record<string, unknown>;
+}
+
+/** Minutes between the morning message and each follow-up. */
+export const FOLLOWUP_MINUTES = 10;
 
 /** After this many silent days the first message is a soft restart (BOUWPLAN.md, 11.6). */
 export const REENTRY_AFTER_DAYS = 3;
@@ -83,24 +94,16 @@ export async function composeMorning(ctx: NudgeContext, localDate: string): Prom
     .where(and(eq(tasks.userId, ctx.userId), inArray(tasks.id, focus.map((task) => task.id)), gte(tasks.deferredCount, DEFERRED_PROPOSAL_AT)))
     .limit(1);
   const deferredTask = deferred ? focus.find((task) => task.id === deferred.id) : undefined;
-  // The focus window (step 1.12): one line and [Schuif venster]; the preference question once.
+  // The focus window (step 1.12): one line and [Schuif venster].
   const window = await morningWindowLine(ctx, localDate);
-  // One setup question per morning: first when you work best, then the work week.
-  const prefQuestion = (await prefQuestionOnce(ctx.db, ctx.userId, ctx.now)) ?? (await workWeekQuestionOnce(ctx.db, ctx.userId, ctx.now));
-  const followUps: OutboundMessage[] = [
-    ...(deferredTask
-      ? [
-          {
-            text: `${deferredTask.title}: ${REVIEW_TEXTS.deferred}`,
-            buttons: [
-              { id: `df:${deferredTask.id}:split`, title: REVIEW_BUTTONS.split },
-              { id: `df:${deferredTask.id}:park`, title: REVIEW_BUTTONS.park },
-              { id: `df:${deferredTask.id}:keep`, title: REVIEW_BUTTONS.keep },
-            ],
-          },
-        ]
-      : []),
-    ...(prefQuestion ? [prefQuestion] : []),
+  // A deferred task and the one-time setup question come as their own messages, 10 minutes
+  // apart: never two messages in the same minute (verbeterplan P0.1).
+  const setupDue = Boolean(
+    (await prefQuestionOnce(ctx.db, ctx.userId, ctx.now, false)) ?? (await workWeekQuestionOnce(ctx.db, ctx.userId, ctx.now, false)),
+  );
+  const later: Later[] = [
+    ...(deferredTask ? [{ kind: 'morning_followup' as const, afterMinutes: FOLLOWUP_MINUTES, payload: { part: 'deferred', taskId: deferredTask.id } }] : []),
+    ...(setupDue ? [{ kind: 'morning_followup' as const, afterMinutes: FOLLOWUP_MINUTES * (deferredTask ? 2 : 1), payload: { part: 'setup' } }] : []),
   ];
   return {
     subject: 'Je focus voor vandaag',
@@ -108,8 +111,29 @@ export async function composeMorning(ctx: NudgeContext, localDate: string): Prom
       text: `Goedemorgen. ${FOCUS_COUNT[focus.length] ?? FOCUS_COUNT[3]}${day ? ` ${day}` : ''}${window ? `\n${window.line}` : ''}`,
       buttons: [SHOW_TODAY, DAY_OFF, ...(window ? [window.button] : []), ...(link ? [link] : [])],
     },
-    ...(followUps.length > 0 && { followUps }),
+    ...(later.length > 0 && { later }),
   };
+}
+
+/** The second morning message: the deferred task's proposal, or the one-time setup question. */
+export async function composeMorningFollowup(ctx: NudgeContext, payload: Record<string, unknown>): Promise<Composed> {
+  if (payload.part === 'deferred') {
+    const task = await getTask(ctx.db, ctx.userId, Number(payload.taskId));
+    if (!task || !isOpen(task)) return { skip: 'task_closed' };
+    return {
+      subject: 'Je focus voor vandaag',
+      message: {
+        text: `${task.title}: ${REVIEW_TEXTS.deferred}`,
+        buttons: [
+          { id: `df:${task.id}:split`, title: REVIEW_BUTTONS.split },
+          { id: `df:${task.id}:park`, title: REVIEW_BUTTONS.park },
+          { id: `df:${task.id}:keep`, title: REVIEW_BUTTONS.keep },
+        ],
+      },
+    };
+  }
+  const question = (await prefQuestionOnce(ctx.db, ctx.userId, ctx.now)) ?? (await workWeekQuestionOnce(ctx.db, ctx.userId, ctx.now));
+  return question ? { subject: 'Een vraag', message: question } : { skip: 'already_asked' };
 }
 
 /** Only when the main task has not started yet. */

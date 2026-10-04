@@ -60,13 +60,16 @@ async function savePref(ctx: Ctx, pref: FocusPref): Promise<OutboundMessage> {
   return { text: fill(WINDOW_TEXTS.prefSaved, { start, eind: windowEnd(start, user?.minutes ?? 90) }) };
 }
 
-/** Existing users get the question once, right after a morning message. */
-export async function prefQuestionOnce(db: Database, userId: number, now: Date): Promise<OutboundMessage | undefined> {
+/**
+ * Existing users get the question once, 10 minutes after a morning message. With
+ * `record: false` it only says whether the question is due.
+ */
+export async function prefQuestionOnce(db: Database, userId: number, now: Date, record = true): Promise<OutboundMessage | undefined> {
   const [user] = await db.select({ pref: users.focusPref }).from(users).where(eq(users.id, userId));
   if (!user || user.pref !== null) return undefined;
   const [asked] = await db.select({ id: events.id }).from(events).where(and(eq(events.userId, userId), eq(events.name, 'focus_pref_asked'))).limit(1);
   if (asked) return undefined;
-  await recordEvent(db, userId, 'focus_pref_asked', {}, now);
+  if (record) await recordEvent(db, userId, 'focus_pref_asked', {}, now);
   return PREF_QUESTION;
 }
 

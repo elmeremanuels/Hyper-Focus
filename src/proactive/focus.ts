@@ -20,6 +20,9 @@ export interface ComposedFocus {
 }
 
 export const QUICK_WIN_MAX_MINUTES = 10;
+/** The window task is real work: at least this long (verbeterplan P0.1). */
+export const WINDOW_MIN_MINUTES = 30;
+const DEFAULT_WINDOW_MINUTES = 90;
 export const FOCUS_MAX_MINUTES = 180;
 /** Used for the 3-hour check when a task has no estimate. */
 const UNKNOWN_ESTIMATE = 30;
@@ -45,16 +48,29 @@ export interface FocusShape {
   quickWinMinMinutes: number;
   quickWinMaxMinutes: number;
   pinTaskId: number | null;
+  /** Length of the focus window; the main task should fill it. */
+  windowMinutes: number;
 }
 
-const DEFAULT_SHAPE: FocusShape = { maxTasks: 3, quickWinMinMinutes: 0, quickWinMaxMinutes: QUICK_WIN_MAX_MINUTES, pinTaskId: null };
+const DEFAULT_SHAPE: FocusShape = {
+  maxTasks: 3,
+  quickWinMinMinutes: 0,
+  quickWinMaxMinutes: QUICK_WIN_MAX_MINUTES,
+  pinTaskId: null,
+  windowMinutes: DEFAULT_WINDOW_MINUTES,
+};
 
 /**
- * One main task (highest score), one quick win (≤ 10 minutes), and a third only while the
- * total estimate stays within 3 hours. A pinned task becomes the main task.
+ * One main task, one quick win (≤ 10 minutes), and a third only while the total estimate stays
+ * within 3 hours. A pinned task becomes the main task.
+ *
+ * The main task goes into the focus window (verbeterplan P0.1): the highest score among tasks of
+ * at least 30 minutes, and on a tie the longest that fits the window. A task longer than the
+ * window counts as the window's length: its first step goes in. Quick wins stay out of the
+ * window. Without such a task, the highest score wins as before.
  */
 export function composeFocus(candidates: FocusCandidate[], today: string, now: Date, shape: Partial<FocusShape> = {}): ComposedFocus {
-  const { maxTasks, quickWinMinMinutes, quickWinMaxMinutes, pinTaskId } = { ...DEFAULT_SHAPE, ...shape };
+  const { maxTasks, quickWinMinMinutes, quickWinMaxMinutes, pinTaskId, windowMinutes } = { ...DEFAULT_SHAPE, ...shape };
   const sorted = candidates
     .map((task) => ({ task, score: scoreTask(task, today, now) }))
     .sort(
@@ -65,7 +81,13 @@ export function composeFocus(candidates: FocusCandidate[], today: string, now: D
         a.task.id - b.task.id,
     )
     .map((entry) => entry.task);
-  const pinned = sorted.find((task) => task.id === pinTaskId);
+  const minutes = (task: FocusCandidate) => task.estimatedMinutes ?? UNKNOWN_ESTIMATE;
+  const fill = (task: FocusCandidate) => Math.min(minutes(task), windowMinutes);
+  const score = (task: FocusCandidate) => scoreTask(task, today, now);
+  const deep = sorted
+    .filter((task) => minutes(task) >= WINDOW_MIN_MINUTES)
+    .reduce<FocusCandidate | undefined>((best, task) => (!best || score(task) > score(best) || (score(task) === score(best) && fill(task) > fill(best)) ? task : best), undefined);
+  const pinned = sorted.find((task) => task.id === pinTaskId) ?? deep;
   const ranked = pinned ? [pinned, ...sorted.filter((task) => task !== pinned)] : sorted;
 
   const main = ranked[0];
@@ -77,7 +99,6 @@ export function composeFocus(candidates: FocusCandidate[], today: string, now: D
       task.estimatedMinutes !== null && task.estimatedMinutes >= quickWinMinMinutes && task.estimatedMinutes <= quickWinMaxMinutes,
   );
   const picked = [main, ...(quickWin && maxTasks > 1 ? [quickWin] : [])];
-  const minutes = (task: FocusCandidate) => task.estimatedMinutes ?? UNKNOWN_ESTIMATE;
 
   for (const task of rest) {
     if (picked.length >= Math.min(3, maxTasks)) break;

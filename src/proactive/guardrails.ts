@@ -61,7 +61,7 @@ export function checkGuardrails(input: GuardrailInput): GuardrailVerdict {
     if (input.silentDays < 7) return { send: false, reason: 'not_silent' };
   } else if (input.silentDays >= 4) {
     return { send: false, reason: 'silence' };
-  } else if (input.silentDays >= 2 && input.kind !== 'morning') {
+  } else if (input.silentDays >= 2 && input.kind !== 'morning' && input.kind !== 'morning_followup') {
     return { send: false, reason: 'silence_morning_only' };
   }
 
@@ -69,6 +69,8 @@ export function checkGuardrails(input: GuardrailInput): GuardrailVerdict {
   if (input.mailOnly || CALENDAR_KINDS.has(input.kind)) return { send: true };
   // A missed window gets one silent message (step 1.12); it does not push out the day review.
   if (input.kind === 'window_missed') return input.overwhelmedYesterday ? { send: false, reason: 'after_overwhelm' } : { send: true };
+  // The morning follow-up belongs to the morning message (verbeterplan P0.1).
+  if (input.kind === 'morning_followup') return { send: true };
 
   const limit = input.overwhelmedYesterday ? 1 : settings.maxProactivePerDay;
   if (input.sentToday >= limit) {
