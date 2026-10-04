@@ -2,14 +2,14 @@
 // off-white base, 2 px borders, one accent colour, Space Grotesk headings.
 import { escapeHtml } from '../../channels/actions/page.js';
 
-export function authPage(title: string, body: string): string {
+export function authPage(title: string, body: string, head = ''): string {
   return `<!doctype html>
 <html lang="nl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>${escapeHtml(title)} · Hyper&amp;Focus</title>
+${head}<title>${escapeHtml(title)} · Hyper&amp;Focus</title>
 <style>
   @font-face { font-family: "Space Grotesk"; font-weight: 700; font-display: swap; src: url("/app/fonts/space-grotesk-700.woff2") format("woff2"); }
   :root { --bg: #f6f2e8; --ink: #1c1b19; --muted: #5d5a53; --accent: #2e7d4f; --card: #fffdf8; }
