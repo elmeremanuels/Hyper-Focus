@@ -40,17 +40,21 @@ export function Projects() {
         <>
           <NewProject clients={clients} onSaved={reload} />
           {projects.length === 0 && <Card><p className="text-muted">{t.noProjects}</p></Card>}
-          {projects.map((p) => (
-            <ProjectCard key={p.id} project={p} projects={projects} clients={clients} onChange={reload} />
-          ))}
+          <div className="gap-x-4 md:columns-2">
+            {projects.map((p) => (
+              <ProjectCard key={p.id} project={p} projects={projects} clients={clients} onChange={reload} />
+            ))}
+          </div>
         </>
       ) : (
         <>
           <NewClient onSaved={reload} />
           {clients.length === 0 && <Card><p className="text-muted">{t.noClients}</p></Card>}
-          {clients.map((c) => (
-            <ClientCard key={c.id} client={c} onChange={reload} />
-          ))}
+          <div className="gap-x-4 md:columns-2">
+            {clients.map((c) => (
+              <ClientCard key={c.id} client={c} onChange={reload} />
+            ))}
+          </div>
         </>
       )}
     </>
@@ -116,7 +120,7 @@ function ProjectCard({ project, projects, clients, onChange }: { project: Projec
   const [adding, setAdding] = useState(false);
   const meta = [project.client, countTasks(project.tasks.length), project.deadline ? `${t.deadline} ${shortDate(project.deadline)}` : null].filter(Boolean).join(' · ');
   return (
-    <section className={`mb-4 rounded-xl border-2 border-ink p-4 shadow-hard ${project.isWeeklyFocus ? 'bg-accent-soft' : 'bg-card'} ${project.status === 'parked' ? 'opacity-70' : ''}`}>
+    <section className={`mb-4 break-inside-avoid rounded-xl border-2 border-ink p-4 shadow-hard ${project.isWeeklyFocus ? 'bg-accent-soft' : 'bg-card'} ${project.status === 'parked' ? 'opacity-70' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap gap-2 empty:hidden">
@@ -361,7 +365,7 @@ function ClientCard({ client, onChange }: { client: Client; onChange: () => Prom
   const onSubmit = run(() => save());
   const meta = [client.contactName, t.projectCount[client.projects] ?? `${client.projects} ${t.projectsMany}`].filter(Boolean).join(' · ');
   return (
-    <section className={`mb-4 rounded-xl border-2 border-ink bg-card p-4 shadow-hard ${client.status === 'paused' ? 'opacity-70' : ''}`}>
+    <section className={`mb-4 break-inside-avoid rounded-xl border-2 border-ink bg-card p-4 shadow-hard ${client.status === 'paused' ? 'opacity-70' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           {client.status === 'paused' && (

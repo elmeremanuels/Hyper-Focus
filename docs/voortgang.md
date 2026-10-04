@@ -827,6 +827,29 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - In Chromium met een nep-model: braindump, voorstel en opslaan op telefoon en desktop. Geen fouten.
   - `npm test`: 392 groen.
 
+## Fix na 2a — inloggen op mobiel en brede schermen
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code.
+- **Probleem 1:** op mobiel kwam je na de inloglink terug op het beginscherm. Op de laptop werkte het wel.
+- **Oorzaak:** in-app browsers op telefoons (in de mail-app of in Telegram) slaan een cookie soms niet op als die op een redirect zit. Dat is een bekend probleem met WKWebView. Na de tik op Inloggen kwam de sessiecookie op een 303-redirect. Viel die weg, dan gaf de app een 401 en stuurde je terug.
+- **Fix:**
+  - De cookie komt nu op een gewone pagina ("Je bent ingelogd"). Die stuurt je na een seconde door naar `/?login=1`.
+  - Komt er dan toch een 401, dan toont `/login?failed=1` de melding: "Open de link in Safari of Chrome en vraag een nieuwe link aan."
+  - `/login` stuurt je direct door naar het dashboard als je al ingelogd bent.
+- **Probleem 2:** het dashboard was op een groot scherm één smalle kolom.
+- **Fix:** de pagina mag tot `max-w-6xl` breed worden. Op een groot scherm:
+  - Vandaag zet de drie taken naast elkaar;
+  - Projecten en Klanten tonen twee kolommen;
+  - Parkeerplaats en Ideeënbak staan naast elkaar;
+  - Instellingen heeft twee kolommen.
+  
+  Op een telefoon blijft alles één kolom.
+- **Controle:**
+  - `tests/auth.integration.test.ts`: inloggen geeft een pagina met de cookie, de doorverwijzing van een ingelogde gebruiker, en de melding na een mislukte cookie.
+  - In Chromium met iPhone-formaat: de inlogflow komt uit op Vandaag. Met een weggevallen cookie kom je op de loginpagina met de melding.
+  - Schermafbeeldingen op 1440 px en 390 px breed: geen fouten.
+
 ## Volgende stap
 
 Kiki testen op de VPS met een paar echte braindumps. Daarna stap 2a.8: demoweek. Daarvoor is de inhoud van Elmer nodig.

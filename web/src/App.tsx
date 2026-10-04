@@ -18,6 +18,10 @@ export function App() {
   // The battery refreshes once a minute, no faster (1.12 A4).
   const battery = useApi<Battery>('/api/battery', 60_000);
   const kiki = useApi<KikiInfo>('/api/assistant');
+  // Logged in: the marker of a fresh login is no longer needed in the address bar.
+  useEffect(() => {
+    if (me.data && window.location.search.includes('login=1')) window.history.replaceState(null, '', window.location.pathname);
+  }, [me.data]);
   const [kikiOpen, setKikiOpen] = useState(false);
   // Pages reload when the assistant saved something.
   const [version, setVersion] = useState(0);

@@ -21,14 +21,16 @@ export function Settings() {
   return (
     <>
       <h1 className="mb-4 font-display text-2xl font-bold">{T.nav.settings}</h1>
-      <RhythmCard rhythm={s.rhythm} onSaved={reload} />
-      <WorkWeekCard week={s.workWeek} onSaved={reload} />
-      <DayCard day={s.day} quiet={s.quiet} onSaved={reload} />
-      <RewardsCard enabled={s.rewardsEnabled} onSaved={reload} />
-      <CalendarCard calendar={s.calendar} onSaved={reload} />
-      <ToolsCard tools={s.tools} onSaved={reload} />
-      <ProfileCard profile={s.profile} onSaved={reload} />
-      <DataCard />
+      <div className="gap-x-4 md:columns-2">
+        <RhythmCard rhythm={s.rhythm} onSaved={reload} />
+        <WorkWeekCard week={s.workWeek} onSaved={reload} />
+        <DayCard day={s.day} quiet={s.quiet} onSaved={reload} />
+        <RewardsCard enabled={s.rewardsEnabled} onSaved={reload} />
+        <CalendarCard calendar={s.calendar} onSaved={reload} />
+        <ToolsCard tools={s.tools} onSaved={reload} />
+        <ProfileCard profile={s.profile} onSaved={reload} />
+        <DataCard />
+      </div>
       <form method="post" action="/auth/logout" className="mb-4">
         <Button type="submit">{t.logout}</Button>
       </form>

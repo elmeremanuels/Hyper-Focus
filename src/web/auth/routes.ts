@@ -33,6 +33,9 @@ export function loginUrl(baseUrl: string, token: string): string {
 
 const secure = (baseUrl: string) => baseUrl.startsWith('https://');
 
+/** Where a fresh login lands; the app tells a failed cookie apart from an old session with it. */
+export const AFTER_LOGIN = '/?login=1';
+
 /** 401 without a valid session; otherwise the user id is on res.locals.userId. */
 export function requireSession(config: Pick<AuthConfig, 'db' | 'dashboardBaseUrl' | 'now'>) {
   const now = config.now ?? (() => new Date());
@@ -57,8 +60,16 @@ export function createAuthRouter(config: AuthConfig): Router {
   const json = express.json({ limit: '4kb' });
   const isSecure = secure(config.dashboardBaseUrl);
 
-  router.get('/login', (req, res) => {
+  router.get('/login', async (req, res, next) => {
+    try {
+      // Already logged in: straight to the dashboard.
+      const token = readCookie(req.get('cookie'), SESSION_COOKIE);
+      if (token && req.query.failed !== '1' && (await sessionUser(config.db, token, now()))) return void res.redirect(303, '/');
+    } catch (error) {
+      return next(error);
+    }
     const sent = req.query.sent === '1';
+    const failed = req.query.failed === '1';
     res
       .type('html')
       .set('Cache-Control', 'no-store')
@@ -67,7 +78,7 @@ export function createAuthRouter(config: AuthConfig): Router {
           LOGIN_TEXTS.title,
           sent
             ? `<p>${escapeHtml(LOGIN_TEXTS.sent)}</p>`
-            : `<p>${escapeHtml(LOGIN_TEXTS.intro)}</p>
+            : `${failed ? `<p><strong>${escapeHtml(LOGIN_TEXTS.cookieFailed)}</strong></p>` : ''}<p>${escapeHtml(LOGIN_TEXTS.intro)}</p>
 <form method="post" action="/auth/magic-link">
 <label for="email">${escapeHtml(LOGIN_TEXTS.email)}</label>
 <input id="email" name="email" type="email" autocomplete="email" required>
@@ -131,8 +142,19 @@ export function createAuthRouter(config: AuthConfig): Router {
           .send(authPage(LOGIN_TEXTS.confirmTitle, `<p>${escapeHtml(LOGIN_TEXTS.invalid)}</p><a class="button" href="/login">${escapeHtml(LOGIN_TEXTS.newLink)}</a>`));
       }
       const session = await createSession(config.db, userId, now());
-      res.append('Set-Cookie', sessionCookie(session.token, session.expiresAt, isSecure));
-      res.redirect(303, '/');
+      // The cookie goes on a normal page, not on a redirect: some in-app browsers on phones
+      // (mail apps, Telegram) drop a cookie set on a redirect. The page then moves on.
+      res
+        .append('Set-Cookie', sessionCookie(session.token, session.expiresAt, isSecure))
+        .type('html')
+        .set('Cache-Control', 'no-store')
+        .send(
+          authPage(
+            LOGIN_TEXTS.loggedIn,
+            `<p>${escapeHtml(LOGIN_TEXTS.loggedInText)}</p><a class="button" href="${AFTER_LOGIN}">${escapeHtml(LOGIN_TEXTS.toDashboard)}</a>`,
+            `<meta http-equiv="refresh" content="1;url=${AFTER_LOGIN}">\n`,
+          ),
+        );
     } catch (error) {
       next(error);
     }

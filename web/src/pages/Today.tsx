@@ -45,25 +45,28 @@ export function Today({ onChange }: { onChange: () => void }) {
           <p>{t.empty}</p>
         </Card>
       )}
-      {d.focus.map((task) => (
-        <TaskCard
-          key={task.id}
-          task={task}
-          onDone={async () => {
-            await post(`/api/tasks/${task.id}/done`);
-            await refresh();
-          }}
-          onTomorrow={async () => {
-            await post(`/api/tasks/${task.id}/tomorrow`);
-            await refresh();
-          }}
-          onStart={async (minutes) => {
-            await post(`/api/tasks/${task.id}/start`, { minutes });
-            setNote(t.started);
-            await refresh();
-          }}
-        />
-      ))}
+      {/* Side by side on a wider screen: "Dit zijn je drie" in one row. */}
+      <div className="grid gap-x-4 md:grid-cols-2 lg:grid-cols-3">
+        {d.focus.map((task) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            onDone={async () => {
+              await post(`/api/tasks/${task.id}/done`);
+              await refresh();
+            }}
+            onTomorrow={async () => {
+              await post(`/api/tasks/${task.id}/tomorrow`);
+              await refresh();
+            }}
+            onStart={async (minutes) => {
+              await post(`/api/tasks/${task.id}/start`, { minutes });
+              setNote(t.started);
+              await refresh();
+            }}
+          />
+        ))}
+      </div>
 
       <Card title={t.log}>
         {d.log.length === 0 ? (

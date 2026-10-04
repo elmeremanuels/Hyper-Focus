@@ -27,7 +27,7 @@ export function Shell({ route, go, battery, assistant, children }: { route: Rout
     </a>
   ));
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 pb-24 sm:pb-8">
+    <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 pb-24 sm:pb-8">
       <header className="flex items-center justify-between py-4">
         <span className="font-display text-xl font-bold tracking-tight">{T.appName}</span>
         <div className="flex items-center gap-3">
@@ -45,7 +45,7 @@ export function Shell({ route, go, battery, assistant, children }: { route: Rout
 /** A card in the house style. */
 export function Card({ title, children, action }: { title?: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className="mb-4 rounded-xl border-2 border-ink bg-card p-4 shadow-hard">
+    <section className="mb-4 break-inside-avoid rounded-xl border-2 border-ink bg-card p-4 shadow-hard">
       {(title || action) && (
         <div className="mb-2 flex items-center justify-between gap-2">
           {title && <h2 className="font-display text-lg font-bold">{title}</h2>}

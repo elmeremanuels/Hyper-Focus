@@ -72,12 +72,19 @@ describe.skipIf(!adminUrl)('dashboard login (integration)', () => {
         expect(await page.text()).toContain('Tik op de knop om in te loggen.');
       }
       const login = await post(s.baseUrl, '/auth/login', { t: token });
-      expect([login.status, login.headers.get('location')]).toEqual([303, '/']);
+      // A page with the cookie, then on to the app: in-app browsers drop cookies on redirects.
+      expect(login.status).toBe(200);
+      expect(await login.text()).toContain('<meta http-equiv="refresh" content="1;url=/?login=1">');
       const cookie = login.headers.get('set-cookie') ?? '';
       expect(cookie).toMatch(/^hf_session=[\w-]{40,}; Path=\/; HttpOnly; SameSite=Lax; Expires=.+; Secure$/);
 
       const me = await fetch(`${s.baseUrl}/api/me`, { headers: { cookie: cookie.split(';')[0]! } });
       expect(await me.json()).toEqual({ name: 'Sam', timezone: 'Europe/Amsterdam' });
+
+      // The login page sends a logged-in user on; after a failed cookie it says what to do.
+      const again = await fetch(`${s.baseUrl}/login`, { redirect: 'manual', headers: { cookie: cookie.split(';')[0]! } });
+      expect([again.status, again.headers.get('location')]).toEqual([303, '/']);
+      expect(await (await fetch(`${s.baseUrl}/login?failed=1`)).text()).toContain('Open de link in Safari of Chrome');
 
       expect((await post(s.baseUrl, '/auth/login', { t: token })).status).toBe(410);
       expect((await fetch(`${s.baseUrl}/auth/login?t=${token}`)).status).toBe(410);

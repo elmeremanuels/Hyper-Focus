@@ -19,5 +19,9 @@ export const LOGIN_TEXTS = {
   tooMany: 'Je vroeg net al een link. Probeer het over een kwartier opnieuw.',
   off: 'Het dashboard staat nog niet aan.',
   loggedOut: 'Je bent uitgelogd.',
+  loggedIn: 'Je bent ingelogd',
+  loggedInText: 'Je dashboard opent zo.',
+  toDashboard: 'Naar je dashboard',
+  cookieFailed: 'Inloggen lukte niet in deze browser. Open de link in Safari of Chrome en vraag hieronder een nieuwe link aan.',
   notLoggedIn: 'Niet ingelogd',
 } as const;

@@ -28,38 +28,44 @@ export function Parking() {
         </div>
       )}
 
-      <h1 className="font-display text-2xl font-bold">{t.parked}</h1>
-      <p className="mb-4 text-muted">{t.parkedIntro}</p>
-      {parked.length === 0 && (
-        <Card>
-          <p className="text-muted">{t.parkedEmpty}</p>
-        </Card>
-      )}
-      {parked.map((task) => (
-        <ParkedCard key={task.id} task={task} onChange={reload} />
-      ))}
-
-      <h1 className="mt-8 font-display text-2xl font-bold">{t.ideas}</h1>
-      <p className="mb-4 text-muted">{t.ideasIntro}</p>
-      <NewIdea onSaved={reload} />
-      {!canPromote && ideas.length > 0 && <p className="mb-4 text-sm text-muted">{t.promoteUsed}</p>}
-      {ideas.length === 0 && (
-        <Card>
-          <p className="text-muted">{t.ideasEmpty}</p>
-        </Card>
-      )}
-      {ideas.map((idea) => (
-        <IdeaCard
-          key={idea.id}
-          idea={idea}
-          canPromote={canPromote}
-          onChange={reload}
-          onPromoted={(title) => {
-            setNote(`"${title}" ${t.promoted}`);
-            window.scrollTo(0, 0);
-          }}
-        />
-      ))}
+      {/* The parking lot and the idea box next to each other on a wider screen. */}
+      <div className="grid items-start gap-x-6 lg:grid-cols-2">
+        <section>
+          <h1 className="font-display text-2xl font-bold">{t.parked}</h1>
+          <p className="mb-4 text-muted">{t.parkedIntro}</p>
+          {parked.length === 0 && (
+            <Card>
+              <p className="text-muted">{t.parkedEmpty}</p>
+            </Card>
+          )}
+          {parked.map((task) => (
+            <ParkedCard key={task.id} task={task} onChange={reload} />
+          ))}
+        </section>
+        <section>
+          <h1 className="mt-8 font-display text-2xl font-bold lg:mt-0">{t.ideas}</h1>
+          <p className="mb-4 text-muted">{t.ideasIntro}</p>
+          <NewIdea onSaved={reload} />
+          {!canPromote && ideas.length > 0 && <p className="mb-4 text-sm text-muted">{t.promoteUsed}</p>}
+          {ideas.length === 0 && (
+            <Card>
+              <p className="text-muted">{t.ideasEmpty}</p>
+            </Card>
+          )}
+          {ideas.map((idea) => (
+            <IdeaCard
+              key={idea.id}
+              idea={idea}
+              canPromote={canPromote}
+              onChange={reload}
+              onPromoted={(title) => {
+                setNote(`"${title}" ${t.promoted}`);
+                window.scrollTo(0, 0);
+              }}
+            />
+          ))}
+        </section>
+      </div>
     </>
   );
 }

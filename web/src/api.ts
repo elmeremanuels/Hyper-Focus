@@ -12,7 +12,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
-export const toLogin = () => window.location.assign('/login');
+/** A 401 right after logging in means the browser kept no cookie: the login page says so. */
+export const toLogin = () =>
+  window.location.assign(new URLSearchParams(window.location.search).get('login') === '1' ? '/login?failed=1' : '/login');
 
 export interface Me {
   name: string;
