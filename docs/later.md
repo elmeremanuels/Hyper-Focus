@@ -15,3 +15,4 @@ Ideeën en extra's die buiten de huidige bouwstap vallen.
 - Router: Haiku eerst, Sonnet 5.5 als vangnet wanneer Haiku bij een bericht van meer dan een paar woorden geen tool aanroept. Interessant zodra de kosten per klant tellen (fase 3).
 - Werkplek-links: klikmeting via een getekende redirect `/go/<id>` met tabel `tool_clicks`, aan te zetten met een `.env`-vlag (brief 1.10). Wacht op akkoord voor de nieuwe variabele.
 - **Bot-commando's "exporteer mijn gegevens" en "verwijder mijn gegevens" (BOUWPLAN 14).** De logica staat sinds 2a.6 in `src/core/privacy.ts`. Nog nodig: twee router-tools, een download via mail of een eenmalige link, en een bevestiging in twee stappen bij verwijderen.
+- Dashboard: een weekoverzicht met het focuslog van de week en de opbrengst (nu alleen vandaag en de weekmail). Handig voor de demo.

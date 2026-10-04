@@ -850,6 +850,25 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - In Chromium met iPhone-formaat: de inlogflow komt uit op Vandaag. Met een weggevallen cookie kom je op de loginpagina met de melding.
   - Schermafbeeldingen op 1440 px en 390 px breed: geen fouten.
 
+## Stap 2a.8 — Demoweek
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code, met fictieve inhoud. Jouw inhoud kan in `scripts/demo-week.local.ts`.
+- **Gebouwd:**
+  - `npm run demo:week` maakt een demo-account en print een eenmalige inloglink (15 minuten). `npm run demo:week -- --reset` verwijdert het oude account eerst.
+  - De inhoud komt uit `scripts/demo-week.local.ts` als dat bestand bestaat. Dat bestand staat in `.gitignore` en heeft een default export van het type `DemoWeek` uit `src/demo/week.ts`. Anders gebruikt het script de fictieve inhoud in `src/db/seed/demo.ts`: Noor van Atelier Noord, met drie klanten.
+  - Wat het script aanmaakt:
+    - bedrijf, klanten, projecten, taken, een geparkeerde taak en ideeën (via `loadSeed`);
+    - een geleerd ritme (venster om 09:30, overgenomen na een weekreview);
+    - vijf dagen geschiedenis, met per dag afgeronde taken, een blok in het venster, korte blokken in de middag, dagreviews en één gemiste dag;
+    - de planning van vandaag, plus blokken die vandaag al af zijn (alleen na 07:00).
+  - Het demo-account werkt alle zeven dagen, zodat het er elke dag gevuld uitziet.
+  - Het account staat op `paused` en de geplande berichten worden verwijderd. Er gaat dus niets uit per Telegram of mail, en de nachtelijke planner slaat het over. Wil je een verse demo, draai dan `--reset`.
+- **Controle:**
+  - `tests/demo-week.integration.test.ts` (2 tests): geschiedenis, venster, focuslog, geen geplande berichten, weigeren als het account al bestaat, en opnieuw beginnen na `--reset`.
+  - `npm run demo:week` en `--reset` gedraaid op de dev-database, en het account in Chromium bekeken: geen fouten.
+  - `npm test`: 394 groen.
+
 ## Volgende stap
 
-Kiki testen op de VPS met een paar echte braindumps. Daarna stap 2a.8: demoweek. Daarvoor is de inhoud van Elmer nodig.
+Fase 2a is af. Eerst deployen en Kiki testen op de VPS. Daarna fase 2b: de website.
