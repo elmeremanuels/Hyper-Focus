@@ -21,6 +21,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed/index.ts",
     "demo:week": "tsx scripts/demo-week.ts",
+    "site:shots": "tsx scripts/site-shots.ts",
     "sim": "tsx scripts/sim.ts",
     "eval": "tsx scripts/eval.ts",
     "sim:day": "tsx scripts/sim-day.ts",

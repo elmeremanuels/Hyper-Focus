@@ -931,6 +931,27 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - In Chromium bekeken op 1440 en 390 px: geen fouten.
   - `npm test`: 397 groen.
 
+## Stap 2b.2 — Landingspagina
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code. Teksten zijn een eerste versie om na te lopen.
+- **Gebouwd:**
+  - Secties:
+    - de belofte, met de knop naar de wachtlijst en een printscreen van Vandaag;
+    - "Klinkt dit bekend?";
+    - "Zo werkt het" in drie stappen, naast een nagebouwd Telegram-gesprek met de echte bot-teksten;
+    - het focusvenster, de batterij, de pitstop en het focuslog;
+    - "Alles op één plek", met Projecten en de assistent;
+    - "Rustig van opzet";
+    - "Voor wie" en vijf vragen;
+    - de wachtlijst (het formulier komt in 2b.3).
+  - Geen prijs en geen stockfoto's. "Een diagnose heb je niet nodig." Geen medische claims: de vraag "Is dit een behandeling?" krijgt als antwoord nee.
+  - "Waarom ik dit bouw": bij de build wordt `site/content/verhaal.html` ingevoegd als het bestand bestaat. `verhaal.voorbeeld.html` laat de opmaak zien.
+  - `npm run site:shots` maakt het demo-account opnieuw aan, met de klok op 11:15. Het maakt `site/public/img/vandaag.jpg`, `projecten.jpg` en `braindump.jpg` en ruimt het account daarna op. De assistent krijgt een vast voorstel, zodat er geen API-sleutel nodig is.
+- **Controle:**
+  - `npm run site:shots` en `npm run build` lopen zonder fouten.
+  - De pagina in Chromium bekeken op 1440 en 390 px: geen fouten, en de beelden laden.
+
 ## Volgende stap
 
-Stap 2b.2: de landingspagina.
+Stap 2b.3: de wachtlijst met Brevo (double opt-in) en het privacyblok.
