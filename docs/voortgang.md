@@ -997,6 +997,20 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - Draai Lighthouse na de deploy ook op de echte site via PageSpeed Insights.
   - `npm test` en `npm run build` zijn groen.
 
+## Fix — build wiste servercode, verhaal en bedrijfsregel
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code.
+- **Buildfout:**
+  - **Oorzaak:** `tsc` compileert `src/web/*.ts` naar `dist/web/`. Daarna bouwde Vite het dashboard naar dezelfde map, met `emptyOutDir`, en wiste zo bij elke build de servercode (`reward.js`, `site-static.js` en de rest).
+  - **Fix:** het dashboard bouwt nu naar `dist/dashboard`. `tests/build-output.test.ts` controleert dat geen Vite-build in een map met servercode terechtkomt.
+  - Na `rm -rf dist && npm run build` start `node dist/server.js` en antwoordt `/health`.
+- **Verhaal:** Elmers tekst staat in `site/content/verhaal.html`. De build zet de gewone `<h2>` en `<p>` in een sectie met de opmaak van de site.
+- **Bedrijfsregel:** "Hyper&Focus · KvK 84318392" komt uit `site/content/bedrijf.local.html`. `*.local.html` staat nu in `.gitignore`. Cowork maakt het bestand op de VPS.
+- **Controle:**
+  - het blok en de regel staan in de gebouwde pagina;
+  - de opmaak is bekeken op 1440 en 390 px.
+
 ## Volgende stap
 
 Fase 2b is af in code. Eerst deployen met `docs/website.md`. Daarna fase 2: de verbetermotor (2.1–2.5).

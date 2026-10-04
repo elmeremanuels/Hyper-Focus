@@ -1,11 +1,11 @@
-// Serves the built dashboard (dist/web) on the dashboard host only, e.g. app.hyper-focus.pro.
+// Serves the built dashboard (dist/dashboard) on the dashboard host only, e.g. app.hyper-focus.pro.
 // Paths of the server itself (API, login, webhooks, mini-app) are never shadowed.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import express, { Router } from 'express';
 
 export interface DashboardWebConfig {
-  /** The built app: dist/web. */
+  /** The built app: dist/dashboard. */
   dir: string;
   /** The hostname of DASHBOARD_BASE_URL. */
   host: string;

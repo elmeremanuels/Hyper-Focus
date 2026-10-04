@@ -8,6 +8,7 @@ coverage/
 .env.*
 !.env.example
 *.local.ts
+*.local.html
 
 # Cookie files, archives and leftovers (see BOUWPLAN.md, chapter 6)
 *cookies*.txt

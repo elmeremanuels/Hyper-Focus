@@ -7,18 +7,32 @@ import { defineConfig, type Plugin } from 'vite';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
-/** "Waarom ik dit bouw" appears only once Elmer's text is in site/content/verhaal.html. */
-function story(): Plugin {
-  const file = `${root}content/verhaal.html`;
+/** Reads a partial from site/content, or '' when the file is not there. */
+const partial = (name: string) => {
+  const file = `${root}content/${name}`;
+  return existsSync(file) ? readFileSync(file, 'utf8') : '';
+};
+
+/**
+ * Build-time blocks: "Waarom ik dit bouw" from content/verhaal.html (plain <h2> and <p>; the
+ * section gives it the site's style), and the company line for the privacy block from
+ * content/bedrijf.local.html, which only exists on the server (git-ignored).
+ */
+function partials(): Plugin {
   return {
-    name: 'hf-story',
-    transformIndexHtml: (html) => html.replace('<!-- verhaal -->', existsSync(file) ? readFileSync(file, 'utf8') : ''),
+    name: 'hf-partials',
+    transformIndexHtml(html) {
+      const story = partial('verhaal.html');
+      return html
+        .replace('<!-- verhaal -->', story ? `<section id="verhaal" class="story mx-auto max-w-3xl px-4 py-16">${story}</section>` : '')
+        .replace('<!-- bedrijf -->', partial('bedrijf.local.html'));
+    },
   };
 }
 
 export default defineConfig({
   root,
-  plugins: [tailwindcss(), story()],
+  plugins: [tailwindcss(), partials()],
   build: {
     outDir: fileURLToPath(new URL('../dist/site', import.meta.url)),
     emptyOutDir: true,
