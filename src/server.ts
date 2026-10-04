@@ -71,7 +71,7 @@ if (env.DATABASE_URL) {
     const dashboardBaseUrl = env.DASHBOARD_BASE_URL;
     options.dashboardApi = { db, botToken: env.TELEGRAM_BOT_TOKEN };
     options.dashboard = { db, dashboardBaseUrl, calendar: services.calendar, claude: services.claude };
-    options.dashboardWeb = { dir: resolve('dist/web'), host: new URL(dashboardBaseUrl).hostname };
+    options.dashboardWeb = { dir: resolve('dist/dashboard'), host: new URL(dashboardBaseUrl).hostname };
     options.auth = {
       db,
       dashboardBaseUrl,

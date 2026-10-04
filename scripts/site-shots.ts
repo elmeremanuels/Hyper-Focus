@@ -64,7 +64,7 @@ const { token } = await createSession(db, userId, clock);
 const app = createApp({
   dashboardApi: { db, botToken: undefined, now },
   dashboard: { db, dashboardBaseUrl: `http://${HOST}`, claude, now },
-  dashboardWeb: { dir: resolve('dist/web'), host: HOST },
+  dashboardWeb: { dir: resolve('dist/dashboard'), host: HOST },
   reward: { db, botToken: undefined },
 });
 const server = app.listen(0);
