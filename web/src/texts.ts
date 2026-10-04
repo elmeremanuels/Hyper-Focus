@@ -13,6 +13,8 @@ export const T = {
   today: {
     count: { 0: 'Er staat niets open.', 1: 'Eén taak vandaag.', 2: 'Dit zijn je twee.', 3: 'Dit zijn je drie.' } as Record<number, string>,
     empty: 'Stuur in Telegram wat je wilt doen. Dan zet ik het klaar.',
+    emptyWithAssistant: 'Schrijf bij de braindump op wat je wilt doen. Dan zet ik het klaar.',
+    telegramHint: 'Of stuur in Telegram wat je wilt doen. Dan zet ik het klaar.',
     window: 'Focusvenster',
     moveWindow: 'Schuif venster',
     moveTo: 'Nieuwe begintijd',
