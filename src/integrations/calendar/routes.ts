@@ -10,7 +10,8 @@ import type { CalendarService } from './service.js';
 import { verifyConnectToken } from './state.js';
 import { saveConnection } from './store.js';
 import { syncUserCalendars } from './sync.js';
-import { normalizeIcsUrl } from './ics.js';
+import { icsLinkProblem, normalizeIcsUrl } from './ics.js';
+import { CALENDAR_GUIDES } from '../../texts/agenda.nl.js';
 import { CalendarAuthError, type CalendarProviderName } from './types.js';
 
 export interface CalendarRouteConfig {
@@ -28,6 +29,8 @@ export const CONNECT_TEXTS = {
   choose: 'Agenda koppelen',
   intro: 'Plak de geheime ICS-link van je agenda. Hyper&Focus bewaart alleen de tijden en titels van je afspraken van vandaag en morgen, en schrijft nooit in je agenda.',
   icsInvalid: 'Dit is geen geldige agendalink. Gebruik de link die begint met https:// of webcal://.',
+  googlePublic: 'Dit is het openbare adres van Google. Kopieer het Geheim adres in iCal-indeling; daar staat /private- in.',
+  outlookHtml: 'Dit is de HTML-link van Outlook. Kopieer de ICS-link; die eindigt op .ics.',
   icsUnreachable: 'Deze link gaf geen agenda terug. Controleer of je de geheime ICS-link hebt gekopieerd.',
   direct: 'Of koppel direct:',
   done: 'Je agenda is gekoppeld. Je kunt dit venster sluiten.',
@@ -63,6 +66,8 @@ export function createCalendarRouter(config: CalendarRouteConfig): Router {
 
       const url = await normalizeIcsUrl(String((req.body as { url?: unknown }).url ?? ''), config.resolveHost);
       if (!url) return formError(400, CONNECT_TEXTS.icsInvalid);
+      const problem = icsLinkProblem(url);
+      if (problem) return formError(400, CONNECT_TEXTS[problem]);
       const [user] = await config.db.select({ email: users.email, timezone: users.timezone }).from(users).where(eq(users.id, userId));
       const credentials = { url, ...(user?.email && { username: user.email }) };
       try {
@@ -153,10 +158,8 @@ ${service.ics ? `<form method="post" action="${base}/ics">
 <p><label>ICS-link<br><input name="url" type="url" inputmode="url" autocomplete="off" required style="width:100%" placeholder="https://… of webcal://…"></label></p>
 <p><button type="submit">Koppelen</button></p>
 </form>
-<details><summary>Google Agenda</summary><p>Open calendar.google.com op een computer → tandwiel → Instellingen → klik links je agenda → <em>Agenda integreren</em> → kopieer <em>Geheim adres in iCal-indeling</em>.</p></details>
-<details><summary>Outlook</summary><p>Open outlook.com of Outlook op het web → Instellingen → Agenda → Gedeelde agenda's → <em>Een agenda publiceren</em> → kies je agenda en <em>Kan alle details zien</em> → Publiceren → kopieer de ICS-link.</p></details>
-<details><summary>Apple iCloud</summary><p>iPhone: Agenda-app → Agenda's → ⓘ naast je agenda → zet <em>Openbare agenda</em> aan → Deel link → Kopieer. Op de Mac: Agenda → rechtsklik op je agenda → Deel agenda → Openbare agenda.</p></details>
-<p>Wie de link heeft, kan je agenda lezen. Hyper&amp;Focus bewaart hem versleuteld. Ontkoppelen kan altijd met "ontkoppel agenda".</p>` : ''}
+${CALENDAR_GUIDES.map((g) => `<details><summary>${escapeHtml(g.title)}</summary>${g.html}</details>`).join('\n')}
+<p>Hyper&amp;Focus bewaart de link versleuteld. Ontkoppelen kan altijd met "ontkoppel agenda".</p>` : ''}
 ${direct ? `<p>${escapeHtml(CONNECT_TEXTS.direct)}</p><p>${direct}</p>` : ''}`;
   }
 

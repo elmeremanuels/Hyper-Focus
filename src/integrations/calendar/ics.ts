@@ -252,6 +252,17 @@ export async function normalizeIcsUrl(
   return url.toString();
 }
 
+/**
+ * A link that will not work although it looks right: Google's public address (the secret one
+ * has /private-) or Outlook's HTML page instead of the ICS feed.
+ */
+export function icsLinkProblem(url: string): 'googlePublic' | 'outlookHtml' | undefined {
+  const { hostname, pathname } = new URL(url);
+  if (hostname === 'calendar.google.com' && !pathname.includes('/private-')) return 'googlePublic';
+  if (/(^|\.)(outlook\.(office365|office|live)\.com)$/.test(hostname) && /\.html?$/i.test(pathname)) return 'outlookHtml';
+  return undefined;
+}
+
 /** Loopback, private, link-local and unspecified addresses (no server-side requests inward). */
 export function isPrivateAddress(address: string): boolean {
   if (address.includes(':')) {
