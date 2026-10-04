@@ -436,7 +436,7 @@ async function stop(ctx: Ctx, block: Block): Promise<OutboundMessage[]> {
   return [{ text: BLOCK_TEXTS.stopped, buttons: [SHOW_TODAY] }];
 }
 
-/** Turns the reward minute and the garden on or off; blocks and pauses keep working. */
+/** Turns the reward minute on or off; blocks and pauses keep working. */
 export async function setRewards(ctx: Pick<Ctx, 'db' | 'userId'>, enabled: boolean): Promise<OutboundMessage> {
   await ctx.db.update(userSettings).set({ rewardsEnabled: enabled }).where(eq(userSettings.userId, ctx.userId));
   await recordEvent(ctx.db, ctx.userId, 'rewards_toggled', { enabled });

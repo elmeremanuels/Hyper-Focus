@@ -1066,6 +1066,16 @@ Focusvenster, ritme en beloning (1.12):
 - [ ] Het dashboard toont geen blok meer dat al uren voorbij is.
 - [ ] De batterij geeft op elk moment de juiste stand.
 
+## Verbeterplan P0.1 punt 5 — Tuin-tabellen opruimen
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code. **Wacht op een verse back-up en Elmers akkoord in de PR.**
+- **Gebouwd:** migratie `0011_drop_garden`. Die verwijdert de tabel `garden_events`, de kolom `users.garden_growth` en het type `garden_event_kind`. Schema, export en tests zijn bijgewerkt.
+- **Controle:**
+  - `npm test` is groen, ook de tests voor exporteren en verwijderen.
+  - De migratie is gedraaid op de dev-database: de tabel en de kolom zijn weg.
+- **Deploy:** eerst een back-up (`docs/deploy.md`, stap 1), daarna de vaste reeks.
+
 ## Volgende stap
 
-P0.1 punt 5 (tuin-tabellen, na een back-up en akkoord), daarna P0.2: back-ups, bewaking en een wachttekst bij een AI-storing.
+P0.2: back-ups, bewaking en een wachttekst bij een AI-storing.

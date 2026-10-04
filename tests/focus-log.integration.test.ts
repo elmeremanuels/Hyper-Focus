@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
 import { hashToken } from '../src/conversation/blocks.js';
-import { events, focusBlocks, focusWindows, gardenEvents, tasks, users } from '../src/db/schema/index.js';
+import { events, focusBlocks, focusWindows, tasks } from '../src/db/schema/index.js';
 import { focusLog, formatLogLine, hoursLabel, weekYield } from '../src/focus/log.js';
 import { startServer } from './helpers/server.js';
 import { adminUrl, useTestDatabase } from './helpers/testdb.js';
@@ -63,7 +63,7 @@ describe.skipIf(!adminUrl)('focus log and weekly yield (integration)', () => {
     expect(await weekYield(db(), t.userId, TZ, at('2026-11-30', '15:00:00'))).toEqual([]);
   });
 
-  it('shows today\'s focus log in the mini-app, counts the opening, and never fills the garden', async () => {
+  it('shows today\'s focus log in the mini-app and counts the opening', async () => {
     const token = 'logtoken-' + 'x'.repeat(24);
     await db().insert(focusBlocks).values(block({ taskId: (await task('Banner voor de feestdagen')).id, rewardTokenHash: hashToken(token), startedAt: at('2026-10-06', '14:00:00'), endedAt: at('2026-10-06', '14:25:00') }));
     const server = await startServer(createApp({ reward: { db: db(), botToken: 'x', now: () => at('2026-10-06', '15:00:00') } }));
@@ -86,7 +86,5 @@ describe.skipIf(!adminUrl)('focus log and weekly yield (integration)', () => {
     } finally {
       await server.close();
     }
-    expect(await db().select().from(gardenEvents)).toHaveLength(0);
-    expect((await db().select({ g: users.gardenGrowth }).from(users).where(eq(users.id, t.userId)))[0]?.g).toBe(0);
   });
 });
