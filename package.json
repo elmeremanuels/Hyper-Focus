@@ -12,7 +12,7 @@
     "start": "node dist/server.js",
     "worker": "node dist/worker.js",
     "worker:dev": "tsx watch src/worker.ts",
-    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').cpSync('src/ai/prompts','dist/ai/prompts',{recursive:true})\" && vite build --config web/vite.config.ts",
+    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').cpSync('src/ai/prompts','dist/ai/prompts',{recursive:true})\" && vite build --config web/vite.config.ts && vite build --config site/vite.config.ts",
     "typecheck": "tsc --noEmit && tsc -p web/tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
@@ -28,7 +28,8 @@
     "link:telegram": "tsx scripts/link-telegram.ts",
     "telegram:webhook": "tsx scripts/telegram-webhook.ts",
     "brevo:inbound": "tsx scripts/brevo-inbound.ts",
-    "dev:web": "vite --config web/vite.config.ts"
+    "dev:web": "vite --config web/vite.config.ts",
+    "dev:site": "vite --config site/vite.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",

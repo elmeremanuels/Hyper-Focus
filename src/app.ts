@@ -7,6 +7,7 @@ import { createRewardRouter, type RewardRouteConfig } from './web/reward.js';
 import { createDashboardApi, type DashboardApiConfig } from './web/dashboard-api.js';
 import { createAuthRouter, type AuthConfig } from './web/auth/routes.js';
 import { createDashboardStatic, type DashboardWebConfig } from './web/dashboard-static.js';
+import { createSiteStatic, type SiteConfig } from './web/site-static.js';
 import { createDashboardRoutes, type DashboardRoutesConfig } from './web/dashboard/index.js';
 
 export interface AppOptions {
@@ -25,6 +26,8 @@ export interface AppOptions {
   dashboardApi?: DashboardApiConfig;
   auth?: AuthConfig;
   dashboardWeb?: DashboardWebConfig;
+  /** The website on the main host (fase 2b). Mounted last. */
+  site?: SiteConfig;
   dashboard?: DashboardRoutesConfig;
 }
 
@@ -70,6 +73,9 @@ export function createApp(options: AppOptions = {}): Express {
   }
   if (options.dashboardWeb) {
     app.use(createDashboardStatic(options.dashboardWeb));
+  }
+  if (options.site) {
+    app.use(createSiteStatic(options.site));
   }
 
   return app;
