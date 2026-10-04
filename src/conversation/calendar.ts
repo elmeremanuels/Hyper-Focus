@@ -11,6 +11,7 @@ import { createConnectToken } from '../integrations/calendar/state.js';
 import { credentialsOf, deleteConnections, listConnections } from '../integrations/calendar/store.js';
 import { eventsBetween, syncUserCalendars } from '../integrations/calendar/sync.js';
 import { localDate, localTimeOnDate } from '../lib/time.js';
+import { REVOKE_HINT } from '../texts/agenda.nl.js';
 import { firstFreeSlot } from '../proactive/daycalendar.js';
 import type { ButtonExtension } from './buttons.js';
 import { date, defineTool, type ToolDefinition } from './tools.js';
@@ -72,7 +73,7 @@ const disconnectCalendar = defineTool({
         text:
           'Je agenda is ontkoppeld. Ik heb de toegang ingetrokken en de tokens en afspraken verwijderd.' +
           (apple ? ' Verwijder ook het app-specifieke wachtwoord op account.apple.com.' : '') +
-          (ics ? ' Wil je de ICS-link zelf ongeldig maken, maak dan in je agenda een nieuwe geheime link aan.' : ''),
+          (ics ? REVOKE_HINT : ''),
       },
     };
   },

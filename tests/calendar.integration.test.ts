@@ -204,11 +204,19 @@ describe.skipIf(!adminUrl)('calendar (integration)', { timeout: 30_000 }, () => 
       const html = await (await fetch(`${server.baseUrl}/agenda/koppel/${token}`)).text();
       expect(html).toContain('ICS-link');
       expect(html).toContain('Geheim adres in iCal-indeling');
+      // Each guide says who can see the link and how to revoke it.
+      expect(html.match(/Iedereen met de link kan je afspraken zien\./g)).toHaveLength(3);
+      for (const revoke of ['Openbare agenda</em> weer uit', 'Opnieuw instellen', 'Publicatie ongedaan maken']) expect(html).toContain(revoke);
 
       const post = (url: string) =>
         fetch(`${server.baseUrl}/agenda/koppel/${token}/ics`, { method: 'POST', body: new URLSearchParams({ url }) });
       expect((await post('http://feeds.invalid/x.ics')).status).toBe(400);
       expect((await post('https://feeds.invalid/onbekend.ics')).status).toBe(422);
+      // Google's public address and Outlook's HTML page are told apart before any fetch.
+      const google = await post('https://calendar.google.com/calendar/ical/sam%40voorbeeld.invalid/public/basic.ics');
+      expect([google.status, await google.text()]).toEqual([400, expect.stringContaining('Dit is het openbare adres van Google.')]);
+      const outlook = await post('https://outlook.office365.com/owa/calendar/abc@voorbeeld.invalid/def/calendar.html');
+      expect([outlook.status, await outlook.text()]).toEqual([400, expect.stringContaining('Dit is de HTML-link van Outlook.')]);
       expect((await post('webcal://feeds.invalid/sam/private.ics')).status).toBe(200);
 
       const [ics] = await db().select().from(calendarConnections).where(and(eq(calendarConnections.userId, t.userId), eq(calendarConnections.provider, 'ics')));

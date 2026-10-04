@@ -881,6 +881,21 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
 - **Projecten en Klanten:** beide tabs gebruiken hetzelfde raster van twee kolommen, van links naar rechts gevuld. Eerst waren het CSS-kolommen, en die verspringen als je een kaart openklapt.
 - **Controle:** schermafbeeldingen op 1440 px en 390 px, ook met een geopende klant: geen fouten. `npm test` is groen.
 
+## Fix — instructies agendakoppeling
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - De koppelpagina heeft de door Elmer nagelopen stappen voor Apple (iPhone, Mac en icloud.com), Google en Outlook. De tekst staat in `src/texts/agenda.nl.ts`.
+  - Elke instructie meldt dat iedereen met de link de afspraken kan zien, en hoe je de link intrekt.
+  - `webcal://` en `https://` werken allebei. Dat werkte al.
+  - Nieuwe meldingen:
+    - plak je het openbare Google-adres (zonder `/private-`), dan vraagt de pagina om het geheime adres;
+    - plak je de HTML-link van Outlook, dan vraagt de pagina om de ICS-link.
+  - Na "ontkoppel agenda" noemt de bot per agenda hoe je de link intrekt.
+  - `docs/agenda.md` is bijgewerkt.
+- **Controle:** `tests/calendar.integration.test.ts`: de instructies met intrekken, de melding bij het openbare Google-adres, de melding bij de HTML-link van Outlook, en `webcal://` blijft werken.
+
 ## Volgende stap
 
 Fase 2a is af. Eerst deployen en Kiki testen op de VPS. Daarna fase 2b: de website.

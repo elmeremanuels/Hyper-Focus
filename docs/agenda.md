@@ -27,17 +27,21 @@ Hyper&Focus leest je agenda via de **geheime ICS-link** die elke grote agenda aa
 1. Stuur **"koppel agenda"**. Je krijgt een persoonlijke link die 15 minuten werkt.
 2. Open de link en plak je ICS-link. Waar je die vindt:
 
-| Agenda | Waar |
-|---|---|
-| Google | calendar.google.com op een computer → tandwiel → *Instellingen* → links je agenda → *Agenda integreren* → **Geheim adres in iCal-indeling** |
-| Outlook | Outlook op het web → *Instellingen* → *Agenda* → *Gedeelde agenda's* → *Een agenda publiceren* → kies je agenda en *Kan alle details zien* → *Publiceren* → **ICS-link** |
-| Apple iCloud | iPhone: Agenda-app → *Agenda's* → ⓘ naast je agenda → **Openbare agenda** aan → *Deel link*. Mac: Agenda → rechtsklik op je agenda → *Deel agenda* → *Openbare agenda* |
+De koppelpagina toont per agenda de stappen (tekst in `src/texts/agenda.nl.ts`, nagelopen op 4 oktober 2026). In het kort:
+
+| Agenda | Waar | Intrekken |
+|---|---|---|
+| Apple (alleen een iCloud-agenda) | iPhone: Agenda-app → *Agenda's* → ⓘ naast de agenda onder iCloud → **Openbare agenda** aan → *Deel link…* → *Kopieer*. Mac: Agenda → deelsymbool bij de agenda (of rechtsklik → *Instellingen voor delen*) → **Openbare agenda** → deelsymbool → *Kopieer*. Anders: icloud.com/calendar → ⓘ. De `webcal://`-link mag zo geplakt worden. | *Openbare agenda* uit |
+| Google (alleen op een computer) | calendar.google.com → tandwiel → *Instellingen* → links je agenda → *Agenda integreren* → **Geheim adres in iCal-indeling** | *Opnieuw instellen* |
+| Outlook (web, Outlook.com, nieuwe Outlook) | *Agenda* → tandwiel → *Agenda → Gedeelde agenda's* → *Een agenda publiceren* → je agenda en *Kan alle details zien* → *Publiceren* → **ICS-link** | *Publicatie ongedaan maken* |
+
+Iedereen met de link kan je afspraken zien. De koppelpagina weigert twee links die er goed uitzien maar niet werken: het openbare adres van Google (zonder `/private-`) en de HTML-link van Outlook.
 
 3. In Telegram komt "Je agenda is gekoppeld."
 
 Plak de link nooit in de chat; alleen op de koppelpagina wordt hij versleuteld opgeslagen.
 
-**Ontkoppelen:** stuur "ontkoppel agenda". Hyper&Focus verwijdert de link en de afspraken. Wil je de link zelf ongeldig maken, maak dan in je agenda een nieuwe geheime link aan (Google: *Opnieuw instellen*; Outlook: publicatie stoppen; Apple: *Openbare agenda* uit).
+**Ontkoppelen:** stuur "ontkoppel agenda". Hyper&Focus verwijdert de link en de afspraken. De link zelf trek je in bij je agenda (zie de kolom *Intrekken*).
 
 ## Bekende beperkingen
 
