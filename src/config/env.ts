@@ -66,6 +66,9 @@ export const envSchema = z.object({
 
   // Mail
   BREVO_API_KEY: optionalString,
+  /** The waiting list on the website (step 2b.3): a Brevo list and a double opt-in template. */
+  BREVO_WAITLIST_LIST_ID: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
+  BREVO_DOI_TEMPLATE_ID: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
   EMAIL_FROM: z.preprocess(emptyToUndefined, z.email().optional()),
   EMAIL_REPLY_TO: z.preprocess(emptyToUndefined, z.email().optional()),
   EMAIL_INBOUND_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),

@@ -8,6 +8,7 @@ import { createDashboardApi, type DashboardApiConfig } from './web/dashboard-api
 import { createAuthRouter, type AuthConfig } from './web/auth/routes.js';
 import { createDashboardStatic, type DashboardWebConfig } from './web/dashboard-static.js';
 import { createSiteStatic, type SiteConfig } from './web/site-static.js';
+import { createWaitlistRouter, type WaitlistConfig } from './web/waitlist.js';
 import { createDashboardRoutes, type DashboardRoutesConfig } from './web/dashboard/index.js';
 
 export interface AppOptions {
@@ -28,6 +29,8 @@ export interface AppOptions {
   dashboardWeb?: DashboardWebConfig;
   /** The website on the main host (fase 2b). Mounted last. */
   site?: SiteConfig;
+  /** The waiting list form on the website (step 2b.3). */
+  waitlist?: WaitlistConfig;
   dashboard?: DashboardRoutesConfig;
 }
 
@@ -73,6 +76,9 @@ export function createApp(options: AppOptions = {}): Express {
   }
   if (options.dashboardWeb) {
     app.use(createDashboardStatic(options.dashboardWeb));
+  }
+  if (options.waitlist) {
+    app.use(createWaitlistRouter(options.waitlist));
   }
   if (options.site) {
     app.use(createSiteStatic(options.site));

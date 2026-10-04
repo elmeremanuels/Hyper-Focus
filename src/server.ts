@@ -7,6 +7,8 @@ import { connect } from './db/client.js';
 import { buildServices } from './wiring.js';
 import { resolve } from 'node:path';
 import { LOGIN_TEXTS } from './texts/dashboard.nl.js';
+import { requestDoubleOptin } from './integrations/brevo/double-optin.js';
+import { WAITLIST_PAGES } from './web/waitlist.js';
 
 const env = getEnv();
 const options: AppOptions = {
@@ -58,7 +60,13 @@ if (env.DATABASE_URL) {
   };
 
   options.reward = { db, botToken: env.TELEGRAM_BOT_TOKEN };
-  if (env.APP_BASE_URL) options.site = { dir: resolve('dist/site'), host: new URL(env.APP_BASE_URL).hostname };
+  if (env.APP_BASE_URL) {
+    const site = new URL(env.APP_BASE_URL);
+    options.site = { dir: resolve('dist/site'), host: site.hostname };
+    const { BREVO_API_KEY: apiKey, BREVO_WAITLIST_LIST_ID: listId, BREVO_DOI_TEMPLATE_ID: templateId } = env;
+    const doi = apiKey && listId && templateId ? { apiKey, listId, templateId, redirectionUrl: new URL(WAITLIST_PAGES.confirmed, site).toString() } : undefined;
+    options.waitlist = { host: site.hostname, signup: doi && ((email) => requestDoubleOptin(doi, email)) };
+  }
   if (env.DASHBOARD_BASE_URL) {
     const dashboardBaseUrl = env.DASHBOARD_BASE_URL;
     options.dashboardApi = { db, botToken: env.TELEGRAM_BOT_TOKEN };
