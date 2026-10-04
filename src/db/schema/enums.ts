@@ -37,6 +37,8 @@ export const nudgeKind = pgEnum('nudge_kind', [
   'window_missed',
   // A second morning message, 10 minutes later: never two in one minute (verbeterplan P0.1)
   'morning_followup',
+  // A message the AI could not read yet, tried again (verbeterplan P0.2)
+  'ai_retry',
 ]);
 
 // Phase 2 lenses. Later lenses (swot, offer_pricing, retention, visibility, time_saving)

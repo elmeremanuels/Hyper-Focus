@@ -1066,6 +1066,50 @@ Focusvenster, ritme en beloning (1.12):
 - [ ] Het dashboard toont geen blok meer dat al uren voorbij is.
 - [ ] De batterij geeft op elk moment de juiste stand.
 
+## Verbeterplan P0.2 — Back-ups, bewaking en wachttekst
+
+- **Status:** klaar in de PR; Cowork richt het in op de VPS volgens `docs/ops.md`
+- **Datum:** 2026-10-04
+- **Gebouwd:**
+  - **Back-ups.**
+    - `scripts/ops/backup.sh`: `pg_dump`, versleuteld met `BACKUP_PASSPHRASE`, met rclone naar `BACKUP_REMOTE`. Bewaart 14 dagelijkse en 8 wekelijkse kopieën.
+    - `scripts/ops/restore-test.sh`: zet elke maand de nieuwste back-up terug in een tijdelijke database en telt gebruikers en taken.
+    - Bij een fout sturen beide een melding via `npm run ops:alert`.
+  - **Meldingen** (`src/ops/alerts.ts`): via Telegram naar `ALERT_TELEGRAM_CHAT_ID` en via mail naar `ALERT_EMAIL`. Dezelfde melding gaat hooguit één keer per 6 uur.
+  - **Hartslag.** De worker schrijft elke tick naar `WORKER_HEARTBEAT_FILE`. `/health` geeft 503 `worker_down` als de hartslag ouder is dan 5 minuten.
+  - **Bewaking in de worker:**
+    - elk uur `getWebhookInfo`;
+    - elke nacht om 01:00 UTC een controle van Anthropic (één token) en OpenAI (`/v1/models`);
+    - meer dan 5 `console.error` per uur geeft een melding, per proces.
+  - **Wachttekst bij storing.**
+    - Faalt Claude, dan antwoordt de bot: "Ik kan je bericht nu even niet lezen. Ik heb het bewaard en kom erop terug." Dit vervangt de oude tekst "Er ging iets mis aan mijn kant".
+    - Het bericht komt als `ai_retry` in `scheduled_nudges`. De worker probeert het na 5 minuten en daarna elke 10 minuten. Lukt het niet binnen 12 uur, dan vraagt de bot het bericht opnieuw te sturen.
+    - Een tegoedfout geeft direct een melding.
+    - De upkeep verwijdert afgehandelde wachtrij-rijen na een dag, want ze bevatten de tekst van het bericht.
+  - **Datamodel:** de enum `nudge_kind` krijgt de waarde `ai_retry` (`drizzle/0011_ai_retry.sql`). Het verbeterplan vraagt om een wachtrij; `scheduled_nudges` doet dat werk, zonder nieuwe tabel.
+- **Controle:**
+  - `tests/ops.test.ts`:
+    - meldingen en hun herhaling;
+    - de foutteller;
+    - `/health` met en zonder hartslag;
+    - webhookinfo;
+    - herkennen van tegoed- en sleutelfouten.
+  - `tests/ai-retry.integration.test.ts`:
+    - wachttekst, wachtrij en melding;
+    - een mislukte retry schuift 10 minuten op;
+    - na herstel volgt het antwoord;
+    - na 12 uur de vraag om het opnieuw te sturen;
+    - opruimen.
+  - Back-upscripts lokaal gedraaid tegen Postgres 16, met een nep-rclone die naar een map schrijft:
+    - back-up gemaakt (daily en, op zondag, weekly);
+    - hersteltest geeft "1 users, 8 tasks";
+    - een verkeerde sleutel en een ontbrekende `BACKUP_REMOTE` geven allebei een melding.
+  - `npm test`: 422 groen. `typecheck`, `lint` en `build` slagen ook.
+- **Open punten:**
+  - Elmer: akkoord op een opslag in de EU (Hetzner of Scaleway), en het account aanmaken.
+  - Cowork: `docs/ops.md` uitvoeren, inclusief de gesimuleerde storingen onder "Klaar als".
+  - Migratienummer: PR "tuin opruimen" heeft ook een `0011`. Wie als tweede merget, maakt de migratie opnieuw aan als `0012`.
+
 ## Volgende stap
 
-P0.1 punt 5 (tuin-tabellen, na een back-up en akkoord), daarna P0.2: back-ups, bewaking en een wachttekst bij een AI-storing.
+P0.1 punt 5 (tuin-tabellen, na een back-up en akkoord). Daarna de privacypagina, zodra de tekst is goedgekeurd, en de feedbacknotities in de bot.

@@ -66,6 +66,10 @@ export const envSchema = z.object({
 
   // Mail
   BREVO_API_KEY: optionalString,
+  /** Alerts and the worker's heartbeat (verbeterplan P0.2). The chat id is Elmer's own Telegram chat. */
+  ALERT_TELEGRAM_CHAT_ID: z.preprocess(emptyToUndefined, z.coerce.number().int().optional()),
+  ALERT_EMAIL: z.preprocess(emptyToUndefined, z.email().optional()),
+  WORKER_HEARTBEAT_FILE: optionalString,
   /** The waiting list on the website (step 2b.3): a Brevo list and a double opt-in template. */
   BREVO_WAITLIST_LIST_ID: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
   BREVO_DOI_TEMPLATE_ID: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),

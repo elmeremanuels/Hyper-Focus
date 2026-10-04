@@ -3,7 +3,7 @@
 import { DateTime } from 'luxon';
 
 /** The user started these themselves, so they go out regardless of the guardrails. */
-export const USER_STARTED_KINDS = new Set(['session_checkin']);
+export const USER_STARTED_KINDS = new Set(['session_checkin', 'ai_retry']);
 /** Heads-ups and follow-ups: limited by max_calendar_nudges_per_day when planned. */
 export const CALENDAR_KINDS = new Set(['meeting_heads_up', 'meeting_followup']);
 /** Messages of a running work block (step 1.9). */

@@ -1,7 +1,9 @@
 // Sends due messages from scheduled_nudges (BOUWPLAN.md, 11.1): one row at a time with
 // FOR UPDATE SKIP LOCKED, through the guardrails, then over the user's channel.
 import { and, asc, desc, eq, gt, gte, lte, notInArray, sql } from 'drizzle-orm';
+import { DateTime } from 'luxon';
 import type { Delivery } from '../channels/channel.js';
+import type { InboundSource, OutboundMessage } from '../conversation/types.js';
 import { recordEvent } from '../core/events.js';
 import { getProfile } from '../core/profile.js';
 import { getSettings, type UserSettingsRow } from '../core/settings.js';
@@ -60,6 +62,8 @@ export const DEFAULT_COMPOSERS: Partial<Record<NudgeRow['kind'], Composer>> = {
 };
 
 export interface SenderDeps {
+  /** Runs a queued message through the router again (verbeterplan P0.2). */
+  retry?: (message: { userId: number; text: string; source: InboundSource }) => Promise<OutboundMessage[]>;
   db: Database;
   delivery: Delivery;
   users: Pick<UserStore, 'findById'>;
@@ -119,6 +123,28 @@ export async function sendDueNudges(deps: SenderDeps, now: Date = new Date(), li
 }
 
 const SAME_MINUTE_MS = 60_000;
+/** A queued message is tried for this long, then the user is asked to send it again. */
+export const AI_RETRY_GIVE_UP_MS = 12 * 3_600_000;
+const AI_RETRY_EVERY_MS = 10 * 60_000;
+
+/** A message the AI could not read yet: through the router again, or give up after 12 hours. */
+async function composeRetry(deps: SenderDeps, ctx: NudgeContext, nudge: NudgeRow): Promise<Composed> {
+  const text = String(nudge.payload.text ?? '');
+  const receivedAt = new Date(String(nudge.payload.receivedAt ?? nudge.createdAt.toISOString()));
+  if (ctx.now.getTime() - receivedAt.getTime() > AI_RETRY_GIVE_UP_MS) {
+    const when = DateTime.fromJSDate(receivedAt, { zone: ctx.timezone }).setLocale('nl').toFormat('cccc HH:mm');
+    return { subject: 'Je bericht', message: { text: `Je bericht van ${when} kon ik niet verwerken. Wil je het opnieuw sturen?\n"${text.slice(0, 80)}"` } };
+  }
+  if (!deps.retry) return { retryAt: new Date(ctx.now.getTime() + AI_RETRY_EVERY_MS) };
+  try {
+    const source = (nudge.payload.source as InboundSource | undefined) ?? 'telegram';
+    const [first, ...rest] = await deps.retry({ userId: ctx.userId, text, source });
+    if (!first) return { skip: 'no_reply' };
+    return { subject: 'Je bericht', message: first, ...(rest.length > 0 && { followUps: rest }) };
+  } catch {
+    return { retryAt: new Date(ctx.now.getTime() + AI_RETRY_EVERY_MS) };
+  }
+}
 const FOLLOWUP_MAX_DELAY_MS = 30 * 60_000;
 
 type NudgeResult =
@@ -178,7 +204,7 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
       return verdict.retryAt ? { status: 'postponed', retryAt: verdict.retryAt } : { status: 'skipped', reason: verdict.reason };
     }
 
-    const composer = (deps.composers ?? DEFAULT_COMPOSERS)[nudge.kind];
+    const composer = nudge.kind === 'ai_retry' ? (c: NudgeContext) => composeRetry(deps, c, nudge) : (deps.composers ?? DEFAULT_COMPOSERS)[nudge.kind];
     if (!composer) return { status: 'failed', reason: 'no_composer' };
     const ctx: NudgeContext = {
       db: deps.db,
@@ -190,6 +216,7 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
     };
     const composed = await composer(ctx, nudge);
     if ('skip' in composed) return { status: 'skipped', reason: composed.skip };
+    if ('retryAt' in composed) return { status: 'postponed', retryAt: composed.retryAt };
 
     // Transitions make a sound; anything else during a block or pause is silent.
     const quiet = composed.silent === true || (Boolean(focus) && !SOUND_KINDS.has(nudge.kind));
@@ -247,6 +274,7 @@ async function guardrailInput(
       'soft_landing',
       'window_missed',
       'morning_followup',
+      'ai_retry',
     ]),
     // The Monday mail does not count against Telegram messages.
     sql`not (${scheduledNudges.kind} = 'weekly_review' and ${scheduledNudges.payload}->>'part' = 'mail')`,

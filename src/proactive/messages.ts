@@ -41,7 +41,9 @@ export type Composed =
       /** Always without sound (step 1.12). */
       silent?: boolean;
     }
-  | { skip: string };
+  | { skip: string }
+  /** Try again at this time, e.g. while the AI is out (verbeterplan P0.2). */
+  | { retryAt: Date };
 
 export interface Later {
   kind: 'morning_followup';
@@ -157,7 +159,7 @@ export async function composeMidday(ctx: NudgeContext, taskId: number): Promise<
 /** The wrapup is the day review (step 1.11), with the calendar error when there is one. */
 export async function composeWrapup(ctx: NudgeContext, localDate: string): Promise<Composed> {
   const composed = await composeDayReview(ctx, localDate);
-  if ('skip' in composed) return composed;
+  if ('skip' in composed || 'retryAt' in composed) return composed;
   const calendarError = await calendarErrorLine(ctx);
   return calendarError ? { ...composed, message: { ...composed.message, text: `${composed.message.text}\n${calendarError}` } } : composed;
 }
