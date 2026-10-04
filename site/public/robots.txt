@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /wachtlijst/
+Disallow: /a/
+Disallow: /app/
+Disallow: /agenda/
+Disallow: /webhooks/
+
+Sitemap: https://hyper-focus.pro/sitemap.xml

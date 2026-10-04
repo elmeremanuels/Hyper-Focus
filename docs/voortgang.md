@@ -979,6 +979,24 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - In Chromium op 390 px: zonder vinkje blijf je op de pagina, met vinkje kom je op "Check je mail".
   - `npm test`: 404 groen.
 
+## Stap 2b.4 — Afronding van de website
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code.
+- **Gebouwd:**
+  - `robots.txt`: de site mag geïndexeerd worden, de serverpaden en de wachtlijstpagina's niet. Daarnaast een `sitemap.xml`.
+  - Een beeld voor gedeelde links (`img/og.png`, 1200×630) met de belofte en Vandaag. Daarbij de Open Graph-tags en `twitter:card`. `npm run site:shots` maakt het beeld opnieuw, samen met de printscreens.
+  - `docs/website.md` met de deploy-brief, de controlelijst en hoe je de site bijwerkt.
+- **Controle:**
+  - Lighthouse kreeg in de cloud-sandbox geen pagina getekend (NO_FCP, een bekend probleem met headless Chrome). Daarom zelf gemeten met Playwright, met het mobiele profiel van Lighthouse (traag 4G, CPU 4× trager, 390 px):
+    - eerste inhoud zichtbaar (FCP) na 0,6 s;
+    - grootste element zichtbaar (LCP) na 1,2 s;
+    - de opmaak verspringt niet (CLS 0);
+    - 184 kB in totaal, zonder scripts.
+  - axe-core (WCAG 2 A en AA, plus de aanbevolen controles): geen problemen.
+  - Draai Lighthouse na de deploy ook op de echte site via PageSpeed Insights.
+  - `npm test` en `npm run build` zijn groen.
+
 ## Volgende stap
 
-Stap 2b.4: sitemap, robots.txt, het beeld voor gedeelde links, Lighthouse en de deploy-brief.
+Fase 2b is af in code. Eerst deployen met `docs/website.md`. Daarna fase 2: de verbetermotor (2.1–2.5).
