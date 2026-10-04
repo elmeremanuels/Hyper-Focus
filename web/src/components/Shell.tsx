@@ -30,7 +30,7 @@ export function Shell({ route, go, battery, assistant, children }: { route: Rout
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 pb-24 sm:pb-8">
       <header className="flex items-center justify-between py-4">
         <span className="font-display text-xl font-bold tracking-tight">{T.appName}</span>
-        <div className="flex items-center gap-3">
+        <div className="flex min-h-9 items-center gap-3">
           {assistant}
           <Battery battery={battery} />
         </div>

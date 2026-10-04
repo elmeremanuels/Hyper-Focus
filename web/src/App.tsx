@@ -57,7 +57,8 @@ export function App() {
       go={go}
       battery={battery.data}
       assistant={
-        kiki.data?.available && (
+        kiki.data?.available &&
+        route !== 'today' && (
           <button type="button" onClick={() => setKikiOpen(true)} className="rounded-xl border-2 border-ink bg-accent px-3 py-1.5 text-sm font-semibold text-white">
             {T.kiki.open}
           </button>
@@ -75,7 +76,7 @@ export function App() {
         />
       )}
       <div key={version} className="contents">
-        {route === 'today' && <Today onChange={() => void battery.reload()} />}
+        {route === 'today' && <Today assistant={kiki.data} onChange={() => void battery.reload()} />}
         {route === 'projects' && <Projects />}
         {route === 'parking' && <Parking />}
         {route === 'settings' && <Settings />}

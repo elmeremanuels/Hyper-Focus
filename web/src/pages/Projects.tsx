@@ -40,7 +40,7 @@ export function Projects() {
         <>
           <NewProject clients={clients} onSaved={reload} />
           {projects.length === 0 && <Card><p className="text-muted">{t.noProjects}</p></Card>}
-          <div className="gap-x-4 md:columns-2">
+          <div className="grid items-start gap-x-4 md:grid-cols-2">
             {projects.map((p) => (
               <ProjectCard key={p.id} project={p} projects={projects} clients={clients} onChange={reload} />
             ))}
@@ -50,7 +50,7 @@ export function Projects() {
         <>
           <NewClient onSaved={reload} />
           {clients.length === 0 && <Card><p className="text-muted">{t.noClients}</p></Card>}
-          <div className="gap-x-4 md:columns-2">
+          <div className="grid items-start gap-x-4 md:grid-cols-2">
             {clients.map((c) => (
               <ClientCard key={c.id} client={c} onChange={reload} />
             ))}

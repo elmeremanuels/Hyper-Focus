@@ -869,6 +869,18 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - `npm run demo:week` en `--reset` gedraaid op de dev-database, en het account in Chromium bekeken: geen fouten.
   - `npm test`: 394 groen.
 
+## Fix na 2a — indeling Vandaag en Projecten
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code.
+- **Vandaag:** op een breed scherm staan nu twee kolommen. Links staan de focus, het venster en het focuslog onder elkaar. Rechts staat Kiki met het invoerveld, met daaronder "Of stuur in Telegram wat je wilt doen. Dan zet ik het klaar."
+  - Zonder Kiki is er één kolom.
+  - Op Vandaag verdwijnt de knop Braindump uit de kop, omdat het veld er al staat. Op de andere pagina's blijft de knop.
+  - Op een telefoon staat Kiki onder het focuslog.
+  - `KikiFlow` is losgemaakt van het paneel, zodat beide hetzelfde formulier gebruiken.
+- **Projecten en Klanten:** beide tabs gebruiken hetzelfde raster van twee kolommen, van links naar rechts gevuld. Eerst waren het CSS-kolommen, en die verspringen als je een kaart openklapt.
+- **Controle:** schermafbeeldingen op 1440 px en 390 px, ook met een geopende klant: geen fouten. `npm test` is groen.
+
 ## Volgende stap
 
 Fase 2a is af. Eerst deployen en Kiki testen op de VPS. Daarna fase 2b: de website.

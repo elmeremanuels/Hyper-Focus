@@ -1,14 +1,16 @@
 // Vandaag (step 2a.3): quick wins first, the task of the focus window last, the focus log below.
+// On a wide screen the assistant stands in a second column on the right.
 import { useState } from 'react';
-import { post, type Today as TodayData, type TodayTask } from '../api';
+import { post, type KikiInfo, type Today as TodayData, type TodayTask } from '../api';
 import { Button, LinkButton } from '../components/Button';
+import { KikiFlow } from '../components/Kiki';
 import { Card } from '../components/Shell';
 import { T } from '../texts';
 import { useApi } from '../useApi';
 
 const t = T.today;
 
-export function Today({ onChange }: { onChange: () => void }) {
+export function Today({ onChange, assistant }: { onChange: () => void; assistant: KikiInfo | undefined }) {
   const today = useApi<TodayData>('/api/today', 60_000);
   const [note, setNote] = useState<string>();
   const refresh = async () => {
@@ -27,6 +29,9 @@ export function Today({ onChange }: { onChange: () => void }) {
         <p className="text-muted">{t.count[d.focus.length] ?? t.count[3]}</p>
       </div>
 
+      <div className={`grid items-start gap-x-6 ${assistant?.available ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]' : ''}`}>
+      <div>
+
       {d.activeBlock && (
         <div className="mb-4 rounded-xl border-2 border-ink bg-accent px-4 py-3 font-semibold text-white">
           {d.activeBlock.phase === 'block' ? t.blockRuns : t.pitstopUntil} <span className="tabular">{d.activeBlock.endsAt}</span>
@@ -42,11 +47,10 @@ export function Today({ onChange }: { onChange: () => void }) {
 
       {d.focus.length === 0 && (
         <Card>
-          <p>{t.empty}</p>
+          <p>{assistant?.available ? t.emptyWithAssistant : t.empty}</p>
         </Card>
       )}
-      {/* Side by side on a wider screen: "Dit zijn je drie" in one row. */}
-      <div className="grid gap-x-4 md:grid-cols-2 lg:grid-cols-3">
+      <div>
         {d.focus.map((task) => (
           <TaskCard
             key={task.id}
@@ -85,6 +89,14 @@ export function Today({ onChange }: { onChange: () => void }) {
           </ol>
         )}
       </Card>
+      </div>
+
+      {assistant?.available && (
+        <Card title={assistant.name}>
+          <KikiFlow info={assistant} rows={5} hint={t.telegramHint} onSaved={() => void refresh()} />
+        </Card>
+      )}
+      </div>
     </>
   );
 }
