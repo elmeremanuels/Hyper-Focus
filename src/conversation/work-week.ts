@@ -63,13 +63,13 @@ export async function saveWorkWeek(ctx: { db: Database; userId: number; now: Dat
   };
 }
 
-/** Existing users get the questions once, on a morning after the focus question. */
-export async function workWeekQuestionOnce(db: Database, userId: number, now: Date): Promise<OutboundMessage | undefined> {
+/** Existing users get the questions once, on a morning after the focus question. `record: false` only checks. */
+export async function workWeekQuestionOnce(db: Database, userId: number, now: Date, record = true): Promise<OutboundMessage | undefined> {
   const [asked] = await db.select({ id: events.id }).from(events).where(and(eq(events.userId, userId), eq(events.name, 'work_week_asked'))).limit(1);
   if (asked) return undefined;
   const [set] = await db.select({ id: events.id }).from(events).where(and(eq(events.userId, userId), eq(events.name, 'work_week_set'))).limit(1);
   if (set) return undefined;
-  await recordEvent(db, userId, 'work_week_asked', {}, now);
+  if (record) await recordEvent(db, userId, 'work_week_asked', {}, now);
   return DAYS_QUESTION;
 }
 

@@ -63,3 +63,32 @@ describe('composeFocus', () => {
     expect(composeFocus([], TODAY, NOW).taskIds).toEqual([]);
   });
 });
+
+describe('composeFocus: the window task (verbeterplan P0.1)', () => {
+  it('puts the long important task in the window, not the 15-minute invoice', () => {
+    const invoice = task(1, { estimatedMinutes: 15, projectPriority: 1 });
+    const yearPlan = task(2, { estimatedMinutes: 120, projectPriority: 1 });
+    const quick = task(3, { estimatedMinutes: 5 });
+    const focus = composeFocus([invoice, yearPlan, quick], TODAY, NOW);
+    expect(focus.mainTaskId).toBe(2);
+    expect(focus.quickWinTaskId).toBe(3);
+    expect(focus.taskIds).toEqual([2, 3, 1]);
+  });
+
+  it('keeps the highest score first, and on a tie takes the longest that fits the window', () => {
+    const urgent = task(1, { estimatedMinutes: 30, dueDate: '2026-10-08' });
+    const long = task(2, { estimatedMinutes: 120 });
+    expect(composeFocus([long, urgent], TODAY, NOW).mainTaskId).toBe(1);
+
+    const sixty = task(3, { estimatedMinutes: 60 });
+    const hour2 = task(4, { estimatedMinutes: 120 });
+    // 120 minutes counts as the window (60 here): a tie, so the earlier task wins.
+    expect(composeFocus([sixty, hour2], TODAY, NOW, { windowMinutes: 60 }).mainTaskId).toBe(3);
+    expect(composeFocus([sixty, hour2], TODAY, NOW, { windowMinutes: 90 }).mainTaskId).toBe(4);
+  });
+
+  it('falls back to the best task when nothing is 30 minutes or longer, and a pin wins', () => {
+    expect(composeFocus([task(1, { estimatedMinutes: 15, projectPriority: 1 }), task(2, { estimatedMinutes: 5 })], TODAY, NOW).mainTaskId).toBe(1);
+    expect(composeFocus([task(1, { estimatedMinutes: 15 }), task(2, { estimatedMinutes: 120 })], TODAY, NOW, { pinTaskId: 1 }).mainTaskId).toBe(1);
+  });
+});

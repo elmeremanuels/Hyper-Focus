@@ -71,6 +71,13 @@
       "when": 1791043728143,
       "tag": "0009_dashboard_login",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791130083230,
+      "tag": "0010_morning_followup",
+      "breakpoints": true
     }
   ]
 }

@@ -109,7 +109,9 @@ export async function planDay(
     const pinTaskId = manual?.taskId ?? shape.pinTaskId;
 
     const candidates = await focusCandidates(tx, userId, now);
-    const focus = composeFocus(candidates, today, now, { ...shape, pinTaskId });
+    // The main task fills the focus window, so the window's length shapes the choice (P0.1).
+    const [owner] = await tx.select({ windowMinutes: users.focusWindowMinutes }).from(users).where(eq(users.id, userId));
+    const focus = composeFocus(candidates, today, now, { ...shape, pinTaskId, ...(owner && { windowMinutes: owner.windowMinutes }) });
     if (withCalendar) await fitToCalendar(tx as unknown as Database, userId, timezone, today, settings, candidates, focus);
     await tx
       .update(dailyFocus)

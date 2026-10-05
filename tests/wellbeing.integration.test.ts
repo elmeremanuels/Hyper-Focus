@@ -23,12 +23,12 @@ describe.skipIf(!adminUrl)('guardrails, escalation, restart and crisis (integrat
     const { sent } = await simulateDays({ db: db(), userId: t.userId, start: '2026-10-06', days: 8, silent: true });
     expect(sent.map((m) => `${day(m)} ${m.channel} ${m.text.slice(0, 20)}`)).toEqual([
       '06 08:30 telegram Goedemorgen. Dit zij', // day 1: the normal rhythm
-      '06 08:30 telegram Wanneer werk je mees', // once: the focus preference (step 1.12)
+      '06 08:40 telegram Wanneer werk je mees', // once: the focus preference, 10 minutes later (P0.1)
       '06 10:15 telegram Over een kwartier je', // the focus window replaces the midday nudge
       '06 11:00 telegram Venster liep anders.',
       '06 16:00 telegram Tijd om de dag af te',
       '07 08:30 telegram Goedemorgen. Dit zij', // day 2: morning only
-      '07 08:30 telegram Op welke dagen werk ', // once: the work week (step 1.12)
+      '07 08:40 telegram Op welke dagen werk ', // once: the work week, 10 minutes later
       '08 08:30 telegram Welkom terug. Ik heb', // day 3: morning only, as a soft restart
       // days 4–6: silent
       '12 08:30 telegram Welkom terug. Ik heb', // day 7: one restart, in Telegram and by mail
@@ -36,6 +36,9 @@ describe.skipIf(!adminUrl)('guardrails, escalation, restart and crisis (integrat
       // day 8: silent until the user writes
     ]);
     expect(sent.find((m) => m.text.startsWith('Welkom terug'))?.buttons).toEqual(['Ja', 'Morgen']);
+    // Never two messages in the same minute on one channel (verbeterplan P0.1).
+    const minutes = sent.map((m) => `${day(m)} ${m.channel}`);
+    expect(new Set(minutes).size).toBe(minutes.length);
   });
 
   it('climbs the escalation ladder one task and one message a day, and parks at level 3', async () => {

@@ -1,6 +1,6 @@
 // Sends due messages from scheduled_nudges (BOUWPLAN.md, 11.1): one row at a time with
 // FOR UPDATE SKIP LOCKED, through the guardrails, then over the user's channel.
-import { and, asc, desc, eq, gte, lte, notInArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, lte, notInArray, sql } from 'drizzle-orm';
 import type { Delivery } from '../channels/channel.js';
 import { recordEvent } from '../core/events.js';
 import { getProfile } from '../core/profile.js';
@@ -25,7 +25,7 @@ import { checkGuardrails, silentDays, USER_STARTED_KINDS, type GuardrailInput, t
 import { composeFollowup, composeHeadsUp, composePlannedSession, todaysEvents } from './calendar-messages.js';
 import { meetingAt } from './daycalendar.js';
 import { composeEscalation } from './escalation.js';
-import { composeMidday, composeMorning, composeReentry, composeWrapup, type Composed, type NudgeContext } from './messages.js';
+import { composeMidday, composeMorning, composeMorningFollowup, composeReentry, composeWrapup, type Composed, type NudgeContext } from './messages.js';
 
 export type NudgeRow = typeof scheduledNudges.$inferSelect;
 export type Composer = (ctx: NudgeContext, nudge: NudgeRow) => Promise<Composed>;
@@ -52,6 +52,7 @@ export const DEFAULT_COMPOSERS: Partial<Record<NudgeRow['kind'], Composer>> = {
   soft_landing: (ctx, nudge) =>
     composeSoftLanding(ctx, Number(nudge.payload.windowId), typeof nudge.payload.title === 'string' ? nudge.payload.title : null),
   window_missed: (ctx, nudge) => composeWindowMissed(ctx, Number(nudge.payload.windowId)),
+  morning_followup: (ctx, nudge) => composeMorningFollowup(ctx, nudge.payload),
   weekly_review: async (ctx, nudge) =>
     nudge.payload.part === 'mail'
       ? { ...(await composeWeeklyMail(ctx)), mailOnly: true }
@@ -117,6 +118,9 @@ export async function sendDueNudges(deps: SenderDeps, now: Date = new Date(), li
   return summary;
 }
 
+const SAME_MINUTE_MS = 60_000;
+const FOLLOWUP_MAX_DELAY_MS = 30 * 60_000;
+
 type NudgeResult =
   | { status: 'sent' | 'skipped' | 'failed'; reason?: string }
   | { status: 'postponed'; retryAt: Date };
@@ -125,6 +129,10 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
   const log = deps.log ?? console;
   try {
     if (now.getTime() - nudge.scheduledForUtc.getTime() > MAX_DELAY_MS) return { status: 'skipped', reason: 'too_late' };
+    // The morning follow-up belongs with the morning message; hours later it only gets in the way.
+    if (nudge.kind === 'morning_followup' && now.getTime() - nudge.scheduledForUtc.getTime() > FOLLOWUP_MAX_DELAY_MS) {
+      return { status: 'skipped', reason: 'too_late' };
+    }
 
     // One query at a time: inside a transaction (sim:day) all queries share one connection.
     const user = await deps.users.findById(nudge.userId);
@@ -155,6 +163,14 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
       return { status: 'postponed', retryAt: new Date(now.getTime() + 10 * 60_000) };
     }
 
+    // Never two messages in the same minute (verbeterplan P0.1): the second waits two minutes.
+    const [justSent] = await deps.db
+      .select({ id: scheduledNudges.id })
+      .from(scheduledNudges)
+      .where(and(eq(scheduledNudges.userId, user.id), eq(scheduledNudges.status, 'sent'), gt(scheduledNudges.updatedAt, new Date(now.getTime() - SAME_MINUTE_MS))))
+      .limit(1);
+    if (justSent) return { status: 'postponed', retryAt: new Date(now.getTime() + 2 * SAME_MINUTE_MS) };
+
     const silent = silentDays(status[0]?.lastInboundAt ?? null, profile.timezone, now);
     const input = await guardrailInput(deps.db, nudge, now, profile.timezone, settings, silent);
     const verdict = (deps.guardrail ?? checkGuardrails)(input);
@@ -184,6 +200,17 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
     // Follow-ups only in Telegram; by mail they would be a second mail.
     for (const followUp of via === 'telegram' ? (composed.followUps ?? []) : []) {
       await deps.delivery.send(user, followUp, { via, context: { subject: composed.subject, silent: quiet } });
+    }
+    // Follow-ups such as the morning question: Telegram only, at their own time.
+    if (via === 'telegram' && composed.later?.length) {
+      await deps.db.insert(scheduledNudges).values(
+        composed.later.map((item) => ({
+          userId: user.id,
+          kind: item.kind,
+          scheduledForUtc: new Date(now.getTime() + item.afterMinutes * 60_000),
+          payload: item.payload,
+        })),
+      );
     }
     if (composed.alsoByMail && via !== 'email') {
       await deps.delivery.send(user, composed.message, { via: 'email', context: { subject: composed.subject } });
@@ -219,6 +246,7 @@ async function guardrailInput(
       'window_quiet_check',
       'soft_landing',
       'window_missed',
+      'morning_followup',
     ]),
     // The Monday mail does not count against Telegram messages.
     sql`not (${scheduledNudges.kind} = 'weekly_review' and ${scheduledNudges.payload}->>'part' = 'mail')`,

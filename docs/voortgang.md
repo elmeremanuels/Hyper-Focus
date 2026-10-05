@@ -1011,6 +1011,61 @@ Afgerond, op het intrekken van de gelekte sleutels na (0.1). `main` bestaat sind
   - het blok en de regel staan in de gebouwde pagina;
   - de opmaak is bekeken op 1440 en 390 px.
 
+## Verbeterplan P0.1 — Kernbelofte en open bugs
+
+- **Datum:** 2026-10-04
+- **Status:** klaar in code. Punt 5 (de tuin-tabellen opruimen) staat in een eigen PR en wacht op een back-up en Elmers akkoord.
+- **Gebouwd:**
+  1. **Venster krijgt het echte werk.** De hoofdtaak, en daarmee het focusvenster, is nu de taak met de hoogste score onder de taken van minstens 30 minuten.
+     - Bij een gelijke score wint de langste die in het venster past.
+     - Een taak die langer is dan het venster telt als de vensterlengte. Bij de start knipt de sessie hem op en de eerste stap gaat het venster in.
+     - Snelle winsten blijven buiten het venster.
+     - Zonder taak van 30 minuten of meer geldt de oude keuze.
+     - De planner gebruikt de ingestelde vensterlengte van de gebruiker.
+  2. **Nooit twee berichten in dezelfde minuut.** Het doorschuifvoorstel en de eenmalige vraag (ritme of werkweek) zijn nu eigen berichten (`morning_followup`). Ze komen 10 en 20 minuten na het ochtendbericht, alleen per Telegram.
+     - Ze volgen de regels van het ochtendbericht en tellen niet mee voor de daglimiet. Een vervolgbericht dat meer dan 30 minuten te laat is, wordt overgeslagen.
+     - Algemene regel in de sender: als er in de afgelopen minuut al een bericht uitging, wacht het volgende 2 minuten.
+     - Migratie `0010_morning_followup` voegt de nieuwe soort toe.
+  3. **"Blok loopt tot 01:48".**
+     - **Oorzaak:** een blok zonder `ended_at` (het eindbericht overgeslagen of mislukt) bleef voor altijd "actief". De tijden zelf staan al in de tijdzone van de gebruiker.
+     - **Fix:** een open blok waarvan het einde meer dan 12 uur geleden is, telt niet meer als lopend. Een opruimtaak in de worker sluit het elk uur als `expired`.
+  4. **Eval Boho.** De routerprompt zegt nu dat een verzoek van een klant, ook via de telefoon, een taak bij die klant is, met de Boho-zin als voorbeeld. Het eval-geval verwacht `add_task` bij Boho.
+  - **Gevonden:** de bewaartermijnen uit BOUWPLAN 14 werden niet gehandhaafd. Er was geen opruimtaak. De nieuwe upkeep in de worker (`src/proactive/maintenance.ts`, elk uur) verwijdert:
+    - berichten en transcripten na 30 dagen;
+    - agenda-afspraken van voor gisteren;
+    - `events` en `ai_usage` na 12 maanden;
+    - verlopen inloglinks en sessies.
+
+    De site en de bot beloven dit al.
+  - **Escalatie:** de parkeerplaatstekst begon met een kleine letter ("factuur september versturen staat op …"). Dat is hersteld.
+  - `docs/deploy.md`: de vaste deployreeks met `npm ci --include=dev` en een controle na de build.
+- **Controle:**
+  - `tests/focus.test.ts`: de keuze voor het venster (factuur tegen jaarplanning, gelijke score, terugval, vastgepinde taak).
+  - `tests/wellbeing.integration.test.ts`: nooit twee berichten in één minuut op één kanaal.
+  - `tests/day-review.integration.test.ts`: het voorstel komt 10 minuten later.
+  - `tests/maintenance.integration.test.ts`: oud blok gesloten, tijdzone Asia/Makassar, bewaartermijnen.
+  - `sim:day` op de dev-database: berichten om 08:30, 08:40, 10:15, 11:00, 11:02 en 16:00, dus geen twee in dezelfde minuut.
+  - `npm test`: 412 groen.
+  - De eval draait op de VPS: `npm run eval` drie keer achter elkaar, 100% verwacht.
+
+### Live-checks om af te vinken (1.11 en 1.12)
+
+Dagreview (1.11):
+- [ ] Bij twee open taken is de dagreview in drie tikken klaar.
+- [ ] Energie "laag" geeft de volgende ochtend twee taken en blokken van 15 minuten.
+- [ ] Een taak die drie keer is doorgeschoven, krijgt 10 minuten na het ochtendbericht het voorstel om op te knippen of te parkeren.
+- [ ] Een overgeslagen dagreview wordt de volgende dag niet genoemd.
+
+Focusvenster, ritme en beloning (1.12):
+- [ ] Het ochtendbericht noemt het venster met de belangrijkste taak (geen snelle winst van 15 minuten).
+- [ ] De eenmalige ritmevraag komt 10 minuten na het ochtendbericht, niet tegelijk.
+- [ ] Het seintje komt 15 minuten voor het venster, met de werkplek-knop als die er is.
+- [ ] In een vensterblok van 60 minuten komt na 50 minuten één stil bericht, daarna niets tot het einde.
+- [ ] Na *Af* komt de pitstop, en de mini-app toont het focuslog.
+- [ ] De weekreview toont de weekopbrengst, en de tuin staat nergens meer.
+- [ ] Het dashboard toont geen blok meer dat al uren voorbij is.
+- [ ] De batterij geeft op elk moment de juiste stand.
+
 ## Volgende stap
 
-Fase 2b is af in code. Eerst deployen met `docs/website.md`. Daarna fase 2: de verbetermotor (2.1–2.5).
+P0.1 punt 5 (tuin-tabellen, na een back-up en akkoord), daarna P0.2: back-ups, bewaking en een wachttekst bij een AI-storing.

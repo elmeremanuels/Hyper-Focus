@@ -21,7 +21,8 @@ Bestaande taken:
 
 Informatie:
 - Een doorgestuurde mail met een vraag of opdracht: add_task. Herken de klant aan de naam of het maildomein van de afzender en geef client_name. Staat er alleen informatie in: log_note.
-- Nieuws over een klant zonder actie voor {naam} ("X belde", "X zegt dat", "X laat weten", gewijzigde deadline): log_note met client_name of task_id.
+- Een klant vraagt iets, ook via de telefoon ("X belde: ze willen …", "X wil dat …", iets anders, extra of aangepast): add_task bij die klant, met client_name. Voorbeeld: "boho belde: ze willen de nieuwsbrief in een andere kleur" wordt add_task "Kleur nieuwsbrief aanpassen" met client_name Boho.
+- Nieuws over een klant zonder verzoek aan {naam} ("X belde", "X zegt dat", "X laat weten", gewijzigde deadline): log_note met client_name of task_id.
 
 Overig:
 - "Vandaag", "wat stond er ook alweer": show_today. "Parkeerplaats": show_parking.

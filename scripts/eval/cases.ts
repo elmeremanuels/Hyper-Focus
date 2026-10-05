@@ -82,7 +82,8 @@ export const CASES: EvalCase[] = [
 
   // log_note
   { text: 'Anna van de bakkerij belde, de site moet nu vrijdag af', tools: one('log_note') },
-  { text: 'boho belde: ze willen de nieuwsbrief in een andere kleur', tools: [['log_note'], ['log_note', 'add_task']] },
+  // A request by phone is a task for that client (verbeterplan P0.1).
+  { text: 'boho belde: ze willen de nieuwsbrief in een andere kleur', tools: [['add_task'], ['log_note', 'add_task']], check: { tool: 'add_task', project: 2 } },
   { text: 'notitie bij de offerte: anna wil drie pakketten', tools: one('log_note') },
   { text: 'Kees zegt dat de winkel in december dicht is', tools: one('log_note') },
 
