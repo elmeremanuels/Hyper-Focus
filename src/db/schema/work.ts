@@ -22,7 +22,6 @@ import {
   focusBlockOutcome,
   focusWindowSource,
   focusWindowStatus,
-  gardenEventKind,
   ideaStatus,
   projectStatus,
   taskSource,
@@ -237,19 +236,6 @@ export const focusBlocks = pgTable(
     uniqueIndex('focus_blocks_reward_token').on(table.rewardTokenHash),
     check('focus_blocks_planned_minutes', sql`${table.plannedMinutes} IN (15, 25, 45, 60, 90)`),
   ],
-);
-
-/** Garden growth log: one row per leaf; the garden never shrinks (step 1.9). */
-export const gardenEvents = pgTable(
-  'garden_events',
-  {
-    id: id(),
-    userId: userId(),
-    blockId: integer('block_id').references(() => focusBlocks.id, { onDelete: 'set null' }),
-    kind: gardenEventKind('kind').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [index('garden_events_user_created_idx').on(table.userId, table.createdAt)],
 );
 
 /** The day review (step 1.11): one row per user and local date. */

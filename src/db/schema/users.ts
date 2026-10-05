@@ -26,8 +26,6 @@ export const users = pgTable('users', {
   locale: text('locale').notNull().default('nl-NL'),
   status: userStatus('status').notNull().default('active'),
   lastInboundAt: timestamp('last_inbound_at', { withTimezone: true }),
-  /** Leaves in the garden (step 1.9). Only grows. */
-  gardenGrowth: integer('garden_growth').notNull().default(0),
   /** Focus window (step 1.12): preference, chosen start (local time) and length. */
   focusPref: focusPref('focus_pref'),
   focusWindowStart: time('focus_window_start'),
@@ -69,7 +67,7 @@ export const userSettings = pgTable(
     meetingHeadsUp: boolean('meeting_heads_up').notNull().default(true),
     meetingFollowup: boolean('meeting_followup').notNull().default(true),
     maxCalendarNudgesPerDay: smallint('max_calendar_nudges_per_day').notNull().default(2),
-    /** Reward minute and garden (step 1.9); blocks and pauses work either way. */
+    /** Reward minute (step 1.9); blocks and pauses work either way. */
     rewardsEnabled: boolean('rewards_enabled').notNull().default(true),
     /** The work week (step 1.12): ISO weekdays and local hours. The weekly review falls on the last work day. */
     workDays: smallint('work_days').array().notNull().default(sql`ARRAY[1,2,3,4,5]::smallint[]`),

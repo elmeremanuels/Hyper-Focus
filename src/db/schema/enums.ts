@@ -76,7 +76,6 @@ export const workType = pgEnum('work_type', ['invoicing', 'email', 'calendar', '
 
 /** How a work block ended (step 1.9). */
 export const focusBlockOutcome = pgEnum('focus_block_outcome', ['completed', 'extended', 'stopped', 'expired']);
-export const gardenEventKind = pgEnum('garden_event_kind', ['block', 'on_time_return']);
 
 /** Energy at the end of the day (step 1.11). */
 export const dayEnergy = pgEnum('day_energy', ['low', 'normal', 'high']);
