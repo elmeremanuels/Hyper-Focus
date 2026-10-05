@@ -1066,6 +1066,16 @@ Focusvenster, ritme en beloning (1.12):
 - [ ] Het dashboard toont geen blok meer dat al uren voorbij is.
 - [ ] De batterij geeft op elk moment de juiste stand.
 
+## Verbeterplan P0.1 punt 5 — Tuin-tabellen opruimen
+
+- **Datum:** 2026-10-04
+- **Status:** gemerged met Elmers akkoord (PR #44). Deploy alleen na een verse back-up.
+- **Gebouwd:** migratie `0011_drop_garden`. Die verwijdert de tabel `garden_events`, de kolom `users.garden_growth` en het type `garden_event_kind`. Schema, export en tests zijn bijgewerkt.
+- **Controle:**
+  - `npm test` is groen, ook de tests voor exporteren en verwijderen.
+  - De migratie is gedraaid op de dev-database: de tabel en de kolom zijn weg.
+- **Deploy:** eerst een back-up (`docs/deploy.md`, stap 1), daarna de vaste reeks.
+
 ## Verbeterplan P0.2 — Back-ups, bewaking en wachttekst
 
 - **Status:** klaar in de PR; Cowork richt het in op de VPS volgens `docs/ops.md`
@@ -1086,7 +1096,7 @@ Focusvenster, ritme en beloning (1.12):
     - Het bericht komt als `ai_retry` in `scheduled_nudges`. De worker probeert het na 5 minuten en daarna elke 10 minuten. Lukt het niet binnen 12 uur, dan vraagt de bot het bericht opnieuw te sturen.
     - Een tegoedfout geeft direct een melding.
     - De upkeep verwijdert afgehandelde wachtrij-rijen na een dag, want ze bevatten de tekst van het bericht.
-  - **Datamodel:** de enum `nudge_kind` krijgt de waarde `ai_retry` (`drizzle/0011_ai_retry.sql`). Het verbeterplan vraagt om een wachtrij; `scheduled_nudges` doet dat werk, zonder nieuwe tabel.
+  - **Datamodel:** de enum `nudge_kind` krijgt de waarde `ai_retry` (`drizzle/0012_ai_retry.sql`). Het verbeterplan vraagt om een wachtrij; `scheduled_nudges` doet dat werk, zonder nieuwe tabel.
 - **Controle:**
   - `tests/ops.test.ts`:
     - meldingen en hun herhaling;
@@ -1108,8 +1118,8 @@ Focusvenster, ritme en beloning (1.12):
 - **Open punten:**
   - Elmer: akkoord op een opslag in de EU (Hetzner of Scaleway), en het account aanmaken.
   - Cowork: `docs/ops.md` uitvoeren, inclusief de gesimuleerde storingen onder "Klaar als".
-  - Migratienummer: PR "tuin opruimen" heeft ook een `0011`. Wie als tweede merget, maakt de migratie opnieuw aan als `0012`.
+  - Migratienummer: na de merge met "tuin opruimen" (`0011_drop_garden`) opnieuw aangemaakt als `0012_ai_retry`.
 
 ## Volgende stap
 
-P0.1 punt 5 (tuin-tabellen, na een back-up en akkoord). Daarna de privacypagina, zodra de tekst is goedgekeurd, en de feedbacknotities in de bot.
+Cowork: P0.1 en P0.2 deployen (eerst een verse back-up, want `0011` verwijdert de tuin-tabellen), daarna `docs/ops.md`. Voor Claude Code: de privacypagina, zodra de tekst is goedgekeurd, en de feedbacknotities in de bot.

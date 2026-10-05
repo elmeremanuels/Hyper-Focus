@@ -8,7 +8,7 @@ import { reviewStart } from '../src/conversation/review.js';
 import { clearState, getState } from '../src/conversation/state.js';
 import { createDbMessageStore } from '../src/core/messages.js';
 import { createDbUserStore } from '../src/core/users.js';
-import { focusBlocks, gardenEvents, scheduledNudges, tasks, userSettings, users } from '../src/db/schema/index.js';
+import { focusBlocks, scheduledNudges, tasks, userSettings, users } from '../src/db/schema/index.js';
 import { sendDueNudges } from '../src/proactive/sender.js';
 import { blocksScenario } from '../src/proactive/sim-scenarios.js';
 import { simulateDays } from '../src/proactive/simulate.js';
@@ -34,7 +34,6 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
   const send = (now: Date) => sendDueNudges({ db: db(), delivery: deliveryKit!.delivery, users: createDbUserStore(db()) }, now);
   const lastSent = () => deliveryKit!.telegram.sent().at(-1)?.body;
   const taskId = async (title: string) => (await db().select().from(tasks).where(eq(tasks.title, title)))[0]!.id;
-  const garden = async () => (await db().select({ g: users.gardenGrowth }).from(users).where(eq(users.id, t.userId)))[0]!.g;
   const blockIdFrom = (body: Record<string, unknown> | undefined, action: string) =>
     Number(new RegExp(`blk:(\\d+):${action}`).exec(JSON.stringify(body?.reply_markup))?.[1]);
   const nudges = (kind: string) =>
@@ -48,9 +47,7 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     await db().update(users).set({ telegramChatId: 777, telegramUserId: OWNER }).where(eq(users.id, t.userId));
     await db().delete(scheduledNudges);
     await clearState(db(), t.userId);
-    await db().delete(gardenEvents);
     await db().delete(focusBlocks);
-    await db().update(users).set({ gardenGrowth: 0 }).where(eq(users.id, t.userId));
     // Start every test with an open banner.
     await db().update(tasks).set({ status: 'open', completedAt: null }).where(eq(tasks.title, 'Banner voor de feestdagen'));
     await db().update(userSettings).set({ rewardsEnabled: true }).where(eq(userSettings.userId, t.userId));
@@ -78,15 +75,12 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     );
     expect(pause?.buttons?.[0]).toEqual({ id: `blk:${blockId}:back`, title: 'Ik ben terug' });
     expect((await db().select().from(focusBlocks).where(eq(focusBlocks.id, blockId)))[0]?.resultNote).toBeNull();
-    // The garden is no longer filled (step 1.12).
-    expect(await garden()).toBe(0);
     expect((await activeBlock(db(), t.userId, at('08:47:00')))?.phase).toBe('pause');
 
     const [back] = await tap(at('08:47:30'), `blk:${blockId}:back`);
     expect(back?.text).toBe('Terug op tijd. Opgeladen.');
     expect(back?.buttons?.map((b) => b.title)).toEqual(['Je minuut', 'Volgende blok']);
     expect(back?.buttons?.[0]?.webApp).toMatch(/^https:\/\/hyper-focus\.invalid\/app\/beloning\?t=[\w-]{20,}$/);
-    expect(await garden()).toBe(0);
     expect((await nudges('return_reminder')).every((n) => n.status === 'skipped')).toBe(true);
     expect((await getState(db(), t.userId, at('08:48:00'))).mode).toBe('idle');
     expect(await isFocusQuiet(db(), t.userId, at('08:48:00'))).toBe(false);
@@ -115,10 +109,8 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     expect((await send(new Date(due.getTime() + 5 * 60_000))).sent).toBe(0);
 
     // Late: a text counts as the button.
-    const before = await garden();
     const [late] = await say(new Date(due.getTime() + 6 * 60_000), 'ben terug');
     expect(late?.text).toBe('Welkom terug.');
-    expect(await garden()).toBe(before);
   });
 
   it('closes an unanswered pause after 30 minutes without a message', async () => {
@@ -199,7 +191,6 @@ describe.skipIf(!adminUrl)('work blocks, pauses and the reward minute (integrati
     const [back] = await tap(at('12:16:00'), `blk:${blockId}:back`);
     expect(back?.text).toBe('Terug op tijd. Opgeladen.');
     expect(back?.buttons?.map((b) => b.title)).toEqual(['Volgende blok']);
-    expect(await garden()).toBe(0);
     expect((await reviewStart({ db: db(), userId: t.userId, now: at('12:17:00') })).text).not.toContain('tuin');
     await clearState(db(), t.userId);
     const [helpOff] = await say(at('12:18:00'), 'help');

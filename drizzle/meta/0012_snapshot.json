@@ -1,6 +1,6 @@
 {
-  "id": "42706d57-ef13-4f00-943c-019fa10a9b33",
-  "prevId": "ccbad678-bb90-4b8b-baba-9808cff5a6c7",
+  "id": "d69ed6ca-5588-428e-9106-1f5989cf3b22",
+  "prevId": "42706d57-ef13-4f00-943c-019fa10a9b33",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3864,7 +3864,8 @@
         "window_quiet_check",
         "soft_landing",
         "window_missed",
-        "morning_followup"
+        "morning_followup",
+        "ai_retry"
       ]
     },
     "public.nudge_status": {
