@@ -27,6 +27,7 @@
     "sim:day": "tsx scripts/sim-day.ts",
     "stats:focus": "tsx scripts/stats-focus.ts",
     "link:telegram": "tsx scripts/link-telegram.ts",
+    "ops:alert": "tsx scripts/ops-alert.ts",
     "telegram:webhook": "tsx scripts/telegram-webhook.ts",
     "brevo:inbound": "tsx scripts/brevo-inbound.ts",
     "dev:web": "vite --config web/vite.config.ts",

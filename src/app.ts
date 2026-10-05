@@ -8,6 +8,7 @@ import { createDashboardApi, type DashboardApiConfig } from './web/dashboard-api
 import { createAuthRouter, type AuthConfig } from './web/auth/routes.js';
 import { createDashboardStatic, type DashboardWebConfig } from './web/dashboard-static.js';
 import { createSiteStatic, type SiteConfig } from './web/site-static.js';
+import { HEARTBEAT_MAX_AGE_MS, heartbeatAge } from './ops/heartbeat.js';
 import { createWaitlistRouter, type WaitlistConfig } from './web/waitlist.js';
 import { createDashboardRoutes, type DashboardRoutesConfig } from './web/dashboard/index.js';
 
@@ -32,6 +33,8 @@ export interface AppOptions {
   /** The waiting list form on the website (step 2b.3). */
   waitlist?: WaitlistConfig;
   dashboard?: DashboardRoutesConfig;
+  /** The worker's heartbeat file: /health answers 503 when it is stale (verbeterplan P0.2). */
+  heartbeatFile?: string | undefined;
 }
 
 export function createApp(options: AppOptions = {}): Express {
@@ -40,7 +43,11 @@ export function createApp(options: AppOptions = {}): Express {
   // Behind Nginx on the VPS.
   app.set('trust proxy', 'loopback');
 
-  app.get('/health', (_req, res) => {
+  app.get('/health', async (_req, res) => {
+    if (options.heartbeatFile) {
+      const age = await heartbeatAge(options.heartbeatFile, new Date());
+      if (age === undefined || age > HEARTBEAT_MAX_AGE_MS) return void res.status(503).json({ status: 'worker_down' });
+    }
     res.json({ status: 'ok' });
   });
 

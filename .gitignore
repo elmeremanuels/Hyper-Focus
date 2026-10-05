@@ -21,3 +21,6 @@ attached_assets/
 *.log
 npm-debug.log*
 .DS_Store
+
+# Worker heartbeat (docs/ops.md)
+*.heartbeat

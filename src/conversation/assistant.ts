@@ -2,6 +2,9 @@
 // the active mode, then Claude (fast model) with tools and context.
 import type Anthropic from '@anthropic-ai/sdk';
 import type { ClaudeClient } from '../ai/claude.js';
+import { scheduledNudges } from '../db/schema/index.js';
+import type { Alert } from '../ops/alerts.js';
+import { creditProblem } from '../ops/checks.js';
 import { fillPrompt, loadPrompt } from '../ai/prompts.js';
 import { getProfile, type UserProfile } from '../core/profile.js';
 import type { Database } from '../db/client.js';
@@ -49,6 +52,8 @@ export interface AssistantDeps {
   modeHandlers?: Partial<Record<ConversationMode, ModeHandler>>;
   now?: () => Date;
   log?: Pick<Console, 'error' | 'warn'>;
+  /** Alerts to Elmer, e.g. when the AI credit has run out (verbeterplan P0.2). */
+  alert?: Alert | undefined;
 }
 
 /** All tools the router offers Claude. */
@@ -69,11 +74,14 @@ export const MAX_TOOL_ROUNDS = 3;
 
 export const TEXTS = {
   unknownUser: 'Je account ken ik nog niet.',
-  error: 'Er ging iets mis aan mijn kant. Probeer het zo nog eens.',
   noAi: 'Vrije tekst lees ik nu niet. Tik op een knop of stuur "vandaag".',
   empty: 'Dat begreep ik niet helemaal. Wil je het anders zeggen?',
   saved: 'Staat erin.',
+  aiOut: 'Ik kan je bericht nu even niet lezen. Ik heb het bewaard en kom erop terug.',
 } as const;
+
+/** First retry after this long; the sender tries again every 10 minutes after that. */
+export const AI_RETRY_MINUTES = 5;
 
 // Fixed words that never need an AI call (the Telegram commands map to these).
 const FIXED: Record<string, 'today' | 'parking' | 'help' | 'review' | 'tools' | 'rewards_off' | 'rewards_on' | 'rhythm' | 'workweek' | 'dashboard'> = {
@@ -180,7 +188,18 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
       return await converse(deps.claude, profile, message.text, message.source ?? 'telegram', ctx);
     } catch (error) {
       log.error('Assistant failed:', error);
-      return [{ text: TEXTS.error, buttons: [SHOW_TODAY] }];
+      const problem = creditProblem(error);
+      if (problem) void deps.alert?.('ai_credit', problem);
+      // From the queue: let the sender try again later.
+      if (message.queued) throw error;
+      // The AI is out: keep the message and come back to it (verbeterplan P0.2).
+      await deps.db.insert(scheduledNudges).values({
+        userId: profile.id,
+        kind: 'ai_retry',
+        scheduledForUtc: new Date(ctx.now.getTime() + AI_RETRY_MINUTES * 60_000),
+        payload: { text: message.text, source: message.source ?? 'telegram', receivedAt: ctx.now.toISOString() },
+      });
+      return [{ text: TEXTS.aiOut }];
     }
   };
 

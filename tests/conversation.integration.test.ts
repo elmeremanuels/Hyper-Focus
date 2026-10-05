@@ -139,10 +139,10 @@ describe.skipIf(!adminUrl)('conversation layer (integration)', () => {
     expect(logged).toHaveLength(1);
   });
 
-  it('apologises when Claude fails', async () => {
+  it('keeps the message and says so when Claude fails', async () => {
     const claude = { callWithTools: async () => Promise.reject(new Error('overloaded')) };
     const router = createAssistantRouter({ db: t.connection.db, claude, now: () => NOW, log: { error: () => undefined, warn: () => undefined } });
     const [reply] = await router({ kind: 'text', userId: t.userId, text: 'hoi' });
-    expect(reply?.text).toBe('Er ging iets mis aan mijn kant. Probeer het zo nog eens.');
+    expect(reply?.text).toBe('Ik kan je bericht nu even niet lezen. Ik heb het bewaard en kom erop terug.');
   });
 });

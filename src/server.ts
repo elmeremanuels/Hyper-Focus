@@ -5,6 +5,7 @@ import { createTelegramProcessor } from './channels/telegram/processor.js';
 import { getEnv } from './config/env.js';
 import { connect } from './db/client.js';
 import { buildServices } from './wiring.js';
+import { watchErrors } from './ops/error-watch.js';
 import { resolve } from 'node:path';
 import { LOGIN_TEXTS } from './texts/dashboard.nl.js';
 import { requestDoubleOptin } from './integrations/brevo/double-optin.js';
@@ -14,11 +15,13 @@ const env = getEnv();
 const options: AppOptions = {
   telegram: { secretToken: env.TELEGRAM_WEBHOOK_SECRET },
   mail: { secret: env.EMAIL_INBOUND_SECRET },
+  heartbeatFile: env.WORKER_HEARTBEAT_FILE,
 };
 
 if (env.DATABASE_URL) {
   const { db } = connect(env.DATABASE_URL);
   const services = buildServices(env, db);
+  watchErrors(services.alert, 'hyperfocus-web');
 
   if (services.telegramClient) {
     options.telegram = {

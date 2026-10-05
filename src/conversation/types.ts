@@ -16,7 +16,14 @@ export interface Button {
 export type InboundSource = 'telegram' | 'voice' | 'email' | 'web';
 
 export type InboundMessage =
-  | { kind: 'text'; userId: number; text: string; source?: InboundSource }
+  | {
+      kind: 'text';
+      userId: number;
+      text: string;
+      source?: InboundSource;
+      /** Tried again from the queue after the AI was out (verbeterplan P0.2): failures throw. */
+      queued?: boolean;
+    }
   | { kind: 'button'; userId: number; buttonId: string; title: string; source?: InboundSource };
 
 export interface OutboundMessage {

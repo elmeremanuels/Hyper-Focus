@@ -124,6 +124,11 @@ export class TelegramClient {
     });
   }
 
+  /** For the hourly check (verbeterplan P0.2). */
+  async getWebhookInfo(): Promise<{ url: string; pending_update_count: number; last_error_date?: number; last_error_message?: string }> {
+    return this.call('getWebhookInfo', {});
+  }
+
   private async call<T>(method: string, body: Record<string, unknown>): Promise<T> {
     const response = await this.fetchImpl(`https://api.telegram.org/bot${this.token}/${method}`, {
       method: 'POST',

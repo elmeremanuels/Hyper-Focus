@@ -1,9 +1,9 @@
 // Hourly upkeep in the worker (verbeterplan P0.1, BOUWPLAN.md 14): closes blocks that stayed
 // open, and keeps the retention promises: messages and transcripts 30 days, calendar events
 // only from yesterday on, events and AI usage 12 months, expired login links and sessions.
-import { and, isNull, lt } from 'drizzle-orm';
+import { and, eq, isNull, lt, ne } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
-import { aiUsage, calendarEvents, events, focusBlocks, loginTokens, messages, webSessions } from '../db/schema/index.js';
+import { aiUsage, calendarEvents, events, focusBlocks, loginTokens, messages, scheduledNudges, webSessions } from '../db/schema/index.js';
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -31,7 +31,15 @@ export async function runMaintenance(db: Database, now: Date): Promise<Maintenan
       .where(and(isNull(focusBlocks.endedAt), lt(focusBlocks.endsAt, before(STALE_BLOCK_HOURS * HOUR_MS))))
       .returning({ id: focusBlocks.id }),
   );
-  const oldMessages = count(await db.delete(messages).where(lt(messages.createdAt, before(MESSAGE_DAYS * DAY_MS))).returning({ id: messages.id }));
+  const oldMessages =
+    count(await db.delete(messages).where(lt(messages.createdAt, before(MESSAGE_DAYS * DAY_MS))).returning({ id: messages.id })) +
+    // A queued message carries its text: gone a day after it was handled (verbeterplan P0.2).
+    count(
+      await db
+        .delete(scheduledNudges)
+        .where(and(eq(scheduledNudges.kind, 'ai_retry'), ne(scheduledNudges.status, 'pending'), lt(scheduledNudges.updatedAt, before(DAY_MS))))
+        .returning({ id: scheduledNudges.id }),
+    );
   // Only today and tomorrow are kept; a margin of a day covers every time zone.
   const oldEvents = count(await db.delete(calendarEvents).where(lt(calendarEvents.endsAtUtc, before(DAY_MS))).returning({ id: calendarEvents.id }));
   const metadata =
