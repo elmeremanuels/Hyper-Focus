@@ -16,6 +16,8 @@ export const WORK_BLOCK_KINDS = new Set([
   'window_quiet_check',
   'soft_landing',
 ]);
+/** Content module (step C2): the bundle counts as one message but is not held back by the limit. */
+export const CONTENT_KINDS = new Set(['content_bundle', 'content_reminder']);
 /** At least this long between two proactive messages. */
 export const BREATHING_MINUTES = 45;
 
@@ -67,6 +69,8 @@ export function checkGuardrails(input: GuardrailInput): GuardrailVerdict {
 
   // Mail and appointment messages have their own limits (BOUWPLAN.md, 11.7–11.8).
   if (input.mailOnly || CALENDAR_KINDS.has(input.kind)) return { send: true };
+  // Posts wait for approval at a fixed time; the bundle and the reminder have their own rhythm.
+  if (CONTENT_KINDS.has(input.kind)) return { send: true };
   // A missed window gets one silent message (step 1.12); it does not push out the day review.
   if (input.kind === 'window_missed') return input.overwhelmedYesterday ? { send: false, reason: 'after_overwhelm' } : { send: true };
   // The morning follow-up belongs to the morning message (verbeterplan P0.1).

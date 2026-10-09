@@ -1174,6 +1174,48 @@ Focusvenster, ritme en beloning (1.12):
   - De live-check met een echte Buffer-sleutel (lijst in `docs/content.md`).
   - `0013` is een gewone migratie zonder dataverlies.
 
+## Stap C2 — Contentmodule: de middagbundel
+
+- **Status:** klaar in de PR
+- **Datum:** 2026-10-09
+- **Gebouwd:**
+  - `src/content/planner.ts`:
+    - de dagen tot en met de volgende werkdag;
+    - de momenten uit het ritme;
+    - de week per klant: afgeronde taken, notities en berichten waarin de klant voorkomt;
+    - de aanroep van het slimme model met de tool `plan_posts` (posts per moment, plus hooguit één extra post met een reden);
+    - de bundel;
+    - het overslaan van posts die op hun moment nog wachten.
+  - Prompt `posts-plannen.nl.md`.
+  - **Planner:** `content_bundle` om 17:00 op werkdagen als de module aan staat.
+  - **Sender:** de bundel (alleen in Telegram; bij een AI-fout elke 10 minuten opnieuw) en `content_reminder` een uur voor een wachtende post.
+  - **Guardrails:** de bundel en de herinnering volgen pauze, stille uren en stilte, maar niet de daglimiet. De bundel telt wel mee als bericht van de dag.
+  - *Alles goed* (`cpb:all`). Goedkeuren na het moment geeft *overgeslagen*. Vlak voor het moment schuift de post 5 minuten op.
+  - Ook posts die je zelf schrijft (C1) krijgen een herinnering.
+  - **Worker:** elke minuut `expireWaitingPosts`.
+  - **Datamodel:** migratie `0014_content_bundle` met twee enumwaarden voor `nudge_kind`.
+- **Controle:**
+  - `tests/content-bundle.integration.test.ts`:
+    - geen bundel als de module uit staat;
+    - 17:00 op een werkdag;
+    - opnieuw proberen bij een AI-fout;
+    - bundel met kop, post per moment en extra post met reden;
+    - de prompt bevat de week en de klantkaart;
+    - herinneringen;
+    - *Alles goed*;
+    - herinnering overgeslagen na akkoord;
+    - overslaan op het moment;
+    - geen dubbele momenten.
+  - `tests/content.test.ts`:
+    - de dagen (ook vrijdag naar maandag, en Makassar);
+    - de momenten;
+    - de guardrails;
+    - de knop.
+  - `npm test`: 454 groen. `typecheck`, `lint` en `build` slagen ook.
+- **Open punten:**
+  - Live-checks C1 en C2 in `docs/content.md`.
+  - Wie de module midden op de dag aanzet, krijgt de eerste bundel de volgende werkdag.
+
 ## Volgende stap
 
-C2: elke middag de posts voor morgen, met een eventuele extra post, als één bundel in Telegram. Voor Cowork: P0.1 en P0.2 deployen (eerst een verse back-up) en daarna `docs/ops.md`.
+C3: beeld (Drive-map en memegen), een mediaroute, een statuscontrole bij Buffer en het opruimen van beelden aan het eind van de week. Voor Cowork: P0.1 en P0.2 deployen (eerst een verse back-up) en daarna `docs/ops.md`.

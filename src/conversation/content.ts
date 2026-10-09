@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { findClientByName } from '../core/clients.js';
 import { recordEvent } from '../core/events.js';
-import { applyEdit, approvePost, contentEnabled, draftPosts, EDIT_MINUTES, editablePost, approvalMessage, skipPost } from '../content/posts.js';
+import { applyEdit, approveAll, approvePost, contentEnabled, draftPosts, EDIT_MINUTES, editablePost, approvalMessage, skipPost } from '../content/posts.js';
 import { clientChannels, clients } from '../db/schema/index.js';
 import { and, eq } from 'drizzle-orm';
 import { CONTENT_TEXTS } from '../texts/content.nl.js';
@@ -14,6 +14,7 @@ import type { ModeHandler } from './assistant.js';
 
 export function contentButtons(): ButtonExtension {
   return async (button, ctx) => {
+    if (button.kind === 'posts') return approveAll(ctx);
     if (button.kind !== 'post') return undefined;
     if (button.action === 'ok') {
       const reply = await approvePost(ctx, button.postId);

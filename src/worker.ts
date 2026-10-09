@@ -12,6 +12,7 @@ import { writeHeartbeat } from './ops/heartbeat.js';
 import { runPlanner } from './proactive/planner.js';
 import { startScheduler, stopScheduler } from './proactive/scheduler.js';
 import { sendDueNudges } from './proactive/sender.js';
+import { expireWaitingPosts } from './content/planner.js';
 import { buildServices } from './wiring.js';
 
 const env = getEnv();
@@ -38,9 +39,13 @@ export async function tick(now: Date = new Date()): Promise<void> {
       users: services.users,
       // Messages queued while the AI was out (verbeterplan P0.2).
       retry: (message) => services.router({ kind: 'text', ...message, queued: true }),
+      // Content module (step C2): Claude writes the afternoon bundle.
+      content: { claude: services.claude, deps: services.content },
     },
     now,
   );
+  // A post still waiting at its moment is skipped: nothing goes live without approval (step C2).
+  await expireWaitingPosts(connection.db, now);
   // Once an hour: open blocks and retention (verbeterplan P0.1).
   if (now.getUTCMinutes() === MAINTENANCE_MINUTE) {
     const done = await runMaintenance(connection.db, now);

@@ -15,6 +15,7 @@ import { composeFocus, type ComposedFocus, type FocusCandidate } from './focus.j
 import { tomorrowPlan } from './tomorrow-signals.js';
 import { learnRhythm, planWindow, windowFor } from '../focus/windows.js';
 import { firstWorkday, isWorkday, lastWorkday } from '../focus/workweek.js';
+import { CONTENT_BUNDLE_TIME } from '../content/planner.js';
 
 export const PLANNER_TIME = '00:05';
 export const MIDDAY_TIME = '13:30';
@@ -148,6 +149,8 @@ export async function planDay(
       // The weekly review at the end of the last work day; the overview mail on the first (BOUWPLAN.md, 11.7).
       if (weekday === reviewDay) add('weekly_review', settings.workEnd, { part: 'review' });
       if (weekday === firstWorkday(settings.workDays)) add('weekly_review', WEEKLY_MAIL_TIME, { part: 'mail' });
+      // Content module (step C2): the posts up to the next work day, for approval.
+      if (settings.contentEnabled) add('content_bundle', CONTENT_BUNDLE_TIME);
     }
 
     // No escalation on the review day, so the review stays within the daily limit.

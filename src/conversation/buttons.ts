@@ -35,6 +35,7 @@ export type ParsedButton =
   | { kind: 'dashboard' }
   | { kind: 'tools'; action: 'start' | 'missing' | 'pick' | 'skip' | 'other' | 'paste' | 'keep' | 'edit' | 'del'; workType?: string; toolKey?: string }
   | { kind: 'post'; postId: number; action: 'ok' | 'edit' | 'skip' }
+  | { kind: 'posts'; action: 'all' }
   | { kind: 'help' };
 
 /** Parses the button ids from BOUWPLAN.md 9.4. */
@@ -92,6 +93,7 @@ export function parseButtonId(id: string): ParsedButton | undefined {
   if (match) return { kind: 'tools', action: match[2] as never, workType: match[1] ?? '' };
   match = /^cp:(\d+):(ok|edit|skip)$/.exec(id);
   if (match) return { kind: 'post', postId: Number(match[1]), action: match[2] as never };
+  if (id === 'cpb:all') return { kind: 'posts', action: 'all' };
   if (id === 'help') return { kind: 'help' };
   return undefined;
 }
@@ -199,6 +201,7 @@ export async function handleButton(
     case 'workweek':
     case 'dashboard':
     case 'post':
+    case 'posts':
     case 'plan':
       return [UNKNOWN];
   }
