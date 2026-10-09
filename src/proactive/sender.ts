@@ -3,6 +3,9 @@
 import { and, asc, desc, eq, gt, gte, lte, notInArray, sql } from 'drizzle-orm';
 import { DateTime } from 'luxon';
 import type { Delivery } from '../channels/channel.js';
+import type { ClaudeClient } from '../ai/claude.js';
+import { bundleMessages, planBundle } from '../content/planner.js';
+import { reminderMessage, type ContentDeps } from '../content/posts.js';
 import type { InboundSource, OutboundMessage } from '../conversation/types.js';
 import { recordEvent } from '../core/events.js';
 import { getProfile } from '../core/profile.js';
@@ -62,6 +65,8 @@ export const DEFAULT_COMPOSERS: Partial<Record<NudgeRow['kind'], Composer>> = {
 };
 
 export interface SenderDeps {
+  /** Content module (step C2): Claude writes the bundle; Buffer keys for the approval buttons. */
+  content?: { claude?: Pick<ClaudeClient, 'callWithTools'> | undefined; deps?: ContentDeps | undefined };
   /** Runs a queued message through the router again (verbeterplan P0.2). */
   retry?: (message: { userId: number; text: string; source: InboundSource }) => Promise<OutboundMessage[]>;
   db: Database;
@@ -145,6 +150,28 @@ async function composeRetry(deps: SenderDeps, ctx: NudgeContext, nudge: NudgeRow
     return { retryAt: new Date(ctx.now.getTime() + AI_RETRY_EVERY_MS) };
   }
 }
+/** The afternoon bundle and the reminder (step C2): Telegram only, since approval is a button. */
+async function composeContent(deps: SenderDeps, ctx: NudgeContext, nudge: NudgeRow, telegram: boolean): Promise<Composed> {
+  if (!telegram) return { skip: 'no_telegram' };
+  const content = { ...ctx, claude: deps.content?.claude, content: deps.content?.deps };
+  if (nudge.kind === 'content_reminder') {
+    const message = await reminderMessage(content, Number(nudge.payload.postId));
+    return message ? { subject: 'Post', message } : { skip: 'handled' };
+  }
+  const claude = deps.content?.claude;
+  if (!claude) return { skip: 'no_ai' };
+  let ids: number[];
+  try {
+    ids = await planBundle({ db: ctx.db, userId: ctx.userId, timezone: ctx.timezone, now: ctx.now, claude });
+  } catch (error) {
+    (deps.log ?? console).error('Content bundle failed:', error);
+    return { retryAt: new Date(ctx.now.getTime() + AI_RETRY_EVERY_MS) };
+  }
+  if (ids.length === 0) return { skip: 'no_posts' };
+  const [header, ...posts] = await bundleMessages(content, ids);
+  if (!header) return { skip: 'no_posts' };
+  return { subject: 'Posts', message: header, followUps: posts };
+}
 const FOLLOWUP_MAX_DELAY_MS = 30 * 60_000;
 
 type NudgeResult =
@@ -204,7 +231,12 @@ async function processNudge(deps: SenderDeps, nudge: NudgeRow, now: Date): Promi
       return verdict.retryAt ? { status: 'postponed', retryAt: verdict.retryAt } : { status: 'skipped', reason: verdict.reason };
     }
 
-    const composer = nudge.kind === 'ai_retry' ? (c: NudgeContext) => composeRetry(deps, c, nudge) : (deps.composers ?? DEFAULT_COMPOSERS)[nudge.kind];
+    const composer =
+      nudge.kind === 'ai_retry'
+        ? (c: NudgeContext) => composeRetry(deps, c, nudge)
+        : nudge.kind === 'content_bundle' || nudge.kind === 'content_reminder'
+          ? (c: NudgeContext) => composeContent(deps, c, nudge, user.telegramChatId !== null)
+          : (deps.composers ?? DEFAULT_COMPOSERS)[nudge.kind];
     if (!composer) return { status: 'failed', reason: 'no_composer' };
     const ctx: NudgeContext = {
       db: deps.db,
@@ -275,6 +307,7 @@ async function guardrailInput(
       'window_missed',
       'morning_followup',
       'ai_retry',
+      'content_reminder',
     ]),
     // The Monday mail does not count against Telegram messages.
     sql`not (${scheduledNudges.kind} = 'weekly_review' and ${scheduledNudges.payload}->>'part' = 'mail')`,

@@ -7,7 +7,7 @@ import type { ClaudeClient } from '../ai/claude.js';
 import { getProfile } from '../core/profile.js';
 import { getSettings } from '../core/settings.js';
 import type { Database } from '../db/client.js';
-import { clientChannels, clients, contentPosts } from '../db/schema/index.js';
+import { clientChannels, clients, contentPosts, scheduledNudges } from '../db/schema/index.js';
 import { BufferClient, BufferError, type BufferApi } from '../integrations/buffer/client.js';
 import { decryptToken } from '../lib/crypto.js';
 import { localNow, localTimeOnDate } from '../lib/time.js';
@@ -35,6 +35,19 @@ export const MAX_CHANNELS = 3;
 export const LEAD_MINUTES = 15;
 /** How long "Aanpassen" waits for the next message. */
 export const EDIT_MINUTES = 60;
+/** The reminder before a post that still waits for approval (step C2). */
+export const REMINDER_MINUTES = 60;
+/** Approved this close to its moment, a post goes out a little later instead. */
+const LAST_MINUTE_MS = 5 * 60_000;
+
+/** One reminder an hour before each post, while it still waits for approval. */
+export async function scheduleReminders(db: Database, userId: number, posts: Array<{ id: number; dueAt: Date | null }>, now: Date) {
+  const reminders = posts
+    .filter((p): p is { id: number; dueAt: Date } => p.dueAt !== null && p.dueAt.getTime() - REMINDER_MINUTES * 60_000 > now.getTime())
+    .map((p) => ({ userId, kind: 'content_reminder' as const, scheduledForUtc: new Date(p.dueAt.getTime() - REMINDER_MINUTES * 60_000), payload: { postId: p.id } }));
+  if (reminders.length) await db.insert(scheduledNudges).values(reminders);
+}
+
 
 /** The next moment from the rhythm (ISO weekdays and a local time), or null for Buffer's queue. */
 export function nextSlot(days: number[], postTime: string, timezone: string, now: Date, leadMinutes = LEAD_MINUTES): Date | null {
@@ -123,7 +136,8 @@ export async function draftPosts(
         status: 'pending_approval' as const,
       })),
     )
-    .returning({ id: contentPosts.id });
+    .returning({ id: contentPosts.id, dueAt: contentPosts.dueAt });
+  await scheduleReminders(ctx.db, ctx.userId, rows, ctx.now);
   return rows.map((r) => r.id);
 }
 
@@ -136,9 +150,14 @@ export async function approvePost(ctx: ContentContext, postId: number): Promise<
   const buffer = bufferForKey(ctx.content, client.key);
   if (!buffer) return { text: CONTENT_TEXTS.noBuffer(client.name) };
 
-  const tooLate = !post.dueAt || post.dueAt.getTime() < ctx.now.getTime() + LEAD_MINUTES * 60_000;
-  const dueAt = tooLate ? nextSlot(channel.days, channel.postTime, ctx.timezone, ctx.now) : post.dueAt;
   const where = and(eq(contentPosts.userId, ctx.userId), eq(contentPosts.id, post.id));
+  // The moment has passed: skipped, never posted late (step C2).
+  if (post.dueAt && post.dueAt.getTime() <= ctx.now.getTime()) {
+    await ctx.db.update(contentPosts).set({ status: 'skipped', error: 'Niet op tijd goedgekeurd' }).where(where);
+    return { text: CONTENT_TEXTS.tooLate };
+  }
+  const soon = post.dueAt && post.dueAt.getTime() < ctx.now.getTime() + LAST_MINUTE_MS;
+  const dueAt = soon ? new Date(ctx.now.getTime() + LAST_MINUTE_MS) : post.dueAt;
   await ctx.db.update(contentPosts).set({ status: 'approved', approvedAt: ctx.now, dueAt, error: null }).where(where);
   try {
     const created = await buffer.createPost({ channelId: channel.bufferChannelId, service: channel.service, text: post.text, dueAt, imageUrl: post.mediaUrl });
@@ -213,4 +232,32 @@ export async function applyEdit(ctx: ContentContext, postId: number, wish: strin
     .set({ text, status: 'pending_approval', error: null })
     .where(and(eq(contentPosts.userId, ctx.userId), eq(contentPosts.id, post.id)));
   return approvalMessage(ctx, post.id);
+}
+
+/** "Alles goed": every post that waits for approval and still has its moment ahead. */
+export async function approveAll(ctx: ContentContext): Promise<OutboundMessage[]> {
+  const waiting = await ctx.db
+    .select({ id: contentPosts.id })
+    .from(contentPosts)
+    .where(and(eq(contentPosts.userId, ctx.userId), eq(contentPosts.status, 'pending_approval')))
+    .orderBy(asc(contentPosts.dueAt));
+  if (waiting.length === 0) return [{ text: CONTENT_TEXTS.allNone }];
+  const failures: OutboundMessage[] = [];
+  let scheduled = 0;
+  for (const { id } of waiting) {
+    const reply = await approvePost(ctx, id);
+    const [row] = await ctx.db.select({ status: contentPosts.status }).from(contentPosts).where(eq(contentPosts.id, id));
+    // Failures, a missing Buffer key or a passed moment: shown one by one.
+    if (row?.status === 'scheduled') scheduled++;
+    else failures.push(reply);
+  }
+  return [{ text: CONTENT_TEXTS.allDone(scheduled) }, ...failures];
+}
+
+/** The reminder an hour before: the approval message again, only while it still waits. */
+export async function reminderMessage(ctx: ContentContext, postId: number): Promise<OutboundMessage | undefined> {
+  const row = await loadPost(ctx.db, ctx.userId, postId);
+  if (!row || row.post.status !== 'pending_approval') return undefined;
+  const message = await approvalMessage(ctx, postId);
+  return { ...message, text: `${CONTENT_TEXTS.reminder}\n\n${message.text}` };
 }

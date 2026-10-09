@@ -26,7 +26,33 @@ Posts voor social media per klant. Buffer zet ze live, goedkeuren gaat in Telegr
 - [ ] *Aanpassen* met "korter" geeft een kortere versie.
 - [ ] *Goed* zet de post in Buffer op de geplande tijd. Verwijder hem daarna in Buffer, of gebruik *Overslaan* voor de test.
 
-## Volgende stappen
+## Wat C2 doet
 
-- **C2:** elke middag kijkt Claude per klant naar de week en de klantkaart en zet de posts voor morgen klaar, met een eventuele extra post en de reden. In Telegram komt één bundel met *Alles goed*. Zonder akkoord: één herinnering een uur voor de geplande tijd, daarna *overgeslagen*.
-- **C3:** beeld uit de Drive-map (`GOOGLE_API_KEY` op de VPS) en memegen.link, een eigen mediaroute, elk uur een statuscontrole bij Buffer met een melding bij een fout, en aan het eind van de week het verwijderen van de beelden van geslaagde posts.
+- **Elke werkdag om 17:00** schrijft Claude (het slimme model) per klant de posts tot en met de volgende werkdag. Op vrijdag zijn dat dus zaterdag, zondag en maandag.
+  - Voor elk moment uit het ritme komt er één post. Kanalen zonder dagen krijgen geen vaste posts.
+  - Claude gebruikt de klantkaart en de week: afgeronde taken van de projecten van de klant, de laatste notities, en je berichten waarin de klant voorkomt. Posts van de afgelopen twee weken herhaalt hij niet.
+  - **Extra post:** alleen als er iets te delen valt. Hij komt morgen op de tijd van het kanaal, met de reden erbij ("Extra post: Je zette de nieuwe website live.").
+  - Een moment dat al een post heeft, bijvoorbeeld een die je zelf schreef, slaat Claude over.
+- **In Telegram** komt één bundel: een kop met *Alles goed*, daarna elke post met *Goed*, *Aanpassen* en *Overslaan*.
+  - De bundel telt als één bericht van de dag, maar de daglimiet houdt hem niet tegen.
+  - Stille uren, een pauze en vier dagen stilte houden hem wel tegen.
+- *Alles goed* zet elke post die op akkoord wacht in Buffer.
+- **Herinnering:** een uur voor het geplande moment, als de post nog niet is goedgekeurd.
+- **Op het moment zelf** krijgt een post zonder akkoord de status *overgeslagen*. Goedkeuren daarna zet hem niet alsnog online.
+- **AI even weg:** de bundel wordt elke 10 minuten opnieuw geprobeerd, tot 2 uur na 17:00.
+- **Geen Telegram:** dan komt er geen bundel. Goedkeuren gaat alleen via de knoppen in Telegram.
+
+## Live controleren (C2)
+
+- [ ] Om 17:00 op een werkdag komt de bundel, met *Alles goed* bovenaan.
+- [ ] Na een afgeronde taak bij de klant staat er soms een extra post met een reden. Als er niets gebeurde, komt er geen extra post.
+- [ ] Een uur voor een post die nog wacht, komt de herinnering.
+- [ ] Een post die je niet goedkeurt, staat na het moment op *overgeslagen* en verschijnt niet in Buffer.
+
+## Volgende stap
+
+- **C3:**
+  - beeld uit de Drive-map (`GOOGLE_API_KEY` op de VPS) en van memegen.link;
+  - een eigen mediaroute;
+  - elk uur een statuscontrole bij Buffer, met een melding bij een fout;
+  - aan het eind van de week de beelden van geslaagde posts verwijderen.

@@ -41,5 +41,13 @@ export const CONTENT_TEXTS = {
   failed: (message: string) => `Buffer weigerde de post: ${message}`,
   noBuffer: (client: string) => `Buffer is niet gekoppeld voor ${client}. Koppel het op de klantkaart in het dashboard.`,
   editAsk: 'Wat moet er anders? Typ of spreek het in. Je kunt ook de nieuwe tekst sturen.',
+  extraReason: (reason: string) => `Extra post: ${reason}`,
+  bundleHeader: (posts: number, clients: number) =>
+    `${posts === 1 ? 'Eén post' : `${posts} posts`} klaar voor ${clients === 1 ? 'één klant' : `${clients} klanten`}. Keur ze per stuk goed, of alles in één keer.`,
+  allOk: 'Alles goed',
+  allDone: (count: number) => (count === 1 ? 'Eén post ingepland.' : `${count} posts ingepland.`),
+  allNone: 'Er wacht geen post op akkoord.',
+  reminder: 'Over een uur gepland en nog niet goedgekeurd. Zonder akkoord gaat hij niet live.',
+  tooLate: 'Het geplande moment is voorbij. Deze post is overgeslagen.',
   editFailed: 'Het herschrijven lukte niet. Stuur de nieuwe tekst zelf, dan neem ik die over.',
 } as const;

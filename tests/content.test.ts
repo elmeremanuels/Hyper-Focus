@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { parseButtonId } from '../src/conversation/buttons.js';
+import { coveredDates, slotsFor } from '../src/content/planner.js';
 import { describeSlot, nextSlot } from '../src/content/posts.js';
+import { checkGuardrails } from '../src/proactive/guardrails.js';
 import { BufferClient, BufferError } from '../src/integrations/buffer/client.js';
 
 describe('nextSlot: the next moment from the rhythm', () => {
@@ -93,5 +95,46 @@ describe('BufferClient (GraphQL)', () => {
   it('reports a bad key as auth', async () => {
     const client = new BufferClient('bad', respond(() => ({ error: 'nope' }), 401));
     await expect(client.listChannels()).rejects.toMatchObject({ kind: 'auth' });
+  });
+});
+
+describe('the afternoon bundle (step C2)', () => {
+  it('covers tomorrow up to the next work day', () => {
+    const at = (iso: string) => new Date(iso);
+    expect(coveredDates([1, 2, 3, 4, 5], 'Europe/Amsterdam', at('2026-10-12T15:00:00Z'))).toEqual(['2026-10-13']);
+    // Friday: the weekend and Monday.
+    expect(coveredDates([1, 2, 3, 4, 5], 'Europe/Amsterdam', at('2026-10-16T15:00:00Z'))).toEqual(['2026-10-17', '2026-10-18', '2026-10-19']);
+    // Monday, Wednesday and Thursday work days, in Makassar.
+    expect(coveredDates([1, 3, 4], 'Asia/Makassar', at('2026-10-12T09:00:00Z'))).toEqual(['2026-10-13', '2026-10-14']);
+  });
+
+  it('turns the rhythm into moments, and leaves queue channels out', () => {
+    const channel = (id: number, days: number[], postTime: string) =>
+      ({ id, userId: 1, clientId: 1, bufferChannelId: `c${id}`, service: 'instagram', name: 'x', days, postTime, createdAt: new Date(), updatedAt: new Date() });
+    const slots = slotsFor([channel(1, [6, 1], '09:00:00'), channel(2, [], '10:00:00'), channel(3, [7], '20:00:00')], ['2026-10-17', '2026-10-18', '2026-10-19'], 'Europe/Amsterdam', new Date('2026-10-16T15:00:00Z'));
+    expect(slots.map((s) => [s.channel.id, s.dueAt.toISOString()])).toEqual([
+      [1, '2026-10-17T07:00:00.000Z'],
+      [3, '2026-10-18T18:00:00.000Z'],
+      [1, '2026-10-19T07:00:00.000Z'],
+    ]);
+  });
+
+  it('lets the bundle through the daily limit, and still honours quiet hours and pause', () => {
+    const base = {
+      now: new Date('2026-10-12T15:00:00Z'),
+      timezone: 'Europe/Amsterdam',
+      settings: { pausedUntil: null, quietStart: '21:00', quietEnd: '08:00', maxProactivePerDay: 4 },
+      sentToday: 4,
+      lastProactiveAt: new Date('2026-10-12T14:50:00Z'),
+      silentDays: 0,
+      overwhelmedYesterday: false,
+    };
+    expect(checkGuardrails({ ...base, kind: 'content_bundle' })).toEqual({ send: true });
+    expect(checkGuardrails({ ...base, kind: 'content_reminder', now: new Date('2026-10-12T20:00:00Z') })).toMatchObject({ send: false, reason: 'quiet_hours' });
+    expect(checkGuardrails({ ...base, kind: 'content_bundle', settings: { ...base.settings, pausedUntil: new Date('2026-10-13T00:00:00Z') } })).toMatchObject({ send: false, reason: 'paused' });
+  });
+
+  it('parses "Alles goed"', () => {
+    expect(parseButtonId('cpb:all')).toEqual({ kind: 'posts', action: 'all' });
   });
 });

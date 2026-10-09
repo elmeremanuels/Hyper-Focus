@@ -99,6 +99,13 @@
       "when": 1791515608655,
       "tag": "0013_content_module",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791517510981,
+      "tag": "0014_content_bundle",
+      "breakpoints": true
     }
   ]
 }
