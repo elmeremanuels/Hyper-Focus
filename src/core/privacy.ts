@@ -29,6 +29,7 @@ import {
   userTools,
 } from '../db/schema/index.js';
 import type { CalendarService } from '../integrations/calendar/service.js';
+import { deleteUserMedia } from '../content/media.js';
 
 /**
  * Everything stored for a user. Left out: login links and sessions (hashes only), the short-lived
@@ -73,9 +74,10 @@ export async function exportUserData(db: Database, userId: number, now: Date) {
   return { exportedAt: now.toISOString(), user, ...data };
 }
 
-/** Revokes calendar access, then deletes the user; every table cascades on the user. */
-export async function deleteUserData(db: Database, userId: number, calendar: CalendarService | undefined): Promise<boolean> {
+/** Revokes calendar access and removes post photos, then deletes the user; every table cascades on the user. */
+export async function deleteUserData(db: Database, userId: number, calendar: CalendarService | undefined, mediaDir?: string): Promise<boolean> {
   await disconnectCalendars(db, userId, calendar);
+  if (mediaDir) await deleteUserMedia(db, userId, mediaDir);
   const deleted = await db.delete(users).where(eq(users.id, userId)).returning({ id: users.id });
   return deleted.length > 0;
 }

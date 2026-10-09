@@ -14,6 +14,8 @@ import { isWorkday } from '../focus/workweek.js';
 import { localNow, localTimeOnDate } from '../lib/time.js';
 import { CONTENT_TEXTS, serviceLabel } from '../texts/content.nl.js';
 import type { OutboundMessage } from '../conversation/types.js';
+import { listFolderImages, parseFolderId, type DriveImage } from '../integrations/drive/folder.js';
+import { driveIdFromUrl, MEME_TEMPLATES, memeUrl, storeDrivePhoto, type MediaConfig } from './media.js';
 import { approvalMessage, describeSlot, LEAD_MINUTES, scheduleReminders } from './posts.js';
 
 export const CONTENT_BUNDLE_TIME = '17:00';
@@ -79,13 +81,29 @@ export async function weekFor(db: Database, userId: number, client: { id: number
   ];
 }
 
+// An image for a post (step C3): a photo from the client's folder, or a meme.
+const image = {
+  photo: z.number().int().min(1).nullable().optional(),
+  meme: z.object({ template: z.string().max(40), top: z.string().max(120), bottom: z.string().max(120) }).nullable().optional(),
+};
 const planInput = z.object({
-  posts: z.array(z.object({ moment: z.number().int().min(1), text: z.string().min(5).max(3000) })).max(20),
+  posts: z.array(z.object({ moment: z.number().int().min(1), text: z.string().min(5).max(3000), ...image })).max(20),
   extra: z
-    .object({ channel: z.number().int().min(1), text: z.string().min(5).max(3000), reason: z.string().min(3).max(200) })
+    .object({ channel: z.number().int().min(1), text: z.string().min(5).max(3000), reason: z.string().min(3).max(200), ...image })
     .nullable()
     .optional(),
 });
+type ImageChoice = { photo?: number | null | undefined; meme?: { template: string; top: string; bottom: string } | null | undefined };
+
+const IMAGE_PROPERTIES = {
+  photo: { type: ['integer', 'null'], description: 'Het nummer van een foto uit de map, of null' },
+  meme: {
+    type: ['object', 'null'],
+    description: 'Een meme in plaats van een foto, of null',
+    properties: { template: { type: 'string' }, top: { type: 'string' }, bottom: { type: 'string' } },
+    required: ['template', 'top', 'bottom'],
+  },
+};
 
 const PLAN_TOOL = {
   name: 'plan_posts',
@@ -95,12 +113,12 @@ const PLAN_TOOL = {
     properties: {
       posts: {
         type: 'array',
-        items: { type: 'object', properties: { moment: { type: 'integer', description: 'Het nummer van het moment' }, text: { type: 'string' } }, required: ['moment', 'text'] },
+        items: { type: 'object', properties: { moment: { type: 'integer', description: 'Het nummer van het moment' }, text: { type: 'string' }, ...IMAGE_PROPERTIES }, required: ['moment', 'text'] },
       },
       extra: {
         type: ['object', 'null'],
         description: 'Alleen als er iets te delen valt; anders null.',
-        properties: { channel: { type: 'integer', description: 'Het nummer van het kanaal' }, text: { type: 'string' }, reason: { type: 'string' } },
+        properties: { channel: { type: 'integer', description: 'Het nummer van het kanaal' }, text: { type: 'string' }, reason: { type: 'string' }, ...IMAGE_PROPERTIES },
         required: ['channel', 'text', 'reason'],
       },
     },
@@ -114,6 +132,37 @@ export interface BundleContext {
   timezone: string;
   now: Date;
   claude: Pick<ClaudeClient, 'callWithTools'>;
+  /** Photos and memes (step C3); without it posts go out as text. */
+  media?: MediaConfig | undefined;
+}
+
+/** The photos Claude may pick from: the client's folder, without the ones used in the last two weeks. */
+async function photosFor(media: MediaConfig | undefined, folderUrl: string | null, recentlyUsed: Set<string>): Promise<DriveImage[]> {
+  const folderId = folderUrl ? parseFolderId(folderUrl) : undefined;
+  if (!media?.googleApiKey || !folderId) return [];
+  try {
+    const all = await listFolderImages(folderId, media.googleApiKey, media.fetchImpl);
+    const fresh = all.filter((p) => !recentlyUsed.has(p.id));
+    return (fresh.length >= 3 ? fresh : all).slice(0, 60);
+  } catch (error) {
+    console.error('Drive folder could not be read:', error);
+    return [];
+  }
+}
+
+/** The image URL for Claude's choice; a failed download means a post without image. */
+async function resolveImage(media: MediaConfig | undefined, choice: ImageChoice, photos: DriveImage[], memesAllowed: boolean): Promise<Pick<typeof contentPosts.$inferInsert, 'mediaUrl' | 'mediaSource'>> {
+  const photo = choice.photo ? photos[choice.photo - 1] : undefined;
+  if (photo && media) {
+    try {
+      return { mediaUrl: await storeDrivePhoto(media, photo.id), mediaSource: 'drive' };
+    } catch (error) {
+      console.error(`Drive photo ${photo.id} failed:`, error);
+    }
+  }
+  const meme = memesAllowed && choice.meme ? memeUrl(choice.meme.template, choice.meme.top, choice.meme.bottom) : undefined;
+  if (meme) return { mediaUrl: meme, mediaSource: 'meme' };
+  return { mediaUrl: null, mediaSource: 'none' };
 }
 
 /**
@@ -127,7 +176,7 @@ export async function planBundle(ctx: BundleContext): Promise<number[]> {
   const profile = await getProfile(db, userId);
   const dates = coveredDates(settings.workDays, timezone, now);
   const rows = await db
-    .select({ id: clients.id, name: clients.name, notes: clients.notes, profile: clients.profile })
+    .select({ id: clients.id, name: clients.name, notes: clients.notes, profile: clients.profile, photoFolderUrl: clients.photoFolderUrl, memesAllowed: clients.memesAllowed })
     .from(clients)
     .where(and(eq(clients.userId, userId), eq(clients.status, 'active'), eq(clients.socialsEnabled, true), isNotNull(clients.bufferApiKeyEnc)));
 
@@ -148,12 +197,17 @@ export async function planBundle(ctx: BundleContext): Promise<number[]> {
     if (slots.length === 0 && week.length === 0) continue;
 
     const recent = await db
-      .select({ text: contentPosts.text })
+      .select({ text: contentPosts.text, mediaUrl: contentPosts.mediaUrl })
       .from(contentPosts)
       .where(and(eq(contentPosts.userId, userId), eq(contentPosts.clientId, client.id), gte(contentPosts.createdAt, new Date(now.getTime() - RECENT_POSTS_MS)), or(eq(contentPosts.status, 'scheduled'), eq(contentPosts.status, 'sent'))))
       .orderBy(desc(contentPosts.createdAt))
       .limit(6);
+    const used = new Set(recent.map((p) => driveIdFromUrl(p.mediaUrl)).filter((id): id is string => Boolean(id)));
+    const photos = await photosFor(ctx.media, client.photoFolderUrl, used);
+    const memes = client.memesAllowed && ctx.media ? Object.entries(MEME_TEMPLATES) : [];
     const system = fillPrompt(loadPrompt('posts-plannen'), {
+      fotos: photos.map((p, i) => `${i + 1}. ${p.name}${p.description ? ` — ${p.description}` : ''}`).join('\n') || '(geen)',
+      memes: memes.map(([key, use]) => `- ${key}: ${use}`).join('\n') || '(geen memes)',
       klant: client.name,
       naam: profile?.name ?? 'de gebruiker',
       profiel: client.profile.map((f) => `- ${f.label}: ${f.value}`).join('\n') || '(niets ingevuld)',
@@ -182,7 +236,8 @@ export async function planBundle(ctx: BundleContext): Promise<number[]> {
     for (const post of parsed.data.posts) {
       const slot = slots[post.moment - 1];
       if (!slot || values.some((v) => v.channelId === slot.channel.id && v.dueAt?.getTime() === slot.dueAt.getTime())) continue;
-      values.push({ userId, clientId: client.id, channelId: slot.channel.id, text: post.text.trim(), dueAt: slot.dueAt, status: 'pending_approval' });
+      const media = await resolveImage(ctx.media, post, photos, client.memesAllowed);
+      values.push({ userId, clientId: client.id, channelId: slot.channel.id, text: post.text.trim(), dueAt: slot.dueAt, status: 'pending_approval', ...media });
     }
     const extra = parsed.data.extra;
     const extraChannel = extra ? channels[extra.channel - 1] : undefined;
@@ -190,7 +245,8 @@ export async function planBundle(ctx: BundleContext): Promise<number[]> {
       // The extra post goes out tomorrow at the channel's own time.
       const at = localTimeOnDate(timezone, dates[0], extraChannel.postTime);
       const dueAt = values.some((v) => v.channelId === extraChannel.id && v.dueAt?.getTime() === at.getTime()) ? new Date(at.getTime() + 3 * 3_600_000) : at;
-      values.push({ userId, clientId: client.id, channelId: extraChannel.id, text: extra.text.trim(), dueAt, reason: CONTENT_TEXTS.extraReason(extra.reason.trim()), status: 'pending_approval' });
+      const media = await resolveImage(ctx.media, extra, photos, client.memesAllowed);
+      values.push({ userId, clientId: client.id, channelId: extraChannel.id, text: extra.text.trim(), dueAt, reason: CONTENT_TEXTS.extraReason(extra.reason.trim()), status: 'pending_approval', ...media });
     }
     if (values.length === 0) continue;
     const inserted = await db.insert(contentPosts).values(values).returning({ id: contentPosts.id, dueAt: contentPosts.dueAt });

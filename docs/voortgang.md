@@ -1216,6 +1216,39 @@ Focusvenster, ritme en beloning (1.12):
   - Live-checks C1 en C2 in `docs/content.md`.
   - Wie de module midden op de dag aanzet, krijgt de eerste bundel de volgende werkdag.
 
+## Stap C3 — Contentmodule: beeld, statuscontrole en opruimen
+
+- **Status:** klaar in de PR
+- **Datum:** 2026-10-09
+- **Gebouwd:**
+  - `src/integrations/drive/folder.ts`: de map-id uit een deellink, de afbeeldingen in een openbare map (`GOOGLE_API_KEY`), en downloaden (alleen beelden, hooguit 8 MB).
+  - `src/content/media.ts`:
+    - foto opslaan in `MEDIA_DIR` onder een onraadbare naam met de Drive-id erin;
+    - memegen.link-URL's met hun escapes en een vaste lijst sjablonen;
+    - opruimen na de week;
+    - foto's verwijderen bij het verwijderen van een account.
+  - **Planner:** foto's uit de map (zonder de recent gebruikte) en de meme-sjablonen (als de klantkaart memes toestaat) staan in de prompt. `plan_posts` kiest per post `photo` of `meme`. Lukt de download niet, dan gaat de post zonder beeld.
+  - Het goedkeuringsbericht toont "Beeld: <link>".
+  - `src/content/status.ts`: elk uur de status van ingeplande posts bij Buffer: *verstuurd* of *mislukt*, met een bericht aan de gebruiker.
+  - **Worker:** elk uur de statuscontrole en het opruimen van foto's.
+  - **App:** `/media` met `express.static` (geen index, geen dotfiles, 404 voor onbekende bestanden).
+  - **Env:** `GOOGLE_API_KEY` en `MEDIA_DIR`. Er komt geen datamodelwijziging bij.
+- **Controle:**
+  - `tests/content-media.integration.test.ts`:
+    - foto gekozen, opgeslagen en geserveerd;
+    - meme-URL;
+    - de pdf in de map genegeerd;
+    - geen memes als de klantkaart ze niet toestaat;
+    - status *verstuurd* en *mislukt* met bericht;
+    - opruimen na de week;
+    - een mislukte post houdt zijn foto;
+    - verwijderen van een account ruimt de foto's op.
+  - `tests/content.test.ts`: de map-id, de memegen-escapes, de Drive-id uit de URL, en een download die geen beeld is.
+  - `npm test`: 464 groen. `typecheck`, `lint` en `build` slagen ook.
+- **Open punten:**
+  - Elmer maakt de Google API-sleutel aan (stappen in `docs/content.md`).
+  - AI-beelden blijven in `docs/later.md`.
+
 ## Volgende stap
 
-C3: beeld (Drive-map en memegen), een mediaroute, een statuscontrole bij Buffer en het opruimen van beelden aan het eind van de week. Voor Cowork: P0.1 en P0.2 deployen (eerst een verse back-up) en daarna `docs/ops.md`.
+Contentmodule C1–C3 live zetten en de live-checks in `docs/content.md` doorlopen. Voor Cowork: P0.1 en P0.2 deployen (eerst een verse back-up) en daarna `docs/ops.md`.

@@ -33,6 +33,8 @@ export interface AppOptions {
   /** The waiting list form on the website (step 2b.3). */
   waitlist?: WaitlistConfig;
   dashboard?: DashboardRoutesConfig;
+  /** MEDIA_DIR: photos for posts, served at /media (step C3). */
+  mediaDir?: string | undefined;
   /** The worker's heartbeat file: /health answers 503 when it is stale (verbeterplan P0.2). */
   heartbeatFile?: string | undefined;
 }
@@ -51,6 +53,10 @@ export function createApp(options: AppOptions = {}): Express {
     res.json({ status: 'ok' });
   });
 
+  // Photos for posts (step C3): unguessable names, read by Buffer and the approval preview.
+  if (options.mediaDir) {
+    app.use('/media', express.static(options.mediaDir, { fallthrough: false, index: false, dotfiles: 'deny', maxAge: '7d', immutable: true }));
+  }
   app.use(
     createTelegramWebhookRouter({
       secretToken: options.telegram?.secretToken,

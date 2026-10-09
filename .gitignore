@@ -24,3 +24,6 @@ npm-debug.log*
 
 # Worker heartbeat (docs/ops.md)
 *.heartbeat
+
+# Photos for posts (docs/content.md)
+media/

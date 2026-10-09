@@ -101,6 +101,10 @@ export const envSchema = z.object({
     z.boolean().default(false),
   ),
 
+  // Content module (step C3): a read-only key for public Drive folders, and where photos are stored.
+  GOOGLE_API_KEY: optionalString,
+  MEDIA_DIR: optionalString,
+
   // Phase 3
   MOLLIE_API_KEY: optionalString,
   ENCRYPTION_KEY: optionalString,

@@ -45,6 +45,9 @@ export const CONTENT_TEXTS = {
   bundleHeader: (posts: number, clients: number) =>
     `${posts === 1 ? 'Eén post' : `${posts} posts`} klaar voor ${clients === 1 ? 'één klant' : `${clients} klanten`}. Keur ze per stuk goed, of alles in één keer.`,
   allOk: 'Alles goed',
+  image: (url: string) => `Beeld: ${url}`,
+  notPosted: (client: string, channel: string, when: string, reason: string) =>
+    `Buffer kon de post voor ${client} op ${channel}${when ? ` (${when})` : ''} niet plaatsen: ${reason}`,
   allDone: (count: number) => (count === 1 ? 'Eén post ingepland.' : `${count} posts ingepland.`),
   allNone: 'Er wacht geen post op akkoord.',
   reminder: 'Over een uur gepland en nog niet goedgekeurd. Zonder akkoord gaat hij niet live.',
