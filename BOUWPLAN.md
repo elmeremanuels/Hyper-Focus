@@ -1,9 +1,9 @@
 # Bouwplan — Hyper&Focus
 ### AI-projectmanager en assistent voor ondernemers met een ADHD-brein
 
-Naam: **Hyper&Focus** · technische naam en repo: `hyperfocus` · Versie 1.3 · 1 oktober 2026 · Eigenaar: Elmer Emanuels
+Naam: **Hyper&Focus** · technische naam en repo: `hyperfocus` · Versie 1.4 · 2 oktober 2026 · Eigenaar: Elmer Emanuels
 
-*Versie 1.1: naam, dagritme, lensprioriteit, onderzoeksprovider, bewaartermijn en prijs vastgelegd (hoofdstuk 18). Versie 1.2: optionele agendakoppeling (11.8, stap 1.8). Versie 1.3: WhatsApp vervangen door Telegram en mail (hoofdstuk 9, beslissing 10).*
+*Versie 1.1: naam, dagritme, lensprioriteit, onderzoeksprovider, bewaartermijn en prijs vastgelegd (hoofdstuk 18). Versie 1.2: optionele agendakoppeling (11.8, stap 1.8). Versie 1.3: WhatsApp vervangen door Telegram en mail (hoofdstuk 9, beslissing 10). Versie 1.4: SendGrid vervangen door Brevo (beslissing 11).*
 
 ---
 
@@ -71,8 +71,8 @@ De verbetermotor moet minstens 5 van die 8 weken draaien. Punt 1 t/m 3 meet het 
 ## 4. Architectuur
 
 ```
-        Telegram (Bot API)                         Mail (SendGrid)
-          ▲                 │ webhook               ▲ uit      │ Inbound Parse
+        Telegram (Bot API)                         Mail (Brevo)   
+          ▲                 │ webhook               ▲ uit      │ Inbound Parsing
           │ uitgaand        ▼                       │          ▼
  ┌───────────────────────────────────────────────────────────────────────┐
  │ KANAALLAAG  verzenden · webhooks · geheime token · knoppen · actielinks │
@@ -129,7 +129,7 @@ Twee processen onder PM2:
 | AI | `@anthropic-ai/sdk`, laatste versie | Publicato zit op ^0.37; upgraden |
 | Transcriptie | OpenAI-SDK (al in Publicato) | alleen voor spraakberichten |
 | Chat | Telegram Bot API | rechtstreeks via `fetch`, zonder bibliotheek; webhook met geheime token |
-| Mail | SendGrid: versturen + Inbound Parse | uitgaand en inkomend; inkomend op een eigen subdomein |
+| Mail | Brevo: transactionele API + Inbound Parsing | uitgaand en inkomend; inkomend op een eigen subdomein; rechtstreeks via `fetch` |
 | Web-UI (fase 2) | React + Vite + Tailwind | mobile-first |
 | Tests | Vitest | plus eigen eval-script |
 | Hosting | Hostinger VPS met template *Claude Code* (Ubuntu 24.04), PM2, Nginx, Let's Encrypt | Telegram vereist HTTPS voor de webhook; Node 20+ apart installeren, Ubuntu 24.04 levert een oudere versie |
@@ -156,7 +156,7 @@ Twee processen onder PM2:
 | `server/autoGPTAgent.ts` | patroon voor `src/engine/generate.ts` | alleen het doel-stappen-redenering-patroon; OpenAI vervangen door Claude |
 | `strategic-context-enhancer.ts`, `aiSuggestionsService.ts`, `aiHints.ts` | referentie | lezen als inspiratie voor prompts; herschrijven |
 | schema's `businessProfiles`, `customerPersonas`, `competitorIntelligence`, `swotAnalysis`, `businessGoals`, `brainstormIdeas` | `src/db/schema/` | afslanken volgens hoofdstuk 8 |
-| `server/services/emailService.ts` / `sendgridService.ts` | `src/channels/email/send.ts` | alleen versturen; templates voor weekoverzicht, concept en herstart. Inkomende mail bouw je nieuw (9.3) |
+| `server/services/emailService.ts` / `sendgridService.ts` | referentie | versturen loopt via Brevo (`src/channels/email/send.ts`, nieuw); templates voor weekoverzicht, concept en herstart. Inkomende mail bouw je nieuw (9.3) |
 | `server/auth.ts`, `server/middleware/auth.ts` | fase 2 | omzetten naar magic-link login |
 | `server/services/googleOAuthService.ts` | `src/integrations/calendar/oauth.ts` | alleen de scope `calendar.readonly`; scopes voor Drive, Ads, Analytics en Business Profile eruit |
 | `server/utils/tokenEncryption.ts` | `src/lib/crypto.ts` | nodig vanaf stap 1.8 voor agendatokens |
@@ -256,7 +256,7 @@ Alle tabellen hebben `id`, `user_id` (behalve `users`), `created_at` en `updated
 
 **scheduled_nudges** — `kind` (`nudge_kind`), `scheduled_for_utc`, `payload` (jsonb), `status` (`pending` | `sent` | `skipped` | `failed`), `skip_reason`, `sent_message_id`.
 
-**calendar_connections** (optioneel) — `provider` (`google`), `calendar_ids` (text[], standaard alleen de hoofdagenda), `access_token_enc`, `refresh_token_enc`, `token_expires_at`, `sync_token`, `status` (`active` | `error` | `revoked`), `last_synced_at`.
+**calendar_connections** (optioneel) — `provider` (`google` | `microsoft` | `apple`), `calendar_ids` (text[], standaard alleen de hoofdagenda), `access_token_enc`, `refresh_token_enc`, `token_expires_at`, `sync_token`, `status` (`active` | `error` | `revoked`), `last_synced_at`.
 
 **calendar_events** (optioneel, alleen vandaag en morgen) — `connection_id`, `external_id`, `starts_at_utc`, `ends_at_utc`, `title`, `is_busy`, `is_all_day`, `client_id`, `project_id`. We bewaren alleen deze velden.
 
@@ -295,8 +295,8 @@ Twee kanalen, één router. Telegram is het dagelijkse gesprek: snel, met knoppe
 3. Laat privacy mode aan: de bot werkt alleen in privéchats.
 
 **Mail**
-1. Een verzendadres op het eigen domein, bijvoorbeeld `hallo@hyper-focus.pro`, met domeinauthenticatie in SendGrid (SPF, DKIM en DMARC als DNS-records).
-2. Inbound Parse op een subdomein: MX-record `in.hyper-focus.pro` → `mx.sendgrid.net`, doorsturen naar `https://hyper-focus.pro/webhooks/mail/{EMAIL_INBOUND_SECRET}`, met *spam check* aan.
+1. Een verzendadres op het eigen domein, bijvoorbeeld `hallo@hyper-focus.pro`, met domeinauthenticatie in Brevo (SPF, DKIM en DMARC als DNS-records).
+2. Inbound Parsing op een subdomein: MX-records `in.hyper-focus.pro` → `inbound1.sendinblue.com` en `inbound2.sendinblue.com`. Daarna de inbound-webhook aanmaken met `npm run brevo:inbound -- --domain in.hyper-focus.pro`; die stuurt door naar `https://hyper-focus.pro/webhooks/mail/{EMAIL_INBOUND_SECRET}`.
 3. Mijn vaste invoeradres: `taken@in.hyper-focus.pro`. Antwoorden op mails van Hyper&Focus komen via `Reply-To` op hetzelfde adres binnen.
 
 ### 9.2 Telegram
@@ -322,13 +322,13 @@ Twee kanalen, één router. Telegram is het dagelijkse gesprek: snel, met knoppe
 ### 9.3 Mail
 
 **Uitgaand**
-- Via SendGrid, vanaf `EMAIL_FROM`, met `Reply-To: taken@in.hyper-focus.pro`.
+- Via de Brevo-API (`POST /v3/smtp/email`), vanaf `EMAIL_FROM`, met `Reply-To: taken@in.hyper-focus.pro`.
 - Eenvoudige HTML plus een platte-tekstversie. Onderwerpregel zegt wat erin staat: *"Je week: 9 taken af, focus op de offerte"*.
 - **Knoppen in mail zijn actielinks:** `GET /a/{token}`. De token is een HMAC-ondertekende string met de knop-ID uit 9.4, de gebruiker en een vervaldatum (7 dagen), ondertekend met `ACTION_LINK_SECRET`. De link voert dezelfde afhandeling uit als de Telegram-knop in `buttons.ts` en toont een korte bevestigingspagina. Elke link werkt één keer.
 
-**Inkomend (SendGrid Inbound Parse)**
-- `POST /webhooks/mail/{EMAIL_INBOUND_SECRET}`; een onjuist pad geeft 404.
-- **Afzender controleren:** het `From`-adres moet `users.email` zijn (in fase 1 ook in `EMAIL_ALLOWED_SENDERS`) en de velden `SPF` en `dkim` uit Inbound Parse moeten *pass* zijn. Anders loggen en negeren.
+**Inkomend (Brevo Inbound Parsing)**
+- `POST /webhooks/mail/{EMAIL_INBOUND_SECRET}`; een onjuist pad geeft 404. Brevo stuurt JSON met een lijst `items`, één per mail.
+- **Afzender controleren:** de basis is het geheime webhookpad (`EMAIL_INBOUND_SECRET`) plus het `From`-adres: dat moet `users.email` zijn (in fase 1 ook in `EMAIL_ALLOWED_SENDERS`). Brevo stuurt geen SPF- of DKIM-uitslag mee. Staan de headers `Authentication-Results` of `Received-SPF` er toch, dan moet de uitslag *pass* zijn. Mail met een `SpamScore` boven `EMAIL_MAX_SPAM_SCORE` (standaard 5) wordt genegeerd. Bij afwijzing: loggen en negeren.
 - **Idempotentie:** op de `Message-ID`-header, met dezelfde `ON CONFLICT`-regel als bij Telegram.
 - **Tekst eruit halen:** `parse-reply.ts` haalt de nieuwe tekst uit een antwoord (geciteerde tekst en handtekening eraf). Bij een doorgestuurde mail gaan onderwerp, afzender en de eerste 2.000 tekens als context mee naar de router, met de vraag welke taak eruit volgt.
 - Bijlagen worden genegeerd en niet opgeslagen.
@@ -344,7 +344,12 @@ s:{suggestionId}:in_progress | s:{suggestionId}:later | s:{suggestionId}:done | 
 f:show | f:dayoff | f:adjust
 sess:{taskId}:done | sess:{taskId}:plus10 | sess:{taskId}:stuck
 wr:{step}:{value}
+mv:{taskId}:{projectId} | t:{taskId}:unpark | help
+f:later | f:carry | f:alldone
+ps:{taskId}:{HHMM}
 ```
+
+`mv:` verplaatst een taak uit *Losse taken* naar een project (10.1). `t:{taskId}:unpark` haalt een taak van de parkeerplaats. `help` toont wat Hyper&Focus kan. `f:later` is *Later* bij het middagbericht. `f:carry` (*Alles morgen*) en `f:alldone` (*Alles gedaan*) ronden de dag af. `ps:` plant een sessie op een vrij moment van vandaag (11.8).
 
 ---
 
@@ -462,7 +467,7 @@ Geldt voor taken in de focus of met een deadline. Maximaal één escalatieberich
 
 ### 11.8 Agendakoppeling (optioneel)
 
-Standaard uit. De gebruiker zet hem aan in de instellingen of met het bericht *"koppel agenda"*. Hyper&Focus stuurt dan een persoonlijke koppellink: 15 minuten geldig, met de gebruiker ondertekend in de `state`-parameter. *"Ontkoppel agenda"* trekt de toegang in bij Google en verwijdert tokens en opgeslagen afspraken. Zonder koppeling werkt alles zoals in 11.1–11.7.
+Standaard uit. De gebruiker zet hem aan in de instellingen of met het bericht *"koppel agenda"*. Hyper&Focus stuurt dan een persoonlijke koppellink: 15 minuten geldig, met de gebruiker ondertekend in de `state`-parameter. *"Ontkoppel agenda"* trekt de toegang in bij de aanbieder en verwijdert tokens en opgeslagen afspraken. Drie agenda's worden ondersteund: Google Agenda, Outlook (Microsoft 365 en Outlook.com) en Apple iCloud (beslissing 12). Zonder koppeling werkt alles zoals in 11.1–11.7.
 
 **Wat de koppeling toevoegt**
 
@@ -482,11 +487,17 @@ Heads-ups en nabesprekingen hebben een eigen limiet: maximaal `max_calendar_nudg
 - Afgeslagen uitnodigingen tellen niet mee.
 
 **Techniek**
+- **Standaard: de geheime ICS-link van de agenda** (beslissing 12, 3 oktober 2026). Google, Outlook en Apple iCloud geven elk zo'n abonnementslink. De gebruiker plakt hem één keer op de koppelpagina, nooit in de chat. Hyper&Focus bewaart hem versleuteld en haalt de feed op met vandaag en morgen. Herhalende afspraken worden zelf uitgevouwen (`rrule`), in de tijdzone van de afspraak. Er zijn geen API-sleutels nodig. Vertraging: gepubliceerde agenda's werken soms pas na enkele uren bij. Ontkoppelen verwijdert de link bij ons; ongeldig maken doet de gebruiker in de agenda.
+- **Zet in agenda:** een geplande sessie ("Ja, om 14:00") komt met een `.ics`-bestand. Een tik zet hem in de eigen agenda-app. Zonder schrijfrechten of koppeling.
+- **Directe koppelingen, standaard uit** (voor fase 3, als klanten ze willen). Ze worden pas actief als hun sleutels in `.env` staan:
 - Google Agenda-API met OAuth 2.0 en refresh token, scope `calendar.readonly`. Oogst `server/services/googleOAuthService.ts`.
+- Outlook via Microsoft Graph (`/me/calendarView`) met OAuth 2.0, scopes `Calendars.Read` en `offline_access`, tenant `common` (werk- en persoonlijke accounts). Graph kent geen intrekken van deze tokens; ontkoppelen verwijdert ze bij ons en de gebruiker kan de app verwijderen op myapps.microsoft.com.
+- Apple iCloud via CalDAV (`caldav.icloud.com`) met Apple ID en een app-specifiek wachtwoord (`CALENDAR_APPLE_CALDAV=true`). Dat vult de gebruiker in op de koppelpagina, nooit in de chat. Het wordt versleuteld opgeslagen. De server vouwt terugkerende afspraken uit (`expand`).
 - De planner haalt om 00:05 vandaag en morgen op; de worker ververst elke 15 minuten met een `syncToken`. Terugkerende afspraken uitgevouwen ophalen (`singleEvents`).
 - Afspraken in UTC opslaan, tonen in de tijdzone van de gebruiker.
 - Mislukt de synchronisatie, dan plant de planner zoals zonder agenda en meldt dat één keer per dag in het afrondbericht.
-- `CalendarProvider`-interface (`listEvents`, `revoke`), zodat Outlook en een ICS-link in fase 3 kunnen aansluiten.
+- `CalendarProvider`-interface (`listEvents`, `revoke`) voor alle drie; een ICS-link kan in fase 3 aansluiten.
+- Verversen: elke 15 minuten het venster vandaag en morgen opnieuw ophalen. Een `syncToken` werkt bij Google niet samen met een tijdvenster en is voor twee dagen niet nodig.
 - Google Cloud: zet het OAuth-toestemmingsscherm op *In productie*, ook voor eigen gebruik. In testmodus verlopen refresh tokens na 7 dagen en moet je elke week opnieuw koppelen.
 
 **Later** (naar `docs/later.md`): een focusblok met één tik in de agenda zetten. Dat vraagt schrijfrechten en wordt een aparte toestemming.
@@ -656,17 +667,17 @@ Context:
 ## 14. Veiligheid, privacy en welzijn
 
 **Techniek**
-- Geheime token op de Telegram-webhook, geheim pad plus SPF- en DKIM-controle op inkomende mail, ondertekende actielinks die één keer werken, toegestane gebruikers in fase 1, secrets alleen in `.env` (nooit in de repo), agendatokens (stap 1.8) en tokens van gebruikers (fase 3) versleuteld opslaan (`crypto.ts`).
+- Geheime token op de Telegram-webhook, geheim pad, toegestane afzenders en een spamdrempel op inkomende mail (SPF en DKIM als de headers er zijn), ondertekende actielinks die één keer werken, toegestane gebruikers in fase 1, secrets alleen in `.env` (nooit in de repo), agendatokens (stap 1.8) en tokens van gebruikers (fase 3) versleuteld opslaan (`crypto.ts`).
 - Nachtelijke `pg_dump` naar externe opslag.
 - VPS: eigen gebruiker met sudo in plaats van root, inloggen met SSH-sleutel, wachtwoord- en rootlogin uit, firewall alleen open op 22, 80 en 443, PostgreSQL alleen lokaal bereikbaar, snapshot vóór grote wijzigingen. Claude Code op de VPS draait naast de productiesleutels: laat de toestemmingsvragen aan staan.
 
 **AVG**
 - Minimale data. Geen diagnose vragen of opslaan: het product werkt zonder.
-- Verwerkersovereenkomsten met Anthropic, OpenAI, SendGrid (Twilio), Hostinger en, bij een gekoppelde agenda, Google. Hosting in de EU.
+- Verwerkersovereenkomsten met Anthropic, OpenAI, Brevo, Hostinger en, bij een gekoppelde agenda, Google. Hosting in de EU.
 - **Telegram [BESLISSING vóór fase 3]:** Telegram biedt geen verwerkersovereenkomst en berichten staan op de servers van Telegram. Voor eigen gebruik is dat mijn eigen keuze. Vóór de beta beslissen: Telegram houden met een duidelijke uitleg in de privacyverklaring, of mail en de web-UI als standaardkanaal voor klanten.
 - Commando's *"exporteer mijn gegevens"* en *"verwijder mijn gegevens"*, plus dezelfde knoppen in de web-UI (fase 2).
 - **Bewaartermijn:** berichten, inclusief transcripties, worden na 30 dagen verwijderd door een nachtelijke job in de worker. Spraakopnames worden direct na transcriptie verwijderd en nooit opgeslagen. Taken, projecten, ideeën en suggesties blijven bestaan tot de gebruiker ze verwijdert. `events` en `ai_usage` bevatten alleen metadata zonder berichtinhoud en blijven 12 maanden bewaard; die zijn nodig voor de verkooppoort en de kostenmeting.
-- **Agenda:** alleen de velden uit `calendar_events`, alleen voor vandaag en morgen; een nachtelijke job ruimt oudere afspraken op. Deelnemers, beschrijvingen en locaties van afspraken halen we nooit op.
+- **Agenda:** alleen de velden uit `calendar_events`, alleen voor vandaag en morgen; een nachtelijke job ruimt oudere afspraken op. Een ICS-feed bevat ook deelnemers, beschrijvingen en locaties. Die worden bij het inlezen direct weggegooid en nooit opgeslagen of gelogd (beslissing 12). Bij de directe koppelingen halen we ze niet op.
 
 **Welzijn**
 - Overbelasting en crisis zoals beschreven in 11.6.
@@ -683,7 +694,7 @@ Context:
 - **Agenda:** vrije-tijdberekening, hele-dag- en afgeslagen afspraken, verschuiven van berichten, tijdzones, gedrag bij een mislukte synchronisatie. Gebruik een nep-`CalendarProvider` met vaste afspraken.
 - **Simulator (`npm run sim`):** terminal-chat door dezelfde router als Telegram en mail. In development gaan uitgaande berichten naar de console.
 - **Dagsimulatie (`npm run sim:day -- --date 2026-10-06`):** speelt de planning van een dag versneld af, inclusief vangrails.
-- **Webhooktests** met opgenomen payloads. Telegram: tekst, `callback_query`, `voice`, `/start` met code, dubbele levering, onjuiste geheime token, onbekende gebruiker. Mail (Inbound Parse): antwoord, doorgestuurde mail, onbekende afzender, SPF- of DKIM-fout, dubbele `Message-ID`.
+- **Webhooktests** met opgenomen payloads. Telegram: tekst, `callback_query`, `voice`, `/start` met code, dubbele levering, onjuiste geheime token, onbekende gebruiker. Mail (Brevo Inbound Parsing): antwoord, doorgestuurde mail, onbekende afzender, SPF- of DKIM-fout, dubbele `Message-ID`.
 
 ---
 
@@ -734,6 +745,26 @@ Context:
 **1.8 Agendakoppeling, optioneel** (11.8). Bouw je in de eerste week van eigen gebruik.
 *Klaar als:* met de agenda uit alles werkt zoals na 1.7 · een proactief bericht tijdens een afspraak direct erna komt · een dag met vijf uur afspraken maximaal twee focustaken telt · een klantafspraak tien minuten vooraf een heads-up met open punten geeft · *"ontkoppel agenda"* de toegang intrekt en tokens en afspraken verwijdert.
 
+**1.9 Werkblokken en beloning** (brief 3 oktober 2026). Bij *Start* kies je 15, 25 of 45 minuten. Na een afgerond blok volgt een pauze-opdracht zonder scherm (2 of 3 minuten) en een beloningsminuut in een Telegram-mini-app. Een tuin groeit per afgerond blok en per terugkeer op tijd, en krimpt nooit. Tijdens een blok en een pauze gaan berichten stil; alleen overgangen maken geluid. De hyperfocus-vanger stelt na 60 minuten aaneengesloten werk een pauze voor.
+*Klaar als:* *Start* vraagt 15, 25 of 45 minuten en het einde komt op het gekozen moment, met geluid · na *Afgerond* komt een pauze-opdracht zonder geluid · *Ik ben terug* binnen de tijd geeft de extra druppel en *Je minuut* · zonder tik komt precies één *Terug naar je blok?* · de mini-app loopt precies 60 seconden en sluit zichzelf · twee blokken van samen 60 minuten of meer geven het pauzebericht · "zet beloningen uit" haalt de beloningsknop en de tuinregel weg.
+
+**1.10 Werkplek-links** (brief 3 oktober 2026). De bot vraagt eenmalig per soort werk welke tool je gebruikt (facturen, mail, agenda, posts, website, documenten). Een taak met een duidelijke werksoort krijgt een knop naar je eigen tool: *Open Moneybird → nieuwe factuur*. Alleen een link: geen API-koppeling, en de server haalt de link nooit op.
+*Klaar als:* "mijn tools" doorloopt de zes vragen, met overslaan en een eigen link · "morgen factuur naar Barbara versturen" geeft de knop naar de gekozen factuurtool · een taak zonder duidelijke werksoort krijgt geen knop · een `http://`-link wordt geweigerd.
+
+**1.11 Dagreview** (brief 3 oktober 2026). Het afrondbericht wordt een review van hooguit een minuut: per open taak één keuze, dan je energie, dan optioneel wat morgen vastzit. Dat bepaalt de lijst van morgen: aantal taken, lengte van de werkblokken, wat bovenaan staat en welke doorschuiver een voorstel krijgt.
+*Klaar als:* bij twee taken is de review in drie tikken klaar · energie *laag* geeft de volgende ochtend twee taken en blokken van 15 minuten · een taak die drie keer is doorgeschoven, krijgt het voorstel om op te knippen of te parkeren · een overgeslagen review wordt de volgende dag niet genoemd.
+
+Voor 1.9 t/m 1.11 geldt verder: eval ≥ 90%, crisisgevallen 100%, tests groen. Voortgang zonder telling: geen XP, levels, streaks of ranglijsten. Alles is met één tik uit te zetten.
+
+**1.12 Focusvenster, ritme en beloning** (aanpasplan 3 oktober 2026). De dag draait om één focusvenster van 60 tot 90 minuten op het eigen piekuur, voor de taak die het bedrijf vooruit helpt. Kleine en opgeknipte taken vullen de hypermomenten eromheen. Hyper&Focus leert het venster uit de eigen data. De beloning wordt volwassen: een focuslog, een pitstop en een weekopbrengst in plaats van de tuin. Drie PR's:
+- *A1+A2 Focusvenster en ritme.* Voorkeur (ochtend, middag, avond, weet ik niet), het venster in het ochtendbericht, een seintje 15 minuten vooraf, blokken van 45, 60 of 90 minuten in het venster, één stil bericht na 50 minuten, een zachte landing 10 minuten voor een afspraak of de stille uren, één stil bericht bij een gemist venster. Na 10 werkdagen met minstens 6 afgeronde blokken stelt de bot een geleerd venster voor; daarna schuift het hooguit 30 minuten per week.
+- *A3 Focuslog, pitstop en weekopbrengst.* Per afgerond blok een regel in het focuslog. De mini-app toont het log van vandaag met een klok van 60 seconden. De weekreview noemt vensters, uren diep werk en wat de deur uit ging.
+- *A4 Batterij.* Een pure functie en `GET /api/battery` (achter `DASHBOARD_API=on`) met de stand: opladen, klaar, focus, pitstop of rust. Nooit leeg.
+
+*Klaar als:* het ochtendbericht noemt het venster met de belangrijkste taak · het seintje komt 15 minuten vooraf, met de werkplek-knop als die er is · in een vensterblok van 60 minuten komt na 50 minuten één stil bericht en verder niets tot het einde · na *Af* komt de pitstop in de nieuwe toon en de mini-app toont het focuslog · de weekreview toont de weekopbrengst en de tuin staat nergens meer · `sim:day` scenario `rhythm` geeft een voorstel rond 13:30 · `GET /api/battery` geeft de juiste stand op elk tijdstip.
+
+Toon voor bot, dashboard en website: kort (hooguit 12 woorden per zin), direct, ik-vorm en je, hooguit één droge knipoog per bericht, zonder medische claims, zonder kinderpraat of emoji.
+
 ### Fase 2 — Verbetermotor en web
 
 **2.1 Bedrijfsintake** (12.1).
@@ -751,8 +782,21 @@ Context:
 **2.5 Feedback** (12.7).
 *Klaar als:* elke knop de juiste status zet en *Niet relevant* de reden meeneemt in de volgende generatie.
 
-**2.6 Minimale web-UI.** Magic-link login. Schermen: Vandaag · Projecten & klanten · Parkeerplaats & ideeënbak · Suggesties (met concepten) · Instellingen. Mobile-first. Laat grafieken en statistieken weg.
-*Klaar als:* ik alles uit Telegram ook op mijn telefoon in de browser kan bekijken en bijwerken, en instellingen direct effect hebben op de planning.
+**Volgorde (besluit 3 oktober 2026):** eerst het dashboard (fase 2a, stap 2.6), dan de website (fase 2b), daarna de verbetermotor (2.1–2.5).
+
+**2.6 Dashboard (fase 2a).** Op `app.hyper-focus.pro`. React + Vite + Tailwind, mobile-first, geserveerd door `hyperfocus-web`. Inloggen met een magic link per mail én met een eenmalige link vanuit Telegram ("Open dashboard"). Schermen: Vandaag · Projecten & klanten · Parkeerplaats & ideeënbak · Instellingen. *Suggesties* komt pas na 2.5. Vandaag toont de drie taken met het focusvenster, de batterij rechtsboven (1.12 A4), het focuslog en de werkplek-knoppen. Zonder grafieken: de batterij en het focuslog zijn tekst en vorm. Instellingen omvat ritme, werkweek, dagtijden, stille uren, beloningen, agenda, tools, en *exporteer* en *verwijder mijn gegevens* (14). Een assistent structureert een braindump tot taken, klantnotities en parkeerplaats-ideeën, met dezelfde tools als de Telegram-bot (werknaam Kiki; de naam wordt eerst bevestigd). Oogst daarvoor eerst de login en de smart assistant uit Publicato. Vormgeving en toon zoals de mini-app uit 1.12: gebroken wit, 2 px rand, één accentkleur, Space Grotesk, tabulaire cijfers.
+*Klaar als:* ik alles uit Telegram ook op mijn telefoon in de browser kan bekijken en bijwerken · instellingen direct effect hebben op de planning · het dashboard met een gevulde demoweek goed genoeg is voor de printscreens van de website.
+
+**2.7 Website (fase 2b).** Op `hyper-focus.pro`, dezelfde look and feel en toon als het dashboard. Beelden: printscreens uit 2.6 en aangeleverde foto's. Besluiten (4 oktober 2026):
+- één landingspagina met onderaan een kort privacyblok, zonder aparte pagina's;
+- een wachtlijst: het formulier zet de inschrijving in een Brevo-lijst met double opt-in, zonder eigen tabel;
+- geen prijs tot de beta;
+- een blok "Waarom ik dit bouw" in de ik-vorm, met tekst van Elmer;
+- foto's van mensen en landschappen uit Nederland komen van Elmer, en tot dan alleen printscreens, zonder stockfoto's;
+- `www` stuurt door naar `hyper-focus.pro` (nginx).
+
+Statische HTML met Tailwind in `site/`, zonder cookies of tracking.
+*Klaar als:* de pagina snel laadt op een telefoon (Lighthouse 90+) · een inschrijving na bevestiging in de Brevo-lijst staat · de printscreens met één commando opnieuw te maken zijn.
 
 ### Fase 3 — Verkoopklaar (na de verkooppoort)
 
@@ -779,8 +823,10 @@ DEFAULT_TIMEZONE=Europe/Amsterdam
 
 # Claude
 ANTHROPIC_API_KEY=
-CLAUDE_MODEL_FAST=claude-haiku-4-5-20251001
-CLAUDE_MODEL_SMART=claude-sonnet-5-5
+CLAUDE_MODEL_FAST=claude-sonnet-5-5
+CLAUDE_MODEL_SMART=claude-opus-5-5
+CLAUDE_EFFORT_FAST=low                # optioneel: low … max; leeg laten bij Haiku 4.5
+CLAUDE_EFFORT_SMART=
 
 # Transcriptie
 OPENAI_API_KEY=
@@ -793,7 +839,7 @@ TELEGRAM_WEBHOOK_SECRET=              # willekeurig, 32+ tekens
 TELEGRAM_ALLOWED_USER_IDS=            # fase 1: alleen mijn eigen gebruikers-ID
 
 # Mail
-SENDGRID_API_KEY=
+BREVO_API_KEY=
 EMAIL_FROM=hallo@hyper-focus.pro
 EMAIL_REPLY_TO=taken@in.hyper-focus.pro
 EMAIL_INBOUND_SECRET=                 # willekeurig, deel van het webhookpad
@@ -808,10 +854,13 @@ PERPLEXITY_API_KEY=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=https://hyper-focus.pro/auth/google/callback
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+MICROSOFT_REDIRECT_URI=https://hyper-focus.pro/auth/microsoft/callback
+ENCRYPTION_KEY=                       # versleutelt agendatokens (1.8) en tokens van gebruikers (fase 3)
 
 # Fase 3
 MOLLIE_API_KEY=
-ENCRYPTION_KEY=
 ```
 
 Controleer bij de start van de bouw de actuele modelnamen in de documentatie van Anthropic.
@@ -832,17 +881,19 @@ Controleer bij de start van de bouw de actuele modelnamen in de documentatie van
 | 6 | Toegestane gebruiker fase 1 | mijn eigen Telegram-gebruikers-ID en mailadres, in `.env` |
 | 7 | Bewaartermijn berichten | 30 dagen |
 | 8 | Prijs | €26,88 per maand, proefmaand van 1 maand |
-| 9 | Agenda | optioneel en standaard uit; Google Agenda eerst, alleen lezen |
+| 9 | Agenda | optioneel en standaard uit; alleen lezen (zie 12) |
 | 10 | Kanalen (1 oktober 2026) | Telegram voor het dagelijkse gesprek, mail voor overzichten, concepten en als tweede invoer. WhatsApp vervalt: alle WhatsApp-accounts in mijn Meta-portfolio zijn uitgeschakeld en een nieuwe portfolio kan ik niet aanmaken. |
+| 11 | Mailprovider (2 oktober 2026) | Brevo in plaats van SendGrid, voor versturen en Inbound Parsing. |
+| 12 | Agenda's en modellen (2–3 oktober 2026) | Lezen via de geheime ICS-link van elke agenda (Google, Outlook, Apple en andere); de feed bevat meer velden dan we bewaren, die worden direct weggegooid. Schrijven via een `.ics`-bestand ("Zet in agenda"). Directe koppelingen met Google, Outlook en Apple CalDAV staan in de code, standaard uit. Wijzigt beslissing 9 (Google eerst). Modellen: snel `claude-sonnet-5-5` met effort low (3 oktober 2026, na meting: 98% tegen 95% voor Haiku 4.5), slim `claude-opus-5-5`. |
 
 ### Nog open
 
 1. Gebruikersnaam van de Telegram-bot.
 2. Is €26,88 inclusief of exclusief btw?
 3. Merk- en domeincheck voor Hyper&Focus vóór fase 3.
-4. Welke agenda's tellen mee: alleen je hoofdagenda, of ook gedeelde agenda's?
+4. Welke agenda's tellen mee: alleen je hoofdagenda, of ook gedeelde agenda's? (Nu: Google de hoofdagenda, Outlook de standaardagenda, Apple alle agenda's met afspraken.)
 5. Telegram voor klanten in fase 3, gezien de AVG (hoofdstuk 14).
 
 ---
 
-*Bouwplan v1.3 — ik lees dit zelf na en pas aan waar nodig.*
+*Bouwplan v1.5 — ik lees dit zelf na en pas aan waar nodig.*

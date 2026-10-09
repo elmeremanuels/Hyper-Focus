@@ -1,0 +1,197 @@
+// The weekly review in three taps and the Monday overview by mail (BOUWPLAN.md, 11.7).
+import { and, desc, eq, gte, isNull, ne } from 'drizzle-orm';
+import { recordEvent } from '../core/events.js';
+import { inboxIdeas, promoteIdea, promotedThisWeek } from '../core/ideas.js';
+import { weekYield } from '../focus/log.js';
+import { energyWeekLine } from './day-review.js';
+import { rhythmProposalMessage } from './focus-window.js';
+import { getProfile } from '../core/profile.js';
+import { listOpenSuggestions } from '../core/suggestions.js';
+import type { Database } from '../db/client.js';
+import { ideas, projects, tasks } from '../db/schema/index.js';
+import type { ButtonContext, ButtonExtension } from './buttons.js';
+import { clearState, setState } from './state.js';
+import type { Button, OutboundMessage } from './types.js';
+
+const WEEK_MS = 7 * 86_400_000;
+const REVIEW_TTL_MS = 24 * 60 * 60 * 1000;
+/** Telegram choice lists show at most 8 rows. */
+const MAX_CHOICES = 8;
+
+async function doneThisWeek(db: Database, userId: number, now: Date, limit = 3) {
+  return db
+    .select({ title: tasks.title })
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        eq(tasks.status, 'done'),
+        isNull(tasks.parentTaskId),
+        gte(tasks.completedAt, new Date(now.getTime() - WEEK_MS)),
+      ),
+    )
+    .orderBy(desc(tasks.completedAt))
+    .limit(limit);
+}
+
+async function activeProjects(db: Database, userId: number) {
+  return db
+    .select({ id: projects.id, title: projects.title, isWeeklyFocus: projects.isWeeklyFocus })
+    .from(projects)
+    .where(and(eq(projects.userId, userId), eq(projects.status, 'active'), ne(projects.title, 'Losse taken')))
+    .orderBy(desc(projects.isWeeklyFocus), projects.priority, projects.id)
+    .limit(MAX_CHOICES);
+}
+
+// ---------------------------------------------------------------------------
+// Step 1: what went well
+
+export async function reviewStart(ctx: Pick<ButtonContext, 'db' | 'userId' | 'now'>): Promise<OutboundMessage> {
+  const done = await doneThisWeek(ctx.db, ctx.userId, ctx.now);
+  await setState(ctx.db, ctx.userId, 'weekly_review', { step: 1 }, new Date(ctx.now.getTime() + REVIEW_TTL_MS));
+  const intro =
+    done.length === 0
+      ? 'Weekreview, drie tikken.'
+      : `Weekreview, drie tikken. Af deze week: ${listTitles(done.map((t) => t.title))}.`;
+  // The week's yield in work (step 1.12): windows, hours of deep work, what went out.
+  const timezone = (await getProfile(ctx.db, ctx.userId))?.timezone ?? 'Europe/Amsterdam';
+  const yieldLines = await weekYield(ctx.db, ctx.userId, timezone, ctx.now);
+  const yieldText = yieldLines.length > 0 ? `\n${yieldLines.join('\n')}` : '';
+  // The energy of the week (step 1.11), from the day reviews of the last seven days.
+  const energyLine = await energyWeekLine(ctx.db, ctx.userId, new Date(ctx.now.getTime() - 6 * 86_400_000).toISOString().slice(0, 10));
+  const energy = energyLine ? `\n${energyLine}` : '';
+  return {
+    text: `${intro}${yieldText}${energy}\nWat ging goed? Tik of stuur een paar woorden.`,
+    buttons: [
+      { id: 'wr:good:focus', title: 'Focus vastgehouden' },
+      { id: 'wr:good:clients', title: 'Klanten blij' },
+      { id: 'wr:good:hard', title: 'Zware week' },
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Step 2: weekly focus project
+
+async function askFocus(ctx: ButtonContext, prefix: string): Promise<OutboundMessage[]> {
+  const list = await activeProjects(ctx.db, ctx.userId);
+  if (list.length === 0) return askIdea(ctx, prefix);
+  await setState(ctx.db, ctx.userId, 'weekly_review', { step: 2 }, new Date(ctx.now.getTime() + REVIEW_TTL_MS));
+  return [
+    {
+      text: `${prefix}Welk project krijgt volgende week voorrang?`,
+      choices: list.map((p) => ({ id: `wr:focus:${p.id}`, title: p.title })),
+    },
+  ];
+}
+
+async function setFocus(ctx: ButtonContext, projectId: number): Promise<string> {
+  const [project] = await ctx.db
+    .select({ id: projects.id, title: projects.title })
+    .from(projects)
+    .where(and(eq(projects.userId, ctx.userId), eq(projects.id, projectId)));
+  if (!project) return '';
+  await ctx.db.update(projects).set({ isWeeklyFocus: false }).where(eq(projects.userId, ctx.userId));
+  await ctx.db.update(projects).set({ isWeeklyFocus: true }).where(eq(projects.id, project.id));
+  return `${project.title} krijgt voorrang. `;
+}
+
+// ---------------------------------------------------------------------------
+// Step 3: promote one idea, at most once a week
+
+async function askIdea(ctx: ButtonContext, prefix: string): Promise<OutboundMessage[]> {
+  const list = await inboxIdeas(ctx.db, ctx.userId);
+  if (list.length === 0 || (await promotedThisWeek(ctx.db, ctx.userId, ctx.now))) return finish(ctx, prefix);
+
+  await setState(ctx.db, ctx.userId, 'weekly_review', { step: 3 }, new Date(ctx.now.getTime() + REVIEW_TTL_MS));
+  const count = list.length === 1 ? 'staat 1 idee' : `staan ${list.length} ideeën`;
+  const choices: Button[] = [
+    { id: 'wr:idea:none', title: 'Laten staan' },
+    ...list.slice(0, MAX_CHOICES - 1).map((idea) => ({ id: `wr:idea:${idea.id}`, title: idea.text })),
+  ];
+  return [{ text: `${prefix}In je ideeënbak ${count}. Eén promoveren tot project, of laten staan?`, choices }];
+}
+
+async function promoteInReview(ctx: ButtonContext, ideaId: number): Promise<string> {
+  const promoted = await promoteIdea(ctx.db, ctx.userId, ideaId, ctx.now);
+  return promoted ? `"${promoted.title}" is nu een project. ` : '';
+}
+
+async function finish(ctx: ButtonContext, prefix: string): Promise<OutboundMessage[]> {
+  await ctx.db
+    .update(ideas)
+    .set({ reviewedAt: ctx.now })
+    .where(and(eq(ideas.userId, ctx.userId), eq(ideas.status, 'inbox')));
+  await clearState(ctx.db, ctx.userId);
+  await recordEvent(ctx.db, ctx.userId, 'weekly_review_done', {});
+  // Once enough data is in: the learned focus window (step 1.12, A2).
+  const timezone = (await getProfile(ctx.db, ctx.userId))?.timezone ?? 'Europe/Amsterdam';
+  const proposal = await rhythmProposalMessage({ db: ctx.db, userId: ctx.userId, timezone, now: ctx.now });
+  return [{ text: `${prefix}De weekreview is klaar. Fijne week.` }, ...(proposal ? [proposal] : [])];
+}
+
+// ---------------------------------------------------------------------------
+
+const GOOD_REPLIES: Record<string, string> = {
+  focus: 'Mooi. ',
+  clients: 'Top. ',
+  hard: 'Dank dat je het zegt. Volgende week houden we het klein. ',
+};
+
+/** Handles wr:{step}:{value} buttons. */
+export function reviewButtons(): ButtonExtension {
+  return async (button, ctx) => {
+    if (button.kind !== 'review') return undefined;
+    if (button.step === 'start') return [await reviewStart(ctx)];
+    if (button.step === 'good') return askFocus(ctx, GOOD_REPLIES[button.value] ?? 'Mooi. ');
+    if (button.step === 'focus') return askIdea(ctx, await setFocus(ctx, Number(button.value)));
+    if (button.step === 'idea') {
+      const prefix = button.value === 'none' ? '' : await promoteInReview(ctx, Number(button.value));
+      return finish(ctx, prefix);
+    }
+    return undefined;
+  };
+}
+
+/** In weekly_review mode: a few words answer step 1; later steps want a tap. */
+export async function reviewModeHandler(
+  _text: string,
+  data: Record<string, unknown>,
+  ctx: ButtonContext,
+): Promise<OutboundMessage[] | undefined> {
+  if (data.step === 1) return askFocus(ctx, 'Dank je. ');
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Monday overview by mail
+
+export async function composeWeeklyMail(ctx: Pick<ButtonContext, 'db' | 'userId' | 'now'> & { name: string }) {
+  // One query at a time: inside a transaction (sim:day) all queries share one connection.
+  const done = await doneThisWeek(ctx.db, ctx.userId, ctx.now, 10);
+  const focus = await ctx.db
+    .select({ title: projects.title })
+    .from(projects)
+    .where(and(eq(projects.userId, ctx.userId), eq(projects.isWeeklyFocus, true), eq(projects.status, 'active')));
+  const open = await listOpenSuggestions(ctx.db, ctx.userId, 3);
+
+  const lines = [
+    `Goedemorgen ${ctx.name}. ${done.length === 0 ? 'Een nieuwe week.' : `Vorige week ${done.length === 1 ? 'is 1 taak' : `zijn ${done.length} taken`} af.`}`,
+    focus[0] ? `Deze week krijgt ${focus[0].title} voorrang.` : 'Er is nog geen focusproject gekozen.',
+    ...(done.length > 0 ? ['', 'Af:', ...done.map((t) => `✔ ${t.title}`)] : []),
+    ...(open.length > 0 ? ['', 'Open suggesties:', ...open.map((s) => `- ${s.title}`)] : []),
+    '',
+    'Antwoord op deze mail om iets vast te leggen.',
+  ];
+  const buttons: Button[] = open.flatMap((s) => [
+    { id: `s:${s.id}:in_progress`, title: `Pak ik op: ${s.title}`.slice(0, 60) },
+    { id: `s:${s.id}:not_relevant`, title: `Niet relevant: ${s.title}`.slice(0, 60) },
+  ]);
+  const message: OutboundMessage = { text: lines.join('\n'), ...(buttons.length > 0 && { buttons }) };
+  return { subject: 'Je week bij Hyper&Focus', message };
+}
+
+function listTitles(titles: string[]): string {
+  const lower = titles.map((t) => t.charAt(0).toLowerCase() + t.slice(1));
+  return lower.length <= 1 ? (lower[0] ?? '') : `${lower.slice(0, -1).join(', ')} en ${lower.at(-1)}`;
+}

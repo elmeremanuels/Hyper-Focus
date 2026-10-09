@@ -10,10 +10,10 @@ export interface OpenTask {
 }
 
 export interface RouterDeps {
-  /** Resolves the user's first name, or undefined for an unknown number. */
-  findUserName(phone: string): Promise<string | undefined>;
+  /** The user's name, or undefined for an unknown user. */
+  findUserName(userId: number): Promise<string | undefined>;
   /** Up to `limit` open tasks, most important first. */
-  listOpenTasks(phone: string, limit: number): Promise<OpenTask[]>;
+  listOpenTasks(userId: number, limit: number): Promise<OpenTask[]>;
 }
 
 export type Router = (message: InboundMessage) => Promise<OutboundMessage[]>;
@@ -26,8 +26,8 @@ const HELP_WORDS = /\b(help|hulp|wat kan)\b/i;
 const GREETING_WORDS = /^\s*(hoi|hallo|hey|goedemorgen|goedemiddag|goedenavond)\b/i;
 
 export function createRouter(deps: RouterDeps): Router {
-  const showToday = async (phone: string): Promise<OutboundMessage> => {
-    const tasks = await deps.listOpenTasks(phone, 3);
+  const showToday = async (userId: number): Promise<OutboundMessage> => {
+    const tasks = await deps.listOpenTasks(userId, 3);
     if (tasks.length === 0) {
       return { text: 'Er staat niets open. Stuur me een taak, dan zet ik hem klaar.' };
     }
@@ -50,13 +50,13 @@ export function createRouter(deps: RouterDeps): Router {
   };
 
   return async (message) => {
-    const name = await deps.findUserName(message.from);
+    const name = await deps.findUserName(message.userId);
     if (name === undefined) {
-      return [{ text: 'Dit nummer ken ik nog niet.' }];
+      return [{ text: 'Je account ken ik nog niet.' }];
     }
 
     if (message.kind === 'button') {
-      if (message.buttonId === SHOW_TODAY.id) return [await showToday(message.from)];
+      if (message.buttonId === SHOW_TODAY.id) return [await showToday(message.userId)];
       if (message.buttonId === HELP.id) return [help];
       const start = /^t:(\d+):start$/.exec(message.buttonId);
       if (start) {
@@ -66,7 +66,7 @@ export function createRouter(deps: RouterDeps): Router {
     }
 
     const text = message.text.trim();
-    if (TODAY_WORDS.test(text)) return [await showToday(message.from)];
+    if (TODAY_WORDS.test(text)) return [await showToday(message.userId)];
     if (HELP_WORDS.test(text)) return [help];
     if (GREETING_WORDS.test(text)) {
       return [

@@ -6,13 +6,19 @@ import Anthropic from '@anthropic-ai/sdk';
 
 export type ModelTier = 'fast' | 'smart';
 
+export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 export interface ClaudeConfig {
   apiKey: string | undefined;
   modelFast: string | undefined;
   modelSmart: string | undefined;
+  /** Optional effort per tier. Leave empty for Haiku 4.5, which does not accept it. */
+  effortFast?: Effort | undefined;
+  effortSmart?: Effort | undefined;
 }
 
 export interface AiUsageRecord {
+  userId?: number;
   purpose: string;
   model: string;
   inputTokens: number;
@@ -22,6 +28,8 @@ export interface AiUsageRecord {
 export type UsageRecorder = (record: AiUsageRecord) => Promise<void> | void;
 
 export interface GenerateOptions {
+  /** The user the call is for; recorded in ai_usage. */
+  userId?: number;
   purpose: string;
   tier: ModelTier;
   system?: string;
@@ -31,6 +39,11 @@ export interface GenerateOptions {
 
 export interface ToolCallOptions extends GenerateOptions {
   tools: Anthropic.Tool[];
+  /**
+   * The tool the caller expects. Sent as tool_choice "auto": Sonnet 5.5 and Opus 5.5 reject
+   * forced tool use, so the prompt must ask for this tool and only this tool is offered.
+   */
+  forceTool?: string;
 }
 
 export interface ToolCallResult {
@@ -68,7 +81,8 @@ export class ClaudeClient {
 
   /** Tool use with a fixed schema, for everything that touches the database. */
   async callWithTools(options: ToolCallOptions): Promise<ToolCallResult> {
-    const message = await this.create(options, options.tools);
+    const tools = options.forceTool ? options.tools.filter((tool) => tool.name === options.forceTool) : options.tools;
+    const message = await this.create(options, tools);
     return {
       text: extractText(message),
       toolCalls: message.content.filter(
@@ -81,15 +95,21 @@ export class ClaudeClient {
 
   private async create(options: GenerateOptions, tools?: Anthropic.Tool[]): Promise<Anthropic.Message> {
     const model = this.resolveModel(options.tier);
+    const effort = options.tier === 'fast' ? this.config.effortFast : this.config.effortSmart;
     const message = await this.client.messages.create({
       model,
       max_tokens: options.maxTokens ?? 4096,
       messages: options.messages,
       ...(options.system !== undefined && { system: options.system }),
       ...(tools !== undefined && { tools, tool_choice: { type: 'auto' as const } }),
+      ...(effort !== undefined && { output_config: { effort } }),
     });
+    if (message.stop_reason === 'refusal') {
+      console.warn(`Claude declined a ${options.purpose} request (${model})`);
+    }
 
     await this.recordUsage({
+      ...(options.userId !== undefined && { userId: options.userId }),
       purpose: options.purpose,
       model,
       inputTokens: message.usage.input_tokens,

@@ -9,6 +9,7 @@ import {
   dailyFocus,
   messages,
   projects,
+  users,
   tasks,
   userSettings,
   LOOSE_TASKS_PROJECT_TITLE,
@@ -108,19 +109,19 @@ describe.skipIf(!adminUrl)('database (integration)', () => {
     ).rejects.toThrow();
   });
 
-  it('stores a WhatsApp message id once (idempotency)', async () => {
+  it('stores an external id once per channel (idempotency)', async () => {
     const insert = () =>
       connection.db
         .insert(messages)
         .values({
           userId,
           direction: 'in',
-          channel: 'whatsapp',
-          waMessageId: 'wamid.duplicate',
+          channel: 'telegram',
+          externalId: 'u:42',
           type: 'text',
           body: 'hoi',
         })
-        .onConflictDoNothing({ target: messages.waMessageId })
+        .onConflictDoNothing({ target: [messages.channel, messages.externalId] })
         .returning({ id: messages.id });
 
     expect(await insert()).toHaveLength(1);
@@ -164,8 +165,9 @@ describe.skipIf(!adminUrl)('router with database deps (integration)', () => {
 
   it('lists weekly-focus and high-priority tasks first, without micro-steps', async () => {
     const deps = createDbRouterDeps(connection.db);
-    expect(await deps.findUserName(example.user.phoneE164)).toBe('Sam');
-    const open = await deps.listOpenTasks(example.user.phoneE164, 3);
+    const [user] = await connection.db.select().from(users).where(eq(users.email, example.user.email));
+    expect(await deps.findUserName(user!.id)).toBe('Sam');
+    const open = await deps.listOpenTasks(user!.id, 3);
     expect(open.map((task) => task.title)).toEqual([
       'Offerte bakkerij afmaken',
       'Banner voor de feestdagen',

@@ -2,6 +2,7 @@ import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'dr
 import { id, timestamps, userId } from './common.js';
 import {
   conversationMode,
+  deliveryStatus,
   messageChannel,
   messageDirection,
   messageType,
@@ -36,9 +37,14 @@ export const messages = pgTable(
     userId: userId(),
     direction: messageDirection('direction').notNull(),
     channel: messageChannel('channel').notNull(),
-    /** Unique for idempotency: Meta sometimes delivers twice. */
-    waMessageId: text('wa_message_id'),
+    /**
+     * Telegram: update id or message id. Mail: Message-ID. Action link: token nonce.
+     * Unique per channel for idempotency (BOUWPLAN.md, 9.2–9.3).
+     */
+    externalId: text('external_id'),
     type: messageType('type').notNull(),
+    /** Mail only. */
+    subject: text('subject'),
     body: text('body'),
     transcript: text('transcript'),
     intent: text('intent'),
@@ -47,10 +53,12 @@ export const messages = pgTable(
       onDelete: 'set null',
     }),
     nudgeId: integer('nudge_id').references(() => scheduledNudges.id, { onDelete: 'set null' }),
+    /** Outbound only. */
+    deliveryStatus: deliveryStatus('delivery_status'),
     ...timestamps,
   },
   (table) => [
-    uniqueIndex('messages_wa_message_id').on(table.waMessageId),
+    uniqueIndex('messages_channel_external_id').on(table.channel, table.externalId),
     index('messages_user_created_idx').on(table.userId, table.createdAt),
   ],
 );

@@ -1,0 +1,226 @@
+// Plans each user's day at 00:05 local time (BOUWPLAN.md, 11.1–11.3): the daily focus and
+// the day's messages in scheduled_nudges, converted to UTC with Luxon.
+import { and, eq, inArray, isNull, lt, lte, or } from 'drizzle-orm';
+import type { Database } from '../db/client.js';
+import { dailyFocus, dayReviews, projects, scheduledNudges, tasks, users } from '../db/schema/index.js';
+import { getSettings } from '../core/settings.js';
+import { localDate, localNow, localTimeOnDate } from '../lib/time.js';
+import { nextStep } from '../core/steps.js';
+import type { CalendarService } from '../integrations/calendar/service.js';
+import { eventsBetween, syncUserCalendars } from '../integrations/calendar/sync.js';
+import { busyBlocks, fitFocus, totalMinutes } from './daycalendar.js';
+import { ESCALATION_TIME, pickEscalation } from './escalation.js';
+import { silentDays } from './guardrails.js';
+import { composeFocus, type ComposedFocus, type FocusCandidate } from './focus.js';
+import { tomorrowPlan } from './tomorrow-signals.js';
+import { learnRhythm, planWindow, windowFor } from '../focus/windows.js';
+import { firstWorkday, isWorkday, lastWorkday } from '../focus/workweek.js';
+import { CONTENT_BUNDLE_TIME } from '../content/planner.js';
+
+export const PLANNER_TIME = '00:05';
+export const MIDDAY_TIME = '13:30';
+export const WEEKLY_MAIL_TIME = '08:00';
+/** Messages whose time passed longer ago than this are not planned (e.g. after downtime). */
+const MAX_LATE_MS = 2 * 60 * 60 * 1000;
+
+export type NudgeKind = typeof scheduledNudges.$inferInsert.kind;
+
+export interface PlannedNudge {
+  kind: NudgeKind;
+  scheduledForUtc: Date;
+  payload: Record<string, unknown>;
+}
+
+export interface PlanResult {
+  userId: number;
+  localDate: string;
+  focus: ComposedFocus;
+  nudges: PlannedNudge[];
+}
+
+export interface PlannerOptions {
+  /** With a calendar service, connected calendars are synced and the focus fits the free time. */
+  calendar?: CalendarService | undefined;
+}
+
+/** Plans today for every active user whose local time is past 00:05 and who has no plan yet. */
+export async function runPlanner(db: Database, now: Date = new Date(), options: PlannerOptions = {}): Promise<PlanResult[]> {
+  const targets = await db
+    .select({ id: users.id, timezone: users.timezone })
+    .from(users)
+    .where(eq(users.status, 'active'));
+
+  const results: PlanResult[] = [];
+  for (const target of targets) {
+    const local = localNow(target.timezone, now);
+    if (local.toFormat('HH:mm') < PLANNER_TIME) continue;
+    try {
+      const result = await planDay(db, target.id, target.timezone, now, options);
+      if (result) results.push(result);
+    } catch (error) {
+      console.error(`Planning failed for user ${target.id}:`, error);
+    }
+  }
+  return results;
+}
+
+/** Plans the user's local today once. Returns undefined when it was already planned. */
+export async function planDay(
+  db: Database,
+  userId: number,
+  timezone: string,
+  now: Date,
+  options: PlannerOptions = {},
+): Promise<PlanResult | undefined> {
+  const today = localDate(timezone, now);
+  const settings = await getSettings(db, userId);
+
+  // Fresh appointments before planning; a failed sync plans as without a calendar.
+  let withCalendar = false;
+  if (options.calendar && settings.calendarEnabled) {
+    const [planned] = await db
+      .select({ id: dailyFocus.id })
+      .from(dailyFocus)
+      .where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, today)));
+    if (!planned) withCalendar = (await syncUserCalendars(db, options.calendar, userId, timezone, now)).ok;
+  }
+
+  // The nightly rhythm job (step 1.12, A2): rewrites the learned windows at most once a week.
+  const [planned] = await db.select({ id: dailyFocus.id }).from(dailyFocus).where(and(eq(dailyFocus.userId, userId), eq(dailyFocus.localDate, today)));
+  if (!planned) await learnRhythm(db, userId, timezone, now);
+
+  return db.transaction(async (tx) => {
+    // The unique (user, date) row makes planning idempotent across ticks and processes.
+    const [claimed] = await tx
+      .insert(dailyFocus)
+      .values({ userId, localDate: today })
+      .onConflictDoNothing({ target: [dailyFocus.userId, dailyFocus.localDate] })
+      .returning({ id: dailyFocus.id });
+    if (!claimed) return undefined;
+
+    // The last day review shapes today (step 1.11). A review left open closes silently.
+    const db2 = tx as unknown as Database;
+    await db2
+      .update(dayReviews)
+      .set({ skipped: true })
+      .where(and(eq(dayReviews.userId, userId), lt(dayReviews.date, today), isNull(dayReviews.completedAt), eq(dayReviews.skipped, false)));
+    const shape = await tomorrowPlan(db2, userId, timezone, now);
+    // A task moved to today's window by hand goes on top (step 1.12).
+    const manual = await windowFor(db2, userId, today);
+    const pinTaskId = manual?.taskId ?? shape.pinTaskId;
+
+    const candidates = await focusCandidates(tx, userId, now);
+    // The main task fills the focus window, so the window's length shapes the choice (P0.1).
+    const [owner] = await tx.select({ windowMinutes: users.focusWindowMinutes }).from(users).where(eq(users.id, userId));
+    const focus = composeFocus(candidates, today, now, { ...shape, pinTaskId, ...(owner && { windowMinutes: owner.windowMinutes }) });
+    if (withCalendar) await fitToCalendar(tx as unknown as Database, userId, timezone, today, settings, candidates, focus);
+    await tx
+      .update(dailyFocus)
+      .set({ taskIds: focus.taskIds, quickWinTaskId: focus.quickWinTaskId })
+      .where(eq(dailyFocus.id, claimed.id));
+
+    // Only on work days (step 1.12): the focus window and the rhythm messages.
+    const weekday = localNow(timezone, now).weekday;
+    const workday = isWorkday(settings.workDays, weekday);
+    // The most important task gets today's focus window (step 1.12).
+    const window = workday ? await planWindow(db2, userId, timezone, today, focus.mainTaskId, now) : undefined;
+
+    // Carried-over tasks got their bonus; it ends once they are in a focus.
+    if (focus.taskIds.length > 0) {
+      await tx.update(tasks).set({ carryOver: false }).where(inArray(tasks.id, focus.taskIds));
+    }
+
+    const nudges: PlannedNudge[] = [];
+    const add = (kind: NudgeKind, time: string, payload: Record<string, unknown> = {}) => {
+      const at = localTimeOnDate(timezone, today, time);
+      if (now.getTime() - at.getTime() <= MAX_LATE_MS) {
+        nudges.push({ kind, scheduledForUtc: at, payload: { localDate: today, ...payload } });
+      }
+    };
+    const reviewDay = lastWorkday(settings.workDays);
+    if (workday) {
+      add('morning', settings.morningTime);
+      // The heads-up before the focus window takes over the midday nudge (step 1.12).
+      if (settings.middayEnabled && focus.mainTaskId !== null && !window?.taskId) {
+        add('midday', MIDDAY_TIME, { taskId: focus.mainTaskId });
+      }
+      add('wrapup', settings.wrapupTime);
+
+      // The weekly review at the end of the last work day; the overview mail on the first (BOUWPLAN.md, 11.7).
+      if (weekday === reviewDay) add('weekly_review', settings.workEnd, { part: 'review' });
+      if (weekday === firstWorkday(settings.workDays)) add('weekly_review', WEEKLY_MAIL_TIME, { part: 'mail' });
+      // Content module (step C2): the posts up to the next work day, for approval.
+      if (settings.contentEnabled) add('content_bundle', CONTENT_BUNDLE_TIME);
+    }
+
+    // No escalation on the review day, so the review stays within the daily limit.
+    if (workday && weekday !== reviewDay) {
+      const escalation = await pickEscalation(tx, userId, focus.taskIds, today, timezone, now);
+      if (escalation) add('escalation', ESCALATION_TIME, escalation);
+    }
+
+    // Day 7 of silence: one restart message, in Telegram and by mail (BOUWPLAN.md, 11.6).
+    const [user] = await tx.select({ lastInboundAt: users.lastInboundAt }).from(users).where(eq(users.id, userId));
+    if (silentDays(user?.lastInboundAt ?? null, timezone, now) === 7) add('reentry', settings.morningTime);
+
+    if (nudges.length > 0) {
+      await tx.insert(scheduledNudges).values(nudges.map((nudge) => ({ userId, ...nudge })));
+    }
+    return { userId, localDate: today, focus, nudges };
+  });
+}
+
+/**
+ * Fits the focus to the free time between morning and wrap-up (BOUWPLAN.md, 11.8): the third
+ * task goes first; when it still does not fit, the main task shrinks to its first micro step.
+ */
+async function fitToCalendar(
+  db: Database,
+  userId: number,
+  timezone: string,
+  today: string,
+  settings: { morningTime: string; wrapupTime: string },
+  candidates: FocusCandidate[],
+  focus: ComposedFocus,
+) {
+  const from = localTimeOnDate(timezone, today, settings.morningTime);
+  const to = localTimeOnDate(timezone, today, settings.wrapupTime);
+  const events = await eventsBetween(db, userId, from, to);
+  const busy = totalMinutes(busyBlocks(events, from, to));
+  const free = (to.getTime() - from.getTime()) / 60_000 - busy;
+  const picked = focus.taskIds.map((id) => candidates.find((c) => c.id === id) ?? { id, estimatedMinutes: null });
+  const fitted = fitFocus(picked, free, busy);
+
+  focus.taskIds = fitted.taskIds;
+  if (focus.quickWinTaskId !== null && !focus.taskIds.includes(focus.quickWinTaskId)) focus.quickWinTaskId = null;
+  if (fitted.shrinkMain && focus.mainTaskId !== null) {
+    const main = focus.mainTaskId;
+    const step = await nextStep(db, userId, main);
+    if (step && step.id !== main) focus.taskIds = focus.taskIds.map((id) => (id === main ? step.id : id));
+  }
+}
+
+/** Open or in-progress top-level tasks from active projects, not snoozed past now. */
+export async function focusCandidates(db: Pick<Database, 'select'>, userId: number, now: Date): Promise<FocusCandidate[]> {
+  return db
+    .select({
+      id: tasks.id,
+      estimatedMinutes: tasks.estimatedMinutes,
+      dueDate: tasks.dueDate,
+      carryOver: tasks.carryOver,
+      isWeeklyFocus: projects.isWeeklyFocus,
+      projectPriority: projects.priority,
+      createdAt: tasks.createdAt,
+    })
+    .from(tasks)
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        inArray(tasks.status, ['open', 'in_progress']),
+        isNull(tasks.parentTaskId),
+        eq(projects.status, 'active'),
+        or(isNull(tasks.snoozedUntil), lte(tasks.snoozedUntil, now)),
+      ),
+    );
+}

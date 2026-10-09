@@ -1,0 +1,1 @@
+ALTER TYPE "public"."nudge_kind" ADD VALUE 'ai_retry';

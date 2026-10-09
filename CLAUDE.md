@@ -31,7 +31,7 @@ Hyper&Focus is een AI-projectmanager en assistent via Telegram en mail voor onde
 ## Veiligheid
 
 - Nooit secrets committen. `.env` staat in `.gitignore`; `.env.example` bevat alleen namen.
-- Geen productiesleutels (Telegram-bottoken, SendGrid, Mollie, Google) in cloud-sessies. Bouw en test met de simulator (`npm run sim`) en nep-providers.
+- Geen productiesleutels (Telegram-bottoken, Brevo, Mollie, Google) in cloud-sessies. Bouw en test met de simulator (`npm run sim`) en nep-providers.
 - Persoonlijke gegevens, zoals Telegram-gebruikers-ID's, mailadressen en klantnamen, alleen in `.env` of in bestanden die eindigen op `.local.ts`.
 
 ## Techniek in het kort
@@ -47,6 +47,5 @@ Details staan in BOUWPLAN.md.
 
 Aangemaakt in stap 0.2 en daarna actueel gehouden.
 
-- Nu beschikbaar: `npm run dev` · `npm test` · `npm run lint` · `npm run typecheck` · `npm run build` · `npm start` · `npm run db:generate` · `npm run db:migrate` · `npm run db:seed` · `npm run sim`
+- Nu beschikbaar: `npm run dev` · `npm test` · `npm run lint` · `npm run typecheck` · `npm run build` · `npm start` · `npm run worker` (`worker:dev` in development) · `npm run db:generate` · `npm run db:migrate` · `npm run db:seed` · `npm run sim` · `npm run link:telegram` · `npm run telegram:webhook` · `npm run brevo:inbound` · `npm run eval` (op de VPS, vraagt `ANTHROPIC_API_KEY`) · `npm run sim:day` · `npm run stats:focus` · `npm run ops:alert` (scripts/ops/*.sh, zie docs/ops.md)
 - Databasetests draaien alleen met `TEST_DATABASE_URL` (rol met CREATEDB).
-- Volgen in latere stappen: `npm run eval` (1.2) · `npm run sim:day` (1.5)

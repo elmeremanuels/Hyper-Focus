@@ -1,0 +1,14 @@
+@import 'tailwindcss' source('./');
+@import '../web/src/theme.css';
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* "Waarom ik dit bouw": plain HTML from content/verhaal.html in the site's style. */
+.story h2 {
+  @apply font-display text-3xl font-bold;
+}
+.story p {
+  @apply mt-4 text-lg;
+}

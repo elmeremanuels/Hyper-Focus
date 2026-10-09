@@ -4,7 +4,6 @@ import type { SeedData } from './types.js';
 const example: SeedData = {
   user: {
     name: 'Sam',
-    phoneE164: '+31600000000',
     email: 'sam@voorbeeld.invalid',
     timezone: 'Europe/Amsterdam',
   },

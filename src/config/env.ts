@@ -12,17 +12,18 @@ const ianaTimezone = z.string().refine(isValidTimezone, {
   message: 'Must be a valid IANA timezone, e.g. Europe/Amsterdam',
 });
 
-const e164 = z.string().regex(/^\+[1-9]\d{6,14}$/, 'Must be an E.164 number, e.g. +31612345678');
+const commaList = (value: unknown) =>
+  typeof value === 'string'
+    ? value
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0)
+    : (value ?? []);
 
-const numberList = z.preprocess(
-  (value) =>
-    typeof value === 'string'
-      ? value
-          .split(',')
-          .map((part) => part.trim())
-          .filter((part) => part.length > 0)
-      : (value ?? []),
-  z.array(e164),
+const telegramUserIds = z.preprocess(commaList, z.array(z.coerce.number().int().positive()));
+const emailList = z.preprocess(
+  commaList,
+  z.array(z.email().transform((address) => address.toLowerCase())),
 );
 
 export const envSchema = z.object({
@@ -33,6 +34,8 @@ export const envSchema = z.object({
   ),
   PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(65535).default(3000)),
   APP_BASE_URL: optionalUrl,
+  /** Fase 2a: the dashboard (https://app.hyper-focus.pro). Without it the dashboard and its API stay off. */
+  DASHBOARD_BASE_URL: optionalUrl,
   DATABASE_URL: optionalString,
   DEFAULT_TIMEZONE: z.preprocess(emptyToUndefined, ianaTimezone.default('Europe/Amsterdam')),
 
@@ -40,22 +43,43 @@ export const envSchema = z.object({
   ANTHROPIC_API_KEY: optionalString,
   CLAUDE_MODEL_FAST: optionalString,
   CLAUDE_MODEL_SMART: optionalString,
+  /** Optional: low | medium | high | xhigh | max. Leave empty for Haiku 4.5. */
+  CLAUDE_EFFORT_FAST: z.preprocess(emptyToUndefined, z.enum(['low', 'medium', 'high', 'xhigh', 'max']).optional()),
+  CLAUDE_EFFORT_SMART: z.preprocess(emptyToUndefined, z.enum(['low', 'medium', 'high', 'xhigh', 'max']).optional()),
 
   // Transcription
   OPENAI_API_KEY: optionalString,
   TRANSCRIBE_MODEL: optionalString,
 
-  // WhatsApp
-  WHATSAPP_GRAPH_VERSION: optionalString,
-  WHATSAPP_ACCESS_TOKEN: optionalString,
-  WHATSAPP_PHONE_NUMBER_ID: optionalString,
-  WHATSAPP_APP_SECRET: optionalString,
-  WHATSAPP_VERIFY_TOKEN: optionalString,
-  WHATSAPP_ALLOWED_NUMBERS: numberList,
+  // Telegram
+  TELEGRAM_BOT_TOKEN: optionalString,
+  TELEGRAM_BOT_USERNAME: optionalString,
+  TELEGRAM_WEBHOOK_SECRET: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .min(32, 'Use at least 32 characters')
+      .regex(/^[A-Za-z0-9_-]+$/, 'Only A-Z, a-z, 0-9, _ and - (Telegram limit)')
+      .optional(),
+  ),
+  TELEGRAM_ALLOWED_USER_IDS: telegramUserIds,
 
   // Mail
-  SENDGRID_API_KEY: optionalString,
+  BREVO_API_KEY: optionalString,
+  /** Alerts and the worker's heartbeat (verbeterplan P0.2). The chat id is Elmer's own Telegram chat. */
+  ALERT_TELEGRAM_CHAT_ID: z.preprocess(emptyToUndefined, z.coerce.number().int().optional()),
+  ALERT_EMAIL: z.preprocess(emptyToUndefined, z.email().optional()),
+  WORKER_HEARTBEAT_FILE: optionalString,
+  /** The waiting list on the website (step 2b.3): a Brevo list and a double opt-in template. */
+  BREVO_WAITLIST_LIST_ID: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
+  BREVO_DOI_TEMPLATE_ID: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
   EMAIL_FROM: z.preprocess(emptyToUndefined, z.email().optional()),
+  EMAIL_REPLY_TO: z.preprocess(emptyToUndefined, z.email().optional()),
+  EMAIL_INBOUND_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+  EMAIL_ALLOWED_SENDERS: emailList,
+  /** Inbound mail with a higher Brevo SpamScore is ignored. */
+  EMAIL_MAX_SPAM_SCORE: z.preprocess(emptyToUndefined, z.coerce.number().min(0).default(5)),
+  ACTION_LINK_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
 
   // Research
   RESEARCH_PROVIDER: z.preprocess(
@@ -68,6 +92,18 @@ export const envSchema = z.object({
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,
   GOOGLE_REDIRECT_URI: optionalUrl,
+  MICROSOFT_CLIENT_ID: optionalString,
+  MICROSOFT_CLIENT_SECRET: optionalString,
+  MICROSOFT_REDIRECT_URI: optionalUrl,
+  /** Apple iCloud over CalDAV with an app-specific password; off by default (the ICS link is the default). */
+  CALENDAR_APPLE_CALDAV: z.preprocess(
+    (value) => (typeof value === 'string' ? ['1', 'true', 'yes'].includes(value.trim().toLowerCase()) : value),
+    z.boolean().default(false),
+  ),
+
+  // Content module (step C3): a read-only key for public Drive folders, and where photos are stored.
+  GOOGLE_API_KEY: optionalString,
+  MEDIA_DIR: optionalString,
 
   // Phase 3
   MOLLIE_API_KEY: optionalString,

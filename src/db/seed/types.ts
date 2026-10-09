@@ -22,9 +22,11 @@ export interface SeedProject {
 export interface SeedData {
   user: {
     name: string;
-    phoneE164: string;
-    email?: string;
+    /** Unique; used to match the user on a second seed run and for inbound mail. */
+    email: string;
     timezone?: string;
+    /** Optional: link Telegram right away instead of via `npm run link:telegram`. */
+    telegramUserId?: number;
   };
   business: {
     name: string;

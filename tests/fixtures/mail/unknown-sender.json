@@ -1,0 +1,41 @@
+{
+  "Uuid": [
+    "0b6f1e0a-0000-4000-8000-000000000004"
+  ],
+  "MessageId": "<unk-4@elders.invalid>",
+  "InReplyTo": null,
+  "From": {
+    "Name": "Onbekend",
+    "Address": "iemand@elders.invalid"
+  },
+  "To": [
+    {
+      "Name": null,
+      "Address": "taken@in.hyper-focus.invalid"
+    }
+  ],
+  "Cc": null,
+  "ReplyTo": null,
+  "SentAtDate": "Wed, 1 Oct 2026 10:30:00 +0200",
+  "Subject": "Hallo",
+  "Attachments": [],
+  "Headers": {
+    "Received": [
+      "by mail.elders.invalid for <taken@in.hyper-focus.invalid>; Wed, 1 Oct 2026 10:30:01 +0200",
+      "from [10.10.1.22] by smtp.voorbeeld.invalid for <taken@in.hyper-focus.invalid>; Wed, 1 Oct 2026 10:30:00 +0200"
+    ],
+    "DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed; d=elders.invalid; s=s1; h=from:to:subject:date; bh=abc=; b=def=",
+    "MIME-Version": "1.0",
+    "From": "Onbekend <iemand@elders.invalid>",
+    "Date": "Wed, 1 Oct 2026 10:30:00 +0200",
+    "Message-ID": "<unk-4@elders.invalid>",
+    "Subject": "Hallo",
+    "To": "taken@in.hyper-focus.invalid",
+    "Content-Type": "multipart/alternative"
+  },
+  "SpamScore": 1.2,
+  "ExtractedMarkdownMessage": "Hallo daar\n  \n",
+  "ExtractedMarkdownSignature": null,
+  "RawHtmlBody": null,
+  "RawTextBody": "Hallo daar\r\n"
+}

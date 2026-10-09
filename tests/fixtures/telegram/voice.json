@@ -1,0 +1,25 @@
+{
+  "update_id": 500005,
+  "message": {
+    "message_id": 12,
+    "from": {
+      "id": 111222333,
+      "is_bot": false,
+      "first_name": "Sam",
+      "language_code": "nl"
+    },
+    "chat": {
+      "id": 111222333,
+      "first_name": "Sam",
+      "type": "private"
+    },
+    "date": 1791280800,
+    "voice": {
+      "duration": 12,
+      "mime_type": "audio/ogg",
+      "file_id": "AwACAgQAAxkBAAIB",
+      "file_unique_id": "AgADxw",
+      "file_size": 19210
+    }
+  }
+}

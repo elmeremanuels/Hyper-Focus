@@ -8,6 +8,7 @@ coverage/
 .env.*
 !.env.example
 *.local.ts
+*.local.html
 
 # Cookie files, archives and leftovers (see BOUWPLAN.md, chapter 6)
 *cookies*.txt
@@ -20,3 +21,9 @@ attached_assets/
 *.log
 npm-debug.log*
 .DS_Store
+
+# Worker heartbeat (docs/ops.md)
+*.heartbeat
+
+# Photos for posts (docs/content.md)
+media/

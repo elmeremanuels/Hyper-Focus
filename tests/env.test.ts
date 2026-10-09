@@ -8,7 +8,9 @@ describe('parseEnv', () => {
     expect(env.PORT).toBe(3000);
     expect(env.DEFAULT_TIMEZONE).toBe('Europe/Amsterdam');
     expect(env.RESEARCH_PROVIDER).toBe('claude');
-    expect(env.WHATSAPP_ALLOWED_NUMBERS).toEqual([]);
+    expect(env.TELEGRAM_ALLOWED_USER_IDS).toEqual([]);
+    expect(env.EMAIL_ALLOWED_SENDERS).toEqual([]);
+    expect(env.EMAIL_MAX_SPAM_SCORE).toBe(5);
     expect(env.ANTHROPIC_API_KEY).toBeUndefined();
   });
 
@@ -29,15 +31,23 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ DEFAULT_TIMEZONE: 'Mars/Olympus' })).toThrow(/DEFAULT_TIMEZONE/);
   });
 
-  it('parses a comma-separated list of E.164 numbers', () => {
-    const env = parseEnv({ WHATSAPP_ALLOWED_NUMBERS: '+31600000001, +6281200000002' });
-    expect(env.WHATSAPP_ALLOWED_NUMBERS).toEqual(['+31600000001', '+6281200000002']);
+  it('parses Telegram user ids and allowed senders', () => {
+    const env = parseEnv({
+      TELEGRAM_ALLOWED_USER_IDS: '123456789, 987654321',
+      EMAIL_ALLOWED_SENDERS: 'Sam@Voorbeeld.invalid',
+    });
+    expect(env.TELEGRAM_ALLOWED_USER_IDS).toEqual([123456789, 987654321]);
+    expect(env.EMAIL_ALLOWED_SENDERS).toEqual(['sam@voorbeeld.invalid']);
   });
 
-  it('rejects numbers without a plus sign', () => {
-    expect(() => parseEnv({ WHATSAPP_ALLOWED_NUMBERS: '31600000001' })).toThrow(
-      /WHATSAPP_ALLOWED_NUMBERS/,
+  it('rejects malformed ids, addresses and short secrets', () => {
+    expect(() => parseEnv({ TELEGRAM_ALLOWED_USER_IDS: 'abc' })).toThrow(/TELEGRAM_ALLOWED_USER_IDS/);
+    expect(() => parseEnv({ EMAIL_ALLOWED_SENDERS: 'geen-mail' })).toThrow(/EMAIL_ALLOWED_SENDERS/);
+    expect(() => parseEnv({ TELEGRAM_WEBHOOK_SECRET: 'kort' })).toThrow(/TELEGRAM_WEBHOOK_SECRET/);
+    expect(() => parseEnv({ TELEGRAM_WEBHOOK_SECRET: 'x'.repeat(31) + '!' })).toThrow(
+      /TELEGRAM_WEBHOOK_SECRET/,
     );
+    expect(() => parseEnv({ ACTION_LINK_SECRET: 'kort' })).toThrow(/ACTION_LINK_SECRET/);
   });
 
   it('rejects an unknown research provider', () => {

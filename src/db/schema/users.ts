@@ -1,17 +1,35 @@
-import { boolean, check, integer, pgTable, smallint, text, time, timestamp } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  check,
+  integer,
+  pgTable,
+  smallint,
+  text,
+  time,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { engineFrequency, userStatus } from './enums.js';
+import { engineFrequency, focusPref, preferredChannel, userStatus } from './enums.js';
 
 export const users = pgTable('users', {
   id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
   name: text('name').notNull(),
-  phoneE164: text('phone_e164').notNull().unique(),
-  email: text('email'),
+  email: text('email').unique(),
+  emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+  // Telegram ids fit in 52 bits, so number mode is safe.
+  telegramUserId: bigint('telegram_user_id', { mode: 'number' }).unique(),
+  telegramChatId: bigint('telegram_chat_id', { mode: 'number' }),
+  telegramLinkedAt: timestamp('telegram_linked_at', { withTimezone: true }),
+  preferredChannel: preferredChannel('preferred_channel').notNull().default('telegram'),
   timezone: text('timezone').notNull().default('Europe/Amsterdam'),
   locale: text('locale').notNull().default('nl-NL'),
-  whatsappOptInAt: timestamp('whatsapp_opt_in_at', { withTimezone: true }),
   status: userStatus('status').notNull().default('active'),
   lastInboundAt: timestamp('last_inbound_at', { withTimezone: true }),
+  /** Focus window (step 1.12): preference, chosen start (local time) and length. */
+  focusPref: focusPref('focus_pref'),
+  focusWindowStart: time('focus_window_start'),
+  focusWindowMinutes: smallint('focus_window_minutes').notNull().default(90),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
@@ -49,6 +67,14 @@ export const userSettings = pgTable(
     meetingHeadsUp: boolean('meeting_heads_up').notNull().default(true),
     meetingFollowup: boolean('meeting_followup').notNull().default(true),
     maxCalendarNudgesPerDay: smallint('max_calendar_nudges_per_day').notNull().default(2),
+    /** Reward minute (step 1.9); blocks and pauses work either way. */
+    rewardsEnabled: boolean('rewards_enabled').notNull().default(true),
+    /** The work week (step 1.12): ISO weekdays and local hours. The weekly review falls on the last work day. */
+    workDays: smallint('work_days').array().notNull().default(sql`ARRAY[1,2,3,4,5]::smallint[]`),
+    workStart: time('work_start').notNull().default('09:00'),
+    workEnd: time('work_end').notNull().default('17:00'),
+    /** Content module on or off (step C1). Off hides everything about social posts. */
+    contentEnabled: boolean('content_enabled').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

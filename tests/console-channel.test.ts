@@ -6,7 +6,7 @@ describe('ConsoleChannel', () => {
     const lines: string[] = [];
     const channel = new ConsoleChannel((line) => lines.push(line));
 
-    await channel.send('+31600000000', {
+    await channel.send({
       text: 'Kies',
       buttons: [
         { id: 'f:show', title: 'Laat zien' },
@@ -23,8 +23,8 @@ describe('ConsoleChannel', () => {
 
   it('forgets buttons after a message without buttons', async () => {
     const channel = new ConsoleChannel(() => undefined);
-    await channel.send('x', { text: 'a', buttons: [{ id: 'f:show', title: 'Laat zien' }] });
-    await channel.send('x', { text: 'b' });
+    await channel.send({ text: 'a', buttons: [{ id: 'f:show', title: 'Laat zien' }] });
+    await channel.send({ text: 'b' });
     expect(channel.buttonForInput('1')).toBeUndefined();
   });
 });

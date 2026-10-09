@@ -1,0 +1,26 @@
+{
+  "update_id": 500006,
+  "message": {
+    "message_id": 13,
+    "from": {
+      "id": 111222333,
+      "is_bot": false,
+      "first_name": "Sam",
+      "language_code": "nl"
+    },
+    "chat": {
+      "id": 111222333,
+      "first_name": "Sam",
+      "type": "private"
+    },
+    "date": 1791280800,
+    "photo": [
+      {
+        "file_id": "x",
+        "file_unique_id": "y",
+        "width": 90,
+        "height": 90
+      }
+    ]
+  }
+}

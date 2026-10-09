@@ -8,6 +8,104 @@
       "when": 1790786797303,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790868600845,
+      "tag": "0001_telegram_mail",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791011455973,
+      "tag": "0002_calendar_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791021464571,
+      "tag": "0003_workplace_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791021928279,
+      "tag": "0004_work_blocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791023129316,
+      "tag": "0005_day_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791033818949,
+      "tag": "0006_focus_window",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791035408907,
+      "tag": "0007_focus_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791038999477,
+      "tag": "0008_work_week",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791043728143,
+      "tag": "0009_dashboard_login",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791130083230,
+      "tag": "0010_morning_followup",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791130659479,
+      "tag": "0011_drop_garden",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791160027854,
+      "tag": "0012_ai_retry",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791515608655,
+      "tag": "0013_content_module",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791517510981,
+      "tag": "0014_content_bundle",
+      "breakpoints": true
     }
   ]
 }

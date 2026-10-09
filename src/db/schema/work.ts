@@ -6,15 +6,28 @@ import {
   integer,
   jsonb,
   pgTable,
+  real,
   smallint,
   text,
+  time,
   timestamp,
   uniqueIndex,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { id, timestamps, userId } from './common.js';
-import { clientStatus, ideaStatus, projectStatus, taskSource, taskStatus } from './enums.js';
+import {
+  clientStatus,
+  dayEnergy,
+  focusBlockOutcome,
+  focusWindowSource,
+  focusWindowStatus,
+  ideaStatus,
+  projectStatus,
+  taskSource,
+  taskStatus,
+  workType,
+} from './enums.js';
 
 export interface Competitor {
   name: string;
@@ -50,6 +63,11 @@ export const businesses = pgTable(
   ],
 );
 
+export interface ClientProfileField {
+  label: string;
+  value: string;
+}
+
 /** Clients the user serves. */
 export const clients = pgTable(
   'clients',
@@ -61,6 +79,14 @@ export const clients = pgTable(
     contactName: text('contact_name'),
     notes: text('notes'),
     status: clientStatus('status').notNull().default('active'),
+    /** The client card (step C1): free fields such as Doelgroep or Tone of voice. */
+    profile: jsonb('profile').$type<ClientProfileField[]>().notNull().default([]),
+    socialsEnabled: boolean('socials_enabled').notNull().default(false),
+    /** Buffer API key for this client's channels, encrypted with ENCRYPTION_KEY. */
+    bufferApiKeyEnc: text('buffer_api_key_enc'),
+    /** A public Google Drive folder with photos (step C3). */
+    photoFolderUrl: text('photo_folder_url'),
+    memesAllowed: boolean('memes_allowed').notNull().default(true),
     ...timestamps,
   },
   (table) => [index('clients_user_idx').on(table.userId)],
@@ -107,10 +133,14 @@ export const tasks = pgTable(
     dueDate: date('due_date'),
     snoozedUntil: timestamp('snoozed_until', { withTimezone: true }),
     carryOver: boolean('carry_over').notNull().default(false),
+    /** +1 on every move to tomorrow, from the day review or the router (step 1.11). */
+    deferredCount: integer('deferred_count').notNull().default(0),
     source: taskSource('source').notNull(),
     stuckSince: timestamp('stuck_since', { withTimezone: true }),
     lastEscalationLevel: smallint('last_escalation_level').notNull().default(0),
     completedAt: timestamp('completed_at', { withTimezone: true }),
+    /** Set by the router when the task clearly belongs to a kind of work (step 1.10). */
+    workType: workType('work_type'),
     ...timestamps,
   },
   (table) => [
@@ -163,4 +193,108 @@ export const dailyFocus = pgTable(
     uniqueIndex('daily_focus_user_date').on(table.userId, table.localDate),
     check('daily_focus_max_three', sql`cardinality(${table.taskIds}) <= 3`),
   ],
+);
+
+/** The tool a user works in per kind of work: one per kind in this version (step 1.10). */
+export const userTools = pgTable(
+  'user_tools',
+  {
+    id: id(),
+    userId: userId(),
+    workType: workType('work_type').notNull(),
+    /** Catalogue key such as `moneybird`, or `other` for a pasted link. */
+    toolKey: text('tool_key').notNull(),
+    label: text('label').notNull(),
+    /** Pasted link or the catalogue default. Only shown, never fetched. */
+    url: text('url').notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex('user_tools_user_work_type').on(table.userId, table.workType)],
+);
+
+/** A work block of 15, 25 or 45 minutes, its pause and its reward minute (step 1.9). */
+export const focusBlocks = pgTable(
+  'focus_blocks',
+  {
+    id: id(),
+    userId: userId(),
+    taskId: integer('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    /** The micro step being worked on, when the task has steps. */
+    stepId: integer('step_id').references(() => tasks.id, { onDelete: 'set null' }),
+    plannedMinutes: smallint('planned_minutes').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    /** Planned end; moves with "Nog 15 min". */
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    outcome: focusBlockOutcome('outcome'),
+    extendedMinutes: smallint('extended_minutes').notNull().default(0),
+    /** Hyperfocus pause messages sent for this block (at most two). */
+    hyperfocusPrompts: smallint('hyperfocus_prompts').notNull().default(0),
+    pauseMission: text('pause_mission'),
+    pauseStartedAt: timestamp('pause_started_at', { withTimezone: true }),
+    pauseDueAt: timestamp('pause_due_at', { withTimezone: true }),
+    returnedAt: timestamp('returned_at', { withTimezone: true }),
+    /** Hash of the one-time token for the reward mini-app. */
+    rewardTokenHash: text('reward_token_hash'),
+    rewardOpenedAt: timestamp('reward_opened_at', { withTimezone: true }),
+    rewardFinishedAt: timestamp('reward_finished_at', { withTimezone: true }),
+    /** Started inside the focus window (step 1.12). */
+    inWindow: boolean('in_window').notNull().default(false),
+    /** What got done, for the focus log (step 1.12): "{taak} af" after Af with a finished task. */
+    resultNote: text('result_note'),
+    ...timestamps,
+  },
+  (table) => [
+    index('focus_blocks_user_started_idx').on(table.userId, table.startedAt),
+    uniqueIndex('focus_blocks_reward_token').on(table.rewardTokenHash),
+    check('focus_blocks_planned_minutes', sql`${table.plannedMinutes} IN (15, 25, 45, 60, 90)`),
+  ],
+);
+
+/** The day review (step 1.11): one row per user and local date. */
+export const dayReviews = pgTable(
+  'day_reviews',
+  {
+    id: id(),
+    userId: userId(),
+    date: date('date').notNull(),
+    energy: dayEnergy('energy'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    skipped: boolean('skipped').notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex('day_reviews_user_date').on(table.userId, table.date)],
+);
+
+/** The focus window of a day (step 1.12): 60–90 minutes for the most important task. */
+export const focusWindows = pgTable(
+  'focus_windows',
+  {
+    id: id(),
+    userId: userId(),
+    date: date('date').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    source: focusWindowSource('source').notNull(),
+    taskId: integer('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    startedBlockId: integer('started_block_id').references(() => focusBlocks.id, { onDelete: 'set null' }),
+    status: focusWindowStatus('status').notNull().default('planned'),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex('focus_windows_user_date_start').on(table.userId, table.date, table.startsAt)],
+);
+
+/** The learned window per weekday (step 1.12, A2). Weekday 1 = Monday … 7 = Sunday. */
+export const rhythmProfiles = pgTable(
+  'rhythm_profiles',
+  {
+    id: id(),
+    userId: userId(),
+    weekday: smallint('weekday').notNull(),
+    windowStart: time('window_start').notNull(),
+    minutes: smallint('minutes').notNull().default(90),
+    confidence: real('confidence').notNull(),
+    computedAt: timestamp('computed_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [uniqueIndex('rhythm_profiles_user_weekday').on(table.userId, table.weekday)],
 );

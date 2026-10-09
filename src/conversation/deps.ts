@@ -6,15 +6,12 @@ import type { OpenTask, RouterDeps } from './router.js';
 /** Router dependencies backed by the database. */
 export function createDbRouterDeps(db: Database): RouterDeps {
   return {
-    async findUserName(phone) {
-      const [user] = await db
-        .select({ name: users.name })
-        .from(users)
-        .where(eq(users.phoneE164, phone));
+    async findUserName(userId) {
+      const [user] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId));
       return user?.name;
     },
 
-    async listOpenTasks(phone, limit): Promise<OpenTask[]> {
+    async listOpenTasks(userId, limit): Promise<OpenTask[]> {
       return db
         .select({
           id: tasks.id,
@@ -24,10 +21,9 @@ export function createDbRouterDeps(db: Database): RouterDeps {
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
-        .innerJoin(users, eq(tasks.userId, users.id))
         .where(
           and(
-            eq(users.phoneE164, phone),
+            eq(tasks.userId, userId),
             inArray(tasks.status, ['open', 'in_progress']),
             isNull(tasks.parentTaskId),
             eq(projects.status, 'active'),
@@ -48,6 +44,6 @@ export function createDbRouterDeps(db: Database): RouterDeps {
 export function createMemoryRouterDeps(name: string, openTasks: OpenTask[] = []): RouterDeps {
   return {
     findUserName: async () => name,
-    listOpenTasks: async (_phone, limit) => openTasks.slice(0, limit),
+    listOpenTasks: async (_userId, limit) => openTasks.slice(0, limit),
   };
 }

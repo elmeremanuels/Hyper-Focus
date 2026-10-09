@@ -1,10 +1,12 @@
-import { index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
 import { id, timestamps, userId } from './common.js';
 
 // Metadata only, no message content. Kept for 12 months (BOUWPLAN.md, 14).
+// Telegram costs nothing per message; sent mails are counted through the email_sent event.
 
 export const EVENT_NAMES = [
   'inbound_message',
+  'email_sent',
   'task_created',
   'task_status_changed',
   'focus_item_done',
@@ -13,8 +15,34 @@ export const EVENT_NAMES = [
   'session_started',
   'session_completed',
   'reentry',
+  'escalation',
+  'crisis_flagged',
+  'weekly_review_done',
+  'tool_button_shown',
+  'tool_prompt',
+  'block_started',
+  'block_completed',
+  'pause_returned',
+  'rewards_toggled',
+  'day_review_done',
+  'day_energy_set',
+  'focus_pref_asked',
+  'focus_pref_set',
+  'focus_window_moved',
+  'soft_landing_note',
+  'rhythm_proposed',
+  'rhythm_accepted',
+  'rhythm_kept',
+  'focus_log_opened',
+  'work_week_asked',
+  'work_week_set',
+  'login_link_sent',
+  'login',
+  'assistant_planned',
+  'assistant_applied',
   'overwhelm',
   'nudge_skipped',
+  'post_approved',
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];
@@ -43,17 +71,4 @@ export const aiUsage = pgTable(
     ...timestamps,
   },
   (table) => [index('ai_usage_user_created_idx').on(table.userId, table.createdAt)],
-);
-
-export const waUsage = pgTable(
-  'wa_usage',
-  {
-    id: id(),
-    userId: userId(),
-    templateName: text('template_name').notNull(),
-    category: text('category').notNull(),
-    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
-    ...timestamps,
-  },
-  (table) => [index('wa_usage_user_sent_idx').on(table.userId, table.sentAt)],
 );

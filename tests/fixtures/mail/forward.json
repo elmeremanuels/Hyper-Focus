@@ -1,0 +1,41 @@
+{
+  "Uuid": [
+    "0b6f1e0a-0000-4000-8000-000000000003"
+  ],
+  "MessageId": "<fwd-3@mail.gmail.com>",
+  "InReplyTo": null,
+  "From": {
+    "Name": "Sam",
+    "Address": "sam@voorbeeld.invalid"
+  },
+  "To": [
+    {
+      "Name": null,
+      "Address": "taken@in.hyper-focus.invalid"
+    }
+  ],
+  "Cc": null,
+  "ReplyTo": null,
+  "SentAtDate": "Wed, 1 Oct 2026 10:30:00 +0200",
+  "Subject": "Fwd: Banner voor vrijdag",
+  "Attachments": [],
+  "Headers": {
+    "Received": [
+      "by mail.voorbeeld.invalid for <taken@in.hyper-focus.invalid>; Wed, 1 Oct 2026 10:30:01 +0200",
+      "from [10.10.1.22] by smtp.voorbeeld.invalid for <taken@in.hyper-focus.invalid>; Wed, 1 Oct 2026 10:30:00 +0200"
+    ],
+    "DKIM-Signature": "v=1; a=rsa-sha256; c=relaxed/relaxed; d=voorbeeld.invalid; s=s1; h=from:to:subject:date; bh=abc=; b=def=",
+    "MIME-Version": "1.0",
+    "From": "Sam <sam@voorbeeld.invalid>",
+    "Date": "Wed, 1 Oct 2026 10:30:00 +0200",
+    "Message-ID": "<fwd-3@mail.gmail.com>",
+    "Subject": "Fwd: Banner voor vrijdag",
+    "To": "taken@in.hyper-focus.invalid",
+    "Content-Type": "multipart/alternative"
+  },
+  "SpamScore": 1.2,
+  "ExtractedMarkdownMessage": "Kun je hier een taak van maken?  \n",
+  "ExtractedMarkdownSignature": null,
+  "RawHtmlBody": null,
+  "RawTextBody": "Kun je hier een taak van maken?\r\n\r\n---------- Forwarded message ---------\r\nVan: Anna <anna@bakkerij.invalid>\r\nDate: di 30 sep 2026 om 17:02\r\nSubject: Banner voor vrijdag\r\nTo: Sam <sam@voorbeeld.invalid>\r\n\r\nHoi Sam, kun je de banner voor vrijdag klaar hebben? Groet, Anna\r\n"
+}
