@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const cache = new Map<string, string>();
 
-export type PromptName = 'systeem' | 'router' | 'opknippen' | 'braindump';
+export type PromptName = 'systeem' | 'router' | 'opknippen' | 'braindump' | 'post-herschrijven';
 
 export function loadPrompt(name: PromptName): string {
   let prompt = cache.get(name);

@@ -73,6 +73,8 @@ export const userSettings = pgTable(
     workDays: smallint('work_days').array().notNull().default(sql`ARRAY[1,2,3,4,5]::smallint[]`),
     workStart: time('work_start').notNull().default('09:00'),
     workEnd: time('work_end').notNull().default('17:00'),
+    /** Content module on or off (step C1). Off hides everything about social posts. */
+    contentEnabled: boolean('content_enabled').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

@@ -42,6 +42,7 @@ export const EVENT_NAMES = [
   'assistant_applied',
   'overwhelm',
   'nudge_skipped',
+  'post_approved',
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];

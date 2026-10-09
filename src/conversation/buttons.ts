@@ -7,6 +7,7 @@ import { setSuggestionStatus } from '../core/suggestions.js';
 import { and, eq } from 'drizzle-orm';
 import { dailyFocus } from '../db/schema/index.js';
 import { localDate, startOfNextLocalDay } from '../lib/time.js';
+import type { ContentDeps } from '../content/posts.js';
 import type { Button, OutboundMessage } from './types.js';
 import { focusView, openFocusTasks, SHOW_TODAY } from './views.js';
 
@@ -33,6 +34,7 @@ export type ParsedButton =
   | { kind: 'workweek'; action: 'ask' | 'other' | 'days' | 'hours'; value: string }
   | { kind: 'dashboard' }
   | { kind: 'tools'; action: 'start' | 'missing' | 'pick' | 'skip' | 'other' | 'paste' | 'keep' | 'edit' | 'del'; workType?: string; toolKey?: string }
+  | { kind: 'post'; postId: number; action: 'ok' | 'edit' | 'skip' }
   | { kind: 'help' };
 
 /** Parses the button ids from BOUWPLAN.md 9.4. */
@@ -88,6 +90,8 @@ export function parseButtonId(id: string): ParsedButton | undefined {
   if (match) return { kind: 'tools', action: 'pick', workType: match[1] ?? '', toolKey: match[2] ?? '' };
   match = /^tl:([a-z]+):(skip|other|paste|keep|edit|del)$/.exec(id);
   if (match) return { kind: 'tools', action: match[2] as never, workType: match[1] ?? '' };
+  match = /^cp:(\d+):(ok|edit|skip)$/.exec(id);
+  if (match) return { kind: 'post', postId: Number(match[1]), action: match[2] as never };
   if (id === 'help') return { kind: 'help' };
   return undefined;
 }
@@ -100,6 +104,8 @@ export interface ButtonContext {
   claude?: Pick<ClaudeClient, 'callWithTools'> | undefined;
   /** For the reward mini-app link (step 1.9). */
   appBaseUrl?: string | undefined;
+  /** Buffer and the key to decrypt client keys (step C1); without it posts cannot be scheduled. */
+  content?: ContentDeps | undefined;
 }
 
 /** A later step can take over a button kind (session in 1.4, review in 1.7). */
@@ -192,6 +198,7 @@ export async function handleButton(
     case 'rhythm':
     case 'workweek':
     case 'dashboard':
+    case 'post':
     case 'plan':
       return [UNKNOWN];
   }

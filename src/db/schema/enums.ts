@@ -71,6 +71,7 @@ export const conversationMode = pgEnum('conversation_mode', [
   'weekly_review',
   'intake',
   'onboarding',
+  'post_edit',
 ]);
 
 /** Kinds of work a workplace link can open (step 1.10). */
@@ -87,3 +88,16 @@ export const focusPref = pgEnum('focus_pref', ['morning', 'afternoon', 'evening'
 export const focusWindowSource = pgEnum('focus_window_source', ['pref', 'learned', 'manual']);
 export const focusWindowStatus = pgEnum('focus_window_status', ['planned', 'used', 'missed', 'moved']);
 export const loginChannel = pgEnum('login_channel', ['email', 'telegram']);
+
+/** Content module (step C1): a social post from idea to Buffer. */
+export const contentPostStatus = pgEnum('content_post_status', [
+  'draft',
+  'pending_approval',
+  'approved',
+  'scheduled',
+  'sent',
+  'failed',
+  'skipped',
+]);
+/** Where a post's image comes from (step C3). */
+export const contentMediaSource = pgEnum('content_media_source', ['drive', 'meme', 'generated', 'none']);

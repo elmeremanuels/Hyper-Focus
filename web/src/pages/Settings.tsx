@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { del, patch, post, put, type FocusPref, type Settings as SettingsData } from '../api';
 import { Button } from '../components/Button';
-import { Field, Input, Select } from '../components/Form';
+import { Choice, Field, Input, Select } from '../components/Form';
 import { Card } from '../components/Shell';
 import { T } from '../texts';
 import { useApi } from '../useApi';
@@ -26,6 +26,7 @@ export function Settings() {
         <WorkWeekCard week={s.workWeek} onSaved={reload} />
         <DayCard day={s.day} quiet={s.quiet} onSaved={reload} />
         <RewardsCard enabled={s.rewardsEnabled} onSaved={reload} />
+        <ContentCard enabled={s.contentEnabled} onSaved={reload} />
         <CalendarCard calendar={s.calendar} onSaved={reload} />
         <ToolsCard tools={s.tools} onSaved={reload} />
         <ProfileCard profile={s.profile} onSaved={reload} />
@@ -64,28 +65,6 @@ function SettingsForm({ title, intro, children, save, dirty = true }: { title: s
         </div>
       </form>
     </Card>
-  );
-}
-
-/** Toggle buttons: one choice or several, as pressed buttons. */
-function Choice<V extends string | number>({ options, selected, onToggle, label }: { options: Array<{ value: V; label: string }>; selected: V[]; onToggle: (v: V) => void; label: string }) {
-  return (
-    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
-      {options.map((o) => {
-        const on = selected.includes(o.value);
-        return (
-          <button
-            key={o.value}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onToggle(o.value)}
-            className={`min-w-11 rounded-xl border-2 border-ink px-3 py-2 text-sm font-semibold ${on ? 'bg-ink text-paper' : 'bg-card'}`}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
@@ -233,6 +212,30 @@ function RewardsCard({ enabled, onSaved }: { enabled: boolean; onSaved: Reload }
       <p className="mb-3 text-sm text-muted">{t.rewardsIntro}</p>
       <Choice
         label={t.rewards}
+        options={[
+          { value: 'on', label: t.on },
+          { value: 'off', label: t.off },
+        ]}
+        selected={[enabled ? 'on' : 'off']}
+        onToggle={(v) => !busy && set(v === 'on')}
+      />
+      {failed && <p className="mt-2 text-sm font-semibold">{T.error}</p>}
+    </Card>
+  );
+}
+
+function ContentCard({ enabled, onSaved }: { enabled: boolean; onSaved: Reload }) {
+  const { busy, failed, run } = useSubmit();
+  const set = (value: boolean) =>
+    void run(async () => {
+      await patch('/api/settings', { contentEnabled: value });
+      await onSaved();
+    })();
+  return (
+    <Card title={t.content}>
+      <p className="mb-3 text-sm text-muted">{t.contentIntro}</p>
+      <Choice
+        label={t.content}
         options={[
           { value: 'on', label: t.on },
           { value: 'off', label: t.off },

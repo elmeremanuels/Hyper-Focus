@@ -28,7 +28,9 @@ export function buildServices(env: Env, db: Database) {
     replyTo: env.EMAIL_REPLY_TO,
   });
   const alert = buildAlerter(env, telegramClient, sender);
-  const router = createAssistantRouter({ db, claude, calendar, appBaseUrl: env.APP_BASE_URL, dashboardBaseUrl: env.DASHBOARD_BASE_URL, alert });
+  // Content module (step C1): Buffer keys per client, encrypted with ENCRYPTION_KEY.
+  const content = { encryptionKey: env.ENCRYPTION_KEY };
+  const router = createAssistantRouter({ db, claude, calendar, appBaseUrl: env.APP_BASE_URL, dashboardBaseUrl: env.DASHBOARD_BASE_URL, alert, content });
   const isQuiet = (userId: number) => isFocusQuiet(db, userId, new Date());
 
   const channels: Partial<Record<ChannelName, Channel>> = {
@@ -39,7 +41,7 @@ export function buildServices(env: Env, db: Database) {
     ...(telegramClient && { telegram: new TelegramChannel(telegramClient, messages) }),
   };
 
-  return { users, messages, router, isQuiet, claude, calendar, telegramClient, alert, delivery: createDelivery(channels) };
+  return { users, messages, router, isQuiet, claude, calendar, telegramClient, alert, content, delivery: createDelivery(channels) };
 }
 
 /** Alerts to Elmer (verbeterplan P0.2): his own Telegram chat and/or a mail address. No database needed. */

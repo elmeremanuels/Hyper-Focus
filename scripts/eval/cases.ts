@@ -170,6 +170,14 @@ export const CASES: EvalCase[] = [
   { text: 'nadenken over de jaarplanning', tools: [['add_task'], ['add_idea']], check: { tool: 'add_task', work_type: null } },
   { text: 'mijn tools', tools: one('list_tools') },
 
+  // content module (step C1): a post with its text, versus a task to make one
+  {
+    text: 'post voor boho: Nieuwe collectie banken binnen. Kom ze zaterdag proberen in de showroom.',
+    tools: one('draft_post'),
+    check: { tool: 'draft_post', fields: { text: 'Nieuwe collectie banken binnen. Kom ze zaterdag proberen in de showroom.' } },
+  },
+  { text: 'zet op instagram voor de bakkerij: vers kerststol vanaf maandag', tools: one('draft_post'), check: { tool: 'draft_post', fields: { channel: 'instagram' } } },
+
   // more than one thing
   {
     text: 'factuur is verstuurd en zet op de lijst: offerte voor boho maken',

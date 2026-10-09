@@ -63,6 +63,11 @@ export const businesses = pgTable(
   ],
 );
 
+export interface ClientProfileField {
+  label: string;
+  value: string;
+}
+
 /** Clients the user serves. */
 export const clients = pgTable(
   'clients',
@@ -74,6 +79,14 @@ export const clients = pgTable(
     contactName: text('contact_name'),
     notes: text('notes'),
     status: clientStatus('status').notNull().default('active'),
+    /** The client card (step C1): free fields such as Doelgroep or Tone of voice. */
+    profile: jsonb('profile').$type<ClientProfileField[]>().notNull().default([]),
+    socialsEnabled: boolean('socials_enabled').notNull().default(false),
+    /** Buffer API key for this client's channels, encrypted with ENCRYPTION_KEY. */
+    bufferApiKeyEnc: text('buffer_api_key_enc'),
+    /** A public Google Drive folder with photos (step C3). */
+    photoFolderUrl: text('photo_folder_url'),
+    memesAllowed: boolean('memes_allowed').notNull().default(true),
     ...timestamps,
   },
   (table) => [index('clients_user_idx').on(table.userId)],
