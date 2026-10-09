@@ -13,6 +13,8 @@ import { runPlanner } from './proactive/planner.js';
 import { startScheduler, stopScheduler } from './proactive/scheduler.js';
 import { sendDueNudges } from './proactive/sender.js';
 import { expireWaitingPosts } from './content/planner.js';
+import { cleanupWeekMedia } from './content/media.js';
+import { checkScheduledPosts } from './content/status.js';
 import { buildServices } from './wiring.js';
 
 const env = getEnv();
@@ -50,6 +52,13 @@ export async function tick(now: Date = new Date()): Promise<void> {
   if (now.getUTCMinutes() === MAINTENANCE_MINUTE) {
     const done = await runMaintenance(connection.db, now);
     if (Object.values(done).some((n) => n > 0)) console.log('maintenance:', JSON.stringify(done));
+    // Content module (step C3): did Buffer post it, and photos of past weeks.
+    const posts = await checkScheduledPosts(connection.db, services.content, now, async (userId, text) => {
+      const user = await services.users.findById(userId);
+      if (user) await services.delivery.send(user, { text });
+    });
+    if (posts.sent + posts.failed > 0) console.log('posts:', JSON.stringify(posts));
+    if (services.content.media) await cleanupWeekMedia(connection.db, services.content.media, now);
     if (services.telegramClient) {
       const problem = await checkTelegramWebhook(services.telegramClient, now);
       if (problem) await services.alert('telegram_webhook', problem);

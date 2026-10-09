@@ -5,6 +5,7 @@ import { EmailChannel } from './channels/email/channel.js';
 import { EmailSender } from './channels/email/send.js';
 import { TelegramChannel } from './channels/telegram/channel.js';
 import { TelegramClient } from './channels/telegram/client.js';
+import { resolve } from 'node:path';
 import type { Env } from './config/env.js';
 import { ClaudeClient } from './ai/claude.js';
 import { createAlerter } from './ops/alerts.js';
@@ -29,7 +30,9 @@ export function buildServices(env: Env, db: Database) {
   });
   const alert = buildAlerter(env, telegramClient, sender);
   // Content module (step C1): Buffer keys per client, encrypted with ENCRYPTION_KEY.
-  const content = { encryptionKey: env.ENCRYPTION_KEY };
+  // Photos (step C3) are served from APP_BASE_URL/media.
+  const media = env.APP_BASE_URL ? { dir: resolve(env.MEDIA_DIR ?? 'media'), baseUrl: env.APP_BASE_URL, googleApiKey: env.GOOGLE_API_KEY } : undefined;
+  const content = { encryptionKey: env.ENCRYPTION_KEY, media };
   const router = createAssistantRouter({ db, claude, calendar, appBaseUrl: env.APP_BASE_URL, dashboardBaseUrl: env.DASHBOARD_BASE_URL, alert, content });
   const isQuiet = (userId: number) => isFocusQuiet(db, userId, new Date());
 

@@ -162,7 +162,7 @@ async function composeContent(deps: SenderDeps, ctx: NudgeContext, nudge: NudgeR
   if (!claude) return { skip: 'no_ai' };
   let ids: number[];
   try {
-    ids = await planBundle({ db: ctx.db, userId: ctx.userId, timezone: ctx.timezone, now: ctx.now, claude });
+    ids = await planBundle({ db: ctx.db, userId: ctx.userId, timezone: ctx.timezone, now: ctx.now, claude, media: deps.content?.deps?.media });
   } catch (error) {
     (deps.log ?? console).error('Content bundle failed:', error);
     return { retryAt: new Date(ctx.now.getTime() + AI_RETRY_EVERY_MS) };

@@ -13,12 +13,15 @@ import { decryptToken } from '../lib/crypto.js';
 import { localNow, localTimeOnDate } from '../lib/time.js';
 import { CONTENT_TEXTS, POST_STATUS_LABELS } from '../texts/content.nl.js';
 import type { OutboundMessage } from '../conversation/types.js';
+import type { MediaConfig } from './media.js';
 
 export interface ContentDeps {
   /** ENCRYPTION_KEY: Buffer keys are stored encrypted per client. */
   encryptionKey?: string | undefined;
   /** Builds the API client for one key; tests pass a fake. */
   buffer?: (apiKey: string) => BufferApi;
+  /** Photos and memes (step C3). */
+  media?: MediaConfig | undefined;
 }
 
 export interface ContentContext {
@@ -105,6 +108,7 @@ export async function approvalMessage(ctx: ContentContext, postId: number): Prom
     CONTENT_TEXTS.header(client.name, channel.name, channel.service),
     due ? CONTENT_TEXTS.when(describeSlot(ctx.timezone, due)) : CONTENT_TEXTS.queue,
     ...(post.reason ? [post.reason] : []),
+    ...(post.mediaUrl ? [CONTENT_TEXTS.image(post.mediaUrl)] : []),
     '',
     post.text,
   ];

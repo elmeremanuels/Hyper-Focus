@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { parseButtonId } from '../src/conversation/buttons.js';
 import { coveredDates, slotsFor } from '../src/content/planner.js';
+import { driveIdFromUrl, memeText, memeUrl } from '../src/content/media.js';
 import { describeSlot, nextSlot } from '../src/content/posts.js';
+import { downloadImage, parseFolderId } from '../src/integrations/drive/folder.js';
 import { checkGuardrails } from '../src/proactive/guardrails.js';
 import { BufferClient, BufferError } from '../src/integrations/buffer/client.js';
 
@@ -136,5 +138,32 @@ describe('the afternoon bundle (step C2)', () => {
 
   it('parses "Alles goed"', () => {
     expect(parseButtonId('cpb:all')).toEqual({ kind: 'posts', action: 'all' });
+  });
+});
+
+describe('images (step C3)', () => {
+  it('reads the folder id from a share link', () => {
+    expect(parseFolderId('https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQ?usp=sharing')).toBe('1AbCdEfGhIjKlMnOpQ');
+    expect(parseFolderId('https://drive.google.com/drive/u/0/folders/1AbCdEfGhIjKlMnOpQ')).toBe('1AbCdEfGhIjKlMnOpQ');
+    expect(parseFolderId('https://drive.google.com/open?id=1AbCdEfGhIjKlMnOpQ')).toBe('1AbCdEfGhIjKlMnOpQ');
+    expect(parseFolderId('https://example.com/map')).toBeUndefined();
+  });
+
+  it('builds memegen.link URLs with its escapes, and only for known templates', () => {
+    expect(memeUrl('drake', 'Mailen op maandag', 'Ademen? 100% ja')).toBe('https://api.memegen.link/images/drake/Mailen_op_maandag/Ademen~q_100~p_ja.jpg');
+    expect(memeUrl('fine', 'self-care', 'snake_case "quote"')).toBe("https://api.memegen.link/images/fine/self--care/snake__case_%27%27quote%27%27.jpg");
+    expect(memeUrl('onbekend', 'a', 'b')).toBeUndefined();
+    expect(memeText('café & co')).toBe('caf%C3%A9_~a_co');
+  });
+
+  it('finds the Drive id in a stored photo URL', () => {
+    expect(driveIdFromUrl('https://hyper-focus.pro/media/d-photoBeach01-0123456789abcdef01234567.jpg')).toBe('photoBeach01');
+    expect(driveIdFromUrl('https://api.memegen.link/images/drake/a/b.jpg')).toBeUndefined();
+    expect(driveIdFromUrl(null)).toBeUndefined();
+  });
+
+  it('refuses a download that is not an image', async () => {
+    const pdf = (async () => new Response('x', { headers: { 'content-type': 'application/pdf' } })) as unknown as typeof fetch;
+    await expect(downloadImage('abc', 'key', pdf)).rejects.toThrow('Geen afbeelding');
   });
 });

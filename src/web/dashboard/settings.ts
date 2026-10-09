@@ -224,7 +224,7 @@ export function settingsRoutes(config: DashboardRoutesConfig): Router {
       const { db, userId } = await userContext(config, res);
       const { confirm } = z.object({ confirm: z.string() }).parse(req.body);
       if (confirm.trim().toLowerCase() !== DELETE_CONFIRMATION) return void res.status(400).json({ error: `Typ "${DELETE_CONFIRMATION}" om te bevestigen` });
-      await deleteUserData(db, userId, config.calendar);
+      await deleteUserData(db, userId, config.calendar, config.content?.media?.dir);
       console.log(`Deleted user ${userId} on request`);
       res.set('Set-Cookie', clearedCookie(config.dashboardBaseUrl.startsWith('https:'))).json({ ok: true });
     }),

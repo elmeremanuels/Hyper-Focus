@@ -22,6 +22,7 @@ if (env.DATABASE_URL) {
   const { db } = connect(env.DATABASE_URL);
   const services = buildServices(env, db);
   watchErrors(services.alert, 'hyperfocus-web');
+  options.mediaDir = services.content.media?.dir;
 
   if (services.telegramClient) {
     options.telegram = {

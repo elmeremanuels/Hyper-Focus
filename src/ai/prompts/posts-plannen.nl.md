@@ -12,6 +12,12 @@ Posts van de afgelopen twee weken, herhaal die niet:
 Momenten uit het ritme die een post nodig hebben:
 {momenten}
 
+Foto's uit de map van de klant (kies op naam en beschrijving):
+{fotos}
+
+Meme-sjablonen die je mag gebruiken:
+{memes}
+
 Opdracht:
 1. Schrijf voor elk moment hierboven één post, passend bij het kanaal. Gebruik de week als die iets oplevert. Anders kies je een onderwerp uit de klantkaart.
 2. Bepaal of er een extra post bij moet. Alleen als er deze week iets gebeurde dat het delen waard is: iets afgerond, gelanceerd, een mijlpaal, nieuws van de klant. Twijfel je, dan geen extra post. Geef bij een extra post in één korte zin de reden, gericht aan {naam} ("Je rondde de nieuwe website af.").
@@ -20,6 +26,8 @@ Regels:
 - Houd je aan de tone of voice en de doelgroep van de klant. Doe niets wat onder "Niet doen" staat.
 - Schrijf in de taal van de klantkaart, standaard Nederlands.
 - Instagram: beeldend, korte alinea's, hooguit 5 hashtags aan het eind. LinkedIn: zakelijk, geen hashtags in de tekst, hooguit 3 aan het eind. X: hooguit 270 tekens.
+- Beeld: kies per post bij voorkeur een foto die bij de tekst past (photo = het nummer). Past er geen foto, kies dan een meme als die bij de toon van de klant past, met korte tekst boven en onder. Anders geen beeld. Instagram heeft altijd een beeld nodig: kies daar een foto of meme, of laat de post weg als er niets is.
+- Gebruik dezelfde foto niet twee keer in één ronde.
 - Verzin geen feiten, prijzen, data of namen die niet hierboven staan.
 - Geen uitleg, alleen de posts.
 
