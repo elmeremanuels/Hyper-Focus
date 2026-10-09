@@ -1120,6 +1120,60 @@ Focusvenster, ritme en beloning (1.12):
   - Cowork: `docs/ops.md` uitvoeren, inclusief de gesimuleerde storingen onder "Klaar als".
   - Migratienummer: na de merge met "tuin opruimen" (`0011_drop_garden`) opnieuw aangemaakt als `0012_ai_retry`.
 
+## Stap C1 — Contentmodule: klantkaart, Buffer en goedkeuring in Telegram
+
+- **Status:** klaar in de PR
+- **Datum:** 2026-10-09
+- **Besluiten van Elmer:**
+  - de module is aan en uit te zetten;
+  - de klantkaart krijgt vrije velden;
+  - een Buffer-sleutel per klant, in de app;
+  - maximaal 3 kanalen per klant;
+  - je bepaalt het ritme zelf;
+  - de statussen zijn akkoord;
+  - de Google-sleutel voor Drive komt op de VPS (C3);
+  - beelden van geslaagde posts worden aan het eind van de week verwijderd (C3).
+- **Gebouwd:**
+  - **Datamodel** (migratie `0013_content_module`):
+    - `user_settings.content_enabled`;
+    - bij `clients`: `profile` (jsonb), `socials_enabled`, `buffer_api_key_enc`, `photo_folder_url`, `memes_allowed`;
+    - nieuwe tabellen `client_channels` (ritme per kanaal) en `content_posts` (statussen van concept tot verstuurd);
+    - de enumwaarde `post_edit` voor de gespreksmodus.
+  - `src/integrations/buffer/client.ts`: de GraphQL-client voor kanalen, `createPost` (vaste tijd of wachtrij, Instagram-metadata, beeld) en `getPost`. Fouten komen terug als `BufferError`.
+  - `src/content/posts.ts`:
+    - het volgende moment uit het ritme (in de tijdzone van de gebruiker, minstens 15 minuten vooruit);
+    - het goedkeuringsbericht;
+    - *Goed*, *Aanpassen* (Claude herschrijft met de klantkaart erbij) en *Overslaan*;
+    - *Opnieuw* na een fout.
+  - De tool `draft_post` in de router: "post voor Studio Rust: …".
+  - **Dashboard:**
+    - Instellingen → *Contentmodule*;
+    - op de klantkaart de vrije velden en *Socials koppelen*, met de sleutel, *Verbind 3 kanalen*, ritme per kanaal, fotomap en memes.
+  - **Export:** de nieuwe tabellen staan erin; de Buffer-sleutel blijft eruit.
+  - `docs/content.md`: wat de module doet, de controles na de deploy, en C2 en C3.
+- **Controle:**
+  - `tests/content.test.ts`:
+    - het ritme in Amsterdam, rond de zomertijdwissel van 25 oktober, en in Makassar;
+    - de knoppen;
+    - de GraphQL-aanroepen en fouten.
+  - `tests/content.integration.test.ts`:
+    - alles verborgen als de module uit staat;
+    - vrije velden;
+    - de sleutel gecontroleerd en versleuteld;
+    - maximaal 3 kanalen;
+    - goedkeuringsbericht per kanaal;
+    - Buffer pas na *Goed*, en maar één keer;
+    - *Aanpassen*;
+    - fout met *Opnieuw*, daarna *Overslaan*;
+    - export zonder sleutel;
+    - loskoppelen.
+  - Screenshots van mobiel en desktop (klantkaart, kanaalkeuze, instellingen) zonder fouten in de console.
+  - `npm test`: 442 groen. `typecheck`, `lint` en `build` slagen ook.
+  - Twee eval-gevallen voor `draft_post`. Die draaien op de VPS.
+- **Open punten:**
+  - De live-check met een echte Buffer-sleutel (lijst in `docs/content.md`).
+  - `0013` is een gewone migratie zonder dataverlies.
+
 ## Volgende stap
 
-Cowork: P0.1 en P0.2 deployen (eerst een verse back-up, want `0011` verwijdert de tuin-tabellen), daarna `docs/ops.md`. Voor Claude Code: de privacypagina, zodra de tekst is goedgekeurd, en de feedbacknotities in de bot.
+C2: elke middag de posts voor morgen, met een eventuele extra post, als één bundel in Telegram. Voor Cowork: P0.1 en P0.2 deployen (eerst een verse back-up) en daarna `docs/ops.md`.

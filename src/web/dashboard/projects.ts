@@ -5,7 +5,9 @@ import { z } from 'zod';
 import { createTask, ESTIMATES, getTask, setTaskStatus } from '../../core/tasks.js';
 import { clients, LOOSE_TASKS_PROJECT_TITLE, projects, tasks } from '../../db/schema/index.js';
 import { getLooseTasksProject } from '../../core/projects.js';
+import { contentEnabled } from '../../content/posts.js';
 import { handle, userContext, type DashboardRoutesConfig } from './common.js';
+import { clientContent } from './content.js';
 
 const title = z.string().trim().min(1).max(200);
 const minutes = z.number().refine((m): m is (typeof ESTIMATES)[number] => (ESTIMATES as readonly number[]).includes(m));
@@ -76,14 +78,18 @@ export function projectRoutes(config: DashboardRoutesConfig): Router {
       // "Losse taken" goes last: it is the drawer, not a project you steer.
       const loose = (p: { title: string }) => p.title === LOOSE_TASKS_PROJECT_TITLE;
       const ordered = [...projectRows.filter((p) => !loose(p)), ...projectRows.filter(loose)];
+      // The content part only when the module is on (step C1).
+      const enabled = await contentEnabled(db, userId);
+      const content = enabled ? await clientContent(config, userId, clientRows.map((c) => c.id)) : new Map();
       res.set('Cache-Control', 'no-store').json({
+        contentEnabled: enabled,
         projects: ordered.map((p) => ({
           ...p,
           loose: loose(p),
           client: clientRows.find((c) => c.id === p.clientId)?.name ?? null,
           tasks: taskRows.filter((t) => t.projectId === p.id).map(({ projectId: _, ...t }) => t),
         })),
-        clients: clientRows.map((c) => ({ ...c, projects: projectRows.filter((p) => p.clientId === c.id && !loose(p)).length })),
+        clients: clientRows.map((c) => ({ ...c, projects: projectRows.filter((p) => p.clientId === c.id && !loose(p)).length, content: content.get(c.id) ?? null })),
       });
     }),
   );

@@ -4,6 +4,7 @@ import { ZodError } from 'zod';
 import type { ButtonContext } from '../../conversation/buttons.js';
 import { getProfile } from '../../core/profile.js';
 import type { ClaudeClient } from '../../ai/claude.js';
+import type { ContentDeps } from '../../content/posts.js';
 import type { Database } from '../../db/client.js';
 import type { CalendarService } from '../../integrations/calendar/service.js';
 import { LOGIN_TEXTS } from '../../texts/dashboard.nl.js';
@@ -15,6 +16,8 @@ export interface DashboardRoutesConfig {
   calendar?: CalendarService | undefined;
   /** For the assistant (step 2a.7); without it the assistant says it is off. */
   claude?: Pick<ClaudeClient, 'callWithTools'> | undefined;
+  /** Buffer and ENCRYPTION_KEY for the content module (step C1). */
+  content?: ContentDeps | undefined;
   now?: () => Date;
 }
 

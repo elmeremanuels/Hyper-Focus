@@ -38,6 +38,7 @@ const settingsPatch = z
     workDays: z.array(z.number().int().min(1).max(7)).min(1).max(7),
     workStart: time,
     workEnd: time,
+    contentEnabled: z.boolean(),
   })
   .partial();
 
@@ -85,6 +86,7 @@ export function settingsRoutes(config: DashboardRoutesConfig): Router {
         day: { morningTime: hhmm(s.morningTime), middayEnabled: s.middayEnabled, wrapupTime: hhmm(s.wrapupTime) },
         quiet: { start: hhmm(s.quietStart), end: hhmm(s.quietEnd) },
         rewardsEnabled: s.rewardsEnabled,
+        contentEnabled: s.contentEnabled,
         calendar: {
           available: Boolean(config.calendar && connectUrl(config.calendar, userId, new Date())),
           connections: connections.map((c) => ({ provider: c.provider, status: c.status, lastSyncedAt: c.lastSyncedAt })),

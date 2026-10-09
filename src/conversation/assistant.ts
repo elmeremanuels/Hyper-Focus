@@ -4,6 +4,8 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { ClaudeClient } from '../ai/claude.js';
 import { scheduledNudges } from '../db/schema/index.js';
 import type { Alert } from '../ops/alerts.js';
+import type { ContentDeps } from '../content/posts.js';
+import { CONTENT_TOOLS, contentButtons, postEditModeHandler } from './content.js';
 import { creditProblem } from '../ops/checks.js';
 import { fillPrompt, loadPrompt } from '../ai/prompts.js';
 import { getProfile, type UserProfile } from '../core/profile.js';
@@ -52,6 +54,8 @@ export interface AssistantDeps {
   modeHandlers?: Partial<Record<ConversationMode, ModeHandler>>;
   now?: () => Date;
   log?: Pick<Console, 'error' | 'warn'>;
+  /** Buffer for the content module (step C1). */
+  content?: ContentDeps | undefined;
   /** Alerts to Elmer, e.g. when the AI credit has run out (verbeterplan P0.2). */
   alert?: Alert | undefined;
 }
@@ -66,6 +70,7 @@ export const ROUTER_TOOLS: ToolDefinition[] = [
   ...WORK_WEEK_TOOLS,
   ...CALENDAR_TOOLS,
   ...WORKPLACE_TOOLS,
+  ...CONTENT_TOOLS,
   crisisTool,
 ];
 
@@ -110,6 +115,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
     reviewButtons(),
     planSessionButton(),
     workplaceButtons(),
+    contentButtons(),
     ...(deps.buttonExtensions ?? []),
   ];
   const modeHandlers: Partial<Record<ConversationMode, ModeHandler>> = {
@@ -132,6 +138,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
         }
       }),
     onboarding: (message, state, ctx) => onboardingModeHandler(message.text, state.data, ctx),
+    post_edit: postEditModeHandler,
     ...deps.modeHandlers,
   };
   const anthropicTools = toAnthropicTools(tools);
@@ -148,6 +155,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
       now: now(),
       claude: deps.claude,
       appBaseUrl: deps.appBaseUrl,
+      content: deps.content,
     };
 
     if (message.kind === 'button') {
@@ -263,7 +271,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
 /** Claude's text first with the buttons from the tools, then any fixed replies. */
 export function compose(text: string, outcomes: ToolOutcome[]): OutboundMessage[] {
   const exclusive = outcomes.find((outcome) => outcome.exclusive && outcome.reply);
-  if (exclusive?.reply) return [exclusive.reply];
+  if (exclusive?.reply) return [exclusive.reply, ...(exclusive.followUps ?? [])];
 
   const replies = outcomes.flatMap((outcome) => (outcome.reply ? [outcome.reply] : []));
   const followUps = outcomes.flatMap((outcome) => outcome.followUps ?? []);

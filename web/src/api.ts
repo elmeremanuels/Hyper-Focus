@@ -8,7 +8,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers: { accept: 'application/json', ...(init.body ? { 'content-type': 'application/json' } : {}), ...init.headers },
   });
   if (response.status === 401) throw new NotLoggedIn();
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) {
+    // The server's own short Dutch message, when there is one.
+    const body = (await response.json().catch(() => ({}))) as { error?: unknown };
+    throw new Error(typeof body.error === 'string' ? body.error : `HTTP ${response.status}`);
+  }
   return (await response.json()) as T;
 }
 
@@ -86,11 +90,38 @@ export interface Client {
   notes: string | null;
   status: 'active' | 'paused';
   projects: number;
+  /** Only when the content module is on (step C1). */
+  content: ClientContent | null;
+}
+
+export interface ClientChannel {
+  bufferChannelId: string;
+  name: string;
+  service: string;
+  days: number[];
+  time: string;
+}
+
+export interface ClientContent {
+  profile: Array<{ label: string; value: string }>;
+  socialsEnabled: boolean;
+  bufferConnected: boolean;
+  photoFolderUrl: string | null;
+  memesAllowed: boolean;
+  channels: ClientChannel[];
+}
+
+export interface BufferChannel {
+  id: string;
+  name: string;
+  service: string;
+  organization: string;
 }
 
 export interface Projects {
   projects: Project[];
   clients: Client[];
+  contentEnabled: boolean;
 }
 
 export const ESTIMATES = [5, 15, 30, 60, 120] as const;
@@ -110,6 +141,7 @@ export interface Settings {
   day: { morningTime: string; middayEnabled: boolean; wrapupTime: string };
   quiet: { start: string; end: string };
   rewardsEnabled: boolean;
+  contentEnabled: boolean;
   calendar: { available: boolean; connections: Array<{ provider: string; status: string; lastSyncedAt: string | null }>; meetingHeadsUp: boolean; meetingFollowup: boolean };
   tools: Array<{ workType: string; label: string; current: { key: string; label: string; url: string } | null; options: Array<{ key: string; label: string; needsLink: boolean }> }>;
 }

@@ -8,7 +8,9 @@ import {
   businesses,
   calendarConnections,
   calendarEvents,
+  clientChannels,
   clients,
+  contentPosts,
   dailyFocus,
   dayReviews,
   events,
@@ -30,12 +32,14 @@ import type { CalendarService } from '../integrations/calendar/service.js';
 
 /**
  * Everything stored for a user. Left out: login links and sessions (hashes only), the short-lived
- * conversation state, and encrypted calendar tokens.
+ * conversation state, and encrypted calendar tokens and Buffer keys.
  */
 const EXPORTED: PgTable[] = [
   userSettings,
   businesses,
   clients,
+  clientChannels,
+  contentPosts,
   projects,
   tasks,
   ideas,
@@ -54,7 +58,7 @@ const EXPORTED: PgTable[] = [
   events,
   aiUsage,
 ];
-const SECRET_COLUMNS = new Set(['accessTokenEnc', 'refreshTokenEnc']);
+const SECRET_COLUMNS = new Set(['accessTokenEnc', 'refreshTokenEnc', 'bufferApiKeyEnc']);
 
 export async function exportUserData(db: Database, userId: number, now: Date) {
   const [user] = await db.select().from(users).where(eq(users.id, userId));

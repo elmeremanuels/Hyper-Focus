@@ -1,5 +1,6 @@
 // Projecten & klanten (step 2a.4): lists, add and edit, and moving tasks between projects.
 import { useState, type ReactNode } from 'react';
+import { ClientContentSection } from '../components/ClientContent';
 import { ESTIMATES, patch, post, type Client, type Project, type Projects as ProjectsData, type ProjectTask } from '../api';
 import { Button } from '../components/Button';
 import { Badge, Field, FormActions, Input, Select, Textarea } from '../components/Form';
@@ -383,6 +384,7 @@ function ClientCard({ client, onChange }: { client: Client; onChange: () => Prom
         )}
       </div>
       {!editing && client.notes && <p className="mt-2 whitespace-pre-line text-sm">{client.notes}</p>}
+      {client.content && <ClientContentSection client={client} content={client.content} onChange={onChange} />}
       {editing && (
         <form className="mt-3 grid gap-3 border-t-2 border-ink/10 pt-3" onSubmit={onSubmit}>
           <Field label={t.name}>

@@ -22,6 +22,7 @@ import {
 } from '../core/tasks.js';
 import { projects } from '../db/schema/index.js';
 import { isValidDate, isValidTime, localDate, startOfLocalDate, startOfNextLocalDay } from '../lib/time.js';
+import type { ContentDeps } from '../content/posts.js';
 import type { Button, InboundSource, OutboundMessage } from './types.js';
 import { focusView, parkingMessage, SHOW_TODAY } from './views.js';
 import { weeklyToolQuestion, workplaceButton } from './workplace.js';
@@ -40,6 +41,8 @@ export interface ToolContext {
   calendar?: CalendarService | undefined;
   /** For the reward mini-app link (step 1.9). */
   appBaseUrl?: string | undefined;
+  /** Buffer for the content module (step C1). */
+  content?: ContentDeps | undefined;
 }
 
 export interface ToolOutcome {
@@ -50,7 +53,7 @@ export interface ToolOutcome {
   reply?: OutboundMessage;
   /** Extra messages after the reply, such as the weekly tool question. */
   followUps?: OutboundMessage[];
-  /** Only this reply goes out; Claude's text and other buttons are dropped. */
+  /** Only this reply (and its own follow-ups) goes out; Claude's text and other buttons are dropped. */
   exclusive?: boolean;
   buttons?: Button[];
 }

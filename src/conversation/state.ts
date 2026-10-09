@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { conversationState } from '../db/schema/index.js';
 
-export type ConversationMode = 'idle' | 'session' | 'wrapup' | 'weekly_review' | 'intake' | 'onboarding';
+export type ConversationMode = 'idle' | 'session' | 'wrapup' | 'weekly_review' | 'intake' | 'onboarding' | 'post_edit';
 
 export interface ConversationStateRow {
   mode: ConversationMode;

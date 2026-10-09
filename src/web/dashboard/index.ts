@@ -2,6 +2,7 @@
 import express, { Router } from 'express';
 import { requireSession } from '../auth/routes.js';
 import { assistantRoutes } from './assistant.js';
+import { contentRoutes } from './content.js';
 import { jsonOnly, type DashboardRoutesConfig } from './common.js';
 import { parkingRoutes } from './parking.js';
 import { projectRoutes } from './projects.js';
@@ -18,6 +19,7 @@ export function createDashboardRoutes(config: DashboardRoutesConfig): Router {
   router.use(GUARDED, requireSession(config), jsonOnly, express.json({ limit: '16kb' }));
   router.use(todayRoutes(config));
   router.use(projectRoutes(config));
+  router.use(contentRoutes(config));
   router.use(parkingRoutes(config));
   router.use(settingsRoutes(config));
   router.use(assistantRoutes(config));
