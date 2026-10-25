@@ -1249,6 +1249,25 @@ Focusvenster, ritme en beloning (1.12):
   - Elmer maakt de Google API-sleutel aan (stappen in `docs/content.md`).
   - AI-beelden blijven in `docs/later.md`.
 
+## Fix — projecten en klanten verwijderen
+
+- **Status:** klaar in de PR
+- **Datum:** 2026-10-25
+- **Gebouwd:**
+  - Elke project- en klantkaart heeft een prullenbakje. Na een tik vraagt de kaart zelf om bevestiging; pas *Verwijderen* voert het uit.
+  - `DELETE /api/projects/:id`: het project gaat weg met zijn taken. De vraag noemt het aantal open taken. *Losse taken* is niet te verwijderen.
+  - `DELETE /api/clients/:id`:
+    - de projecten blijven bestaan, zonder klant;
+    - kanalen en posts gaan mee;
+    - posts die al in Buffer klaarstaan, worden daar eerst verwijderd (`deletePost`), zodat ze niet alsnog live gaan;
+    - de foto's van de klant worden verwijderd.
+  - Opgelost: het opruimen van foto's filterde onnodig op `updated_at`, waardoor de test afhing van de datum van vandaag.
+- **Controle:**
+  - `tests/dashboard-projects.integration.test.ts`: project met taken weg; *Losse taken* en projecten van een ander geweigerd; klant weg, project zonder klant.
+  - `tests/content-bundle.integration.test.ts`: ingeplande posts worden in Buffer verwijderd.
+  - Screenshots van mobiel en desktop met de vraag op de kaart.
+  - `npm test`: 467 groen. `typecheck`, `lint` en `build` slagen ook.
+
 ## Volgende stap
 
 Contentmodule C1–C3 live zetten en de live-checks in `docs/content.md` doorlopen. Voor Cowork: P0.1 en P0.2 deployen (eerst een verse back-up) en daarna `docs/ops.md`.

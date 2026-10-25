@@ -30,6 +30,7 @@ export interface BufferApi {
   listChannels(): Promise<BufferChannel[]>;
   createPost(input: BufferPostInput): Promise<BufferPost>;
   getPost(id: string): Promise<BufferPost>;
+  deletePost(id: string): Promise<void>;
 }
 
 /** Something Buffer said no to: a bad key, a limit, an invalid post. The message is Buffer's. */
@@ -116,6 +117,14 @@ export class BufferClient implements BufferApi {
   async getPost(id: string): Promise<BufferPost> {
     const data = await this.query<{ post: RawPost }>(`query Post($id: PostId!) { post(input: { id: $id }) { ${POST_FIELDS} } }`, { id });
     return toPost(data.post);
+  }
+
+  async deletePost(id: string): Promise<void> {
+    const data = await this.query<{ deletePost: { __typename: string; message?: string } }>(
+      'mutation DeletePost($id: PostId!) { deletePost(input: { id: $id }) { __typename ... on MutationError { message } } }',
+      { id },
+    );
+    if (data.deletePost.__typename !== 'DeletePostSuccess') throw new BufferError(data.deletePost.message ?? 'Buffer kon de post niet verwijderen');
   }
 
   private async query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {

@@ -109,4 +109,30 @@ describe.skipIf(!adminUrl)('dashboard: Projecten & klanten (integration)', () =>
     const [row] = await db().select().from(clients).where(eq(clients.id, client.id));
     expect(row?.notes).toBe('Belt liever dan mailt.');
   });
+
+  it('deletes a project with its tasks, but never Losse taken or someone else’s', async () => {
+    const client = await call<{ id: number }>('POST', '/api/clients', { name: 'Weg BV' });
+    const project = await call<{ id: number }>('POST', '/api/projects', { title: 'Weg ermee', clientId: client.body.id });
+    await call('POST', `/api/projects/${project.body.id}/tasks`, { title: 'Taak een' });
+    await call('POST', `/api/projects/${project.body.id}/tasks`, { title: 'Taak twee' });
+
+    const res = await call<{ ok: boolean; tasks: number }>('DELETE', `/api/projects/${project.body.id}`);
+    expect(res).toEqual({ status: 200, body: { ok: true, tasks: 2 } });
+    expect(await db().select().from(projects).where(eq(projects.id, project.body.id))).toHaveLength(0);
+    expect(await db().select().from(tasks).where(eq(tasks.projectId, project.body.id))).toHaveLength(0);
+
+    const loose = (await overview()).projects.find((p) => p.loose)!;
+    expect((await call('DELETE', `/api/projects/${loose.id}`)).status).toBe(400);
+    expect((await call('DELETE', `/api/projects/${otherProjectId}`)).status).toBe(404);
+  });
+
+  it('deletes a client and keeps its projects, without client', async () => {
+    const client = await call<{ id: number }>('POST', '/api/clients', { name: 'Tijdelijk BV' });
+    const project = await call<{ id: number }>('POST', '/api/projects', { title: 'Blijft staan', clientId: client.body.id });
+    expect((await call('DELETE', `/api/clients/${client.body.id}`)).status).toBe(200);
+    expect((await overview()).clients.some((c) => c.id === client.body.id)).toBe(false);
+    const [row] = await db().select().from(projects).where(eq(projects.id, project.body.id));
+    expect(row?.clientId).toBeNull();
+    expect((await call('DELETE', `/api/clients/${client.body.id}`)).status).toBe(404);
+  });
 });

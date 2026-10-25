@@ -265,3 +265,28 @@ export async function reminderMessage(ctx: ContentContext, postId: number): Prom
   const message = await approvalMessage(ctx, postId);
   return { ...message, text: `${CONTENT_TEXTS.reminder}\n\n${message.text}` };
 }
+
+/**
+ * Before a client is deleted: posts already waiting in Buffer are removed there too, or they
+ * would still go live. Best effort; returns how many could not be removed.
+ */
+export async function withdrawScheduledPosts(db: Database, deps: ContentDeps | undefined, userId: number, clientId: number): Promise<number> {
+  const [client] = await db.select({ key: clients.bufferApiKeyEnc }).from(clients).where(and(eq(clients.userId, userId), eq(clients.id, clientId)));
+  const scheduled = await db
+    .select({ id: contentPosts.id, bufferPostId: contentPosts.bufferPostId })
+    .from(contentPosts)
+    .where(and(eq(contentPosts.userId, userId), eq(contentPosts.clientId, clientId), eq(contentPosts.status, 'scheduled')));
+  if (scheduled.length === 0) return 0;
+  const buffer = bufferForKey(deps, client?.key ?? null);
+  let failed = 0;
+  for (const post of scheduled) {
+    try {
+      if (!buffer || !post.bufferPostId) throw new Error('Buffer niet gekoppeld');
+      await buffer.deletePost(post.bufferPostId);
+    } catch (error) {
+      failed++;
+      console.error(`Could not withdraw Buffer post ${post.bufferPostId}:`, error);
+    }
+  }
+  return failed;
+}

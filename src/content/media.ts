@@ -3,7 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { and, eq, inArray, isNotNull, like, lt } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, like } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { contentPosts, users } from '../db/schema/index.js';
 import { downloadImage, IMAGE_TYPES } from '../integrations/drive/folder.js';
@@ -101,7 +101,7 @@ export async function cleanupWeekMedia(db: Database, config: MediaConfig, now: D
     .select({ id: contentPosts.id, mediaUrl: contentPosts.mediaUrl, dueAt: contentPosts.dueAt, updatedAt: contentPosts.updatedAt, timezone: users.timezone })
     .from(contentPosts)
     .innerJoin(users, eq(users.id, contentPosts.userId))
-    .where(and(inArray(contentPosts.status, ['sent', 'skipped']), isNotNull(contentPosts.mediaUrl), like(contentPosts.mediaUrl, '%/media/d-%'), lt(contentPosts.updatedAt, now)));
+    .where(and(inArray(contentPosts.status, ['sent', 'skipped']), isNotNull(contentPosts.mediaUrl), like(contentPosts.mediaUrl, '%/media/d-%')));
   let removed = 0;
   for (const row of rows) {
     const weekStart = localNow(row.timezone, now).startOf('week').toJSDate();
@@ -111,4 +111,13 @@ export async function cleanupWeekMedia(db: Database, config: MediaConfig, now: D
     await db.update(contentPosts).set({ mediaUrl: null }).where(eq(contentPosts.id, row.id));
   }
   return removed;
+}
+
+/** The photos of one client's posts, when the client is deleted. */
+export async function deleteClientMedia(db: Database, userId: number, clientId: number, dir: string): Promise<void> {
+  const rows = await db
+    .select({ mediaUrl: contentPosts.mediaUrl })
+    .from(contentPosts)
+    .where(and(eq(contentPosts.userId, userId), eq(contentPosts.clientId, clientId), isNotNull(contentPosts.mediaUrl)));
+  for (const row of rows) await removeFile(dir, row.mediaUrl);
 }

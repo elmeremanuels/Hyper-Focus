@@ -69,6 +69,20 @@ export const T = {
     tasksMany: 'taken',
     oneTask: '1 taak',
     min: 'min',
+    delete: 'Verwijderen',
+    deleteProject: 'Project verwijderen',
+    deleteClient: 'Klant verwijderen',
+    deleteProjectQuestion: (tasks: number) =>
+      tasks === 0 ? 'Dit project verwijderen? Dit kun je niet terugdraaien.' : `Dit project en ${tasks === 1 ? 'de open taak' : `de ${tasks} open taken`} verwijderen? Dit kun je niet terugdraaien.`,
+    deleteClientQuestion: (projects: number, socials: boolean) =>
+      [
+        'Deze klant verwijderen?',
+        projects > 0 ? `${projects === 1 ? 'Het project blijft' : 'De projecten blijven'} bestaan, zonder klant.` : null,
+        socials ? 'Gekoppelde kanalen en posts gaan mee, ook posts die al in Buffer klaarstaan.' : null,
+        'Dit kun je niet terugdraaien.',
+      ]
+        .filter(Boolean)
+        .join(' '),
     card: 'Klantkaart',
     cardIntro: 'Vul in wat Claude moet weten voor posts. Zo uitgebreid als je wilt.',
     cardEmpty: 'Nog niets ingevuld.',

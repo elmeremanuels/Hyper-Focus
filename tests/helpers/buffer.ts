@@ -7,6 +7,7 @@ export function fakeBuffer(channels: BufferChannel[] = DEFAULT_CHANNELS) {
   const posts: Array<BufferPostInput & { key: string }> = [];
   let fail: BufferError | undefined;
   const statuses = new Map<string, { status: string; error: string | null }>();
+  const deleted: string[] = [];
   const factory = (key: string): BufferApi => ({
     async listChannels() {
       if (key !== GOOD_KEY) throw new BufferError('Unauthorized', 'auth');
@@ -21,6 +22,9 @@ export function fakeBuffer(channels: BufferChannel[] = DEFAULT_CHANNELS) {
       posts.push({ ...input, key });
       return { id: `buf_${posts.length}`, status: 'scheduled', dueAt: input.dueAt?.toISOString() ?? '2026-10-20T08:00:00.000Z', error: null };
     },
+    async deletePost(id) {
+      deleted.push(id);
+    },
     async getPost(id) {
       const known = statuses.get(id) ?? { status: 'scheduled', error: null };
       return { id, dueAt: null, ...known };
@@ -29,6 +33,7 @@ export function fakeBuffer(channels: BufferChannel[] = DEFAULT_CHANNELS) {
   return {
     factory,
     posts,
+    deleted,
     setStatus(id: string, status: string, error: string | null = null) {
       statuses.set(id, { status, error });
     },
