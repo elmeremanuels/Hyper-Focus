@@ -102,7 +102,8 @@ export function fakeTelegramFetch() {
             [...init.body.entries()].map(([key, value]) => [key, typeof value === 'string' ? value : { filename: value.name, type: value.type }]),
           )
         : (JSON.parse(String(init?.body)) as Record<string, unknown>);
-    calls.push({ method, body });
+    // A photo's caption reads as its text, so tests can treat both alike (step C4).
+    calls.push({ method, body: method === 'sendPhoto' ? { ...body, text: body.caption } : body });
     if (failWith && method === 'sendMessage') {
       return new Response(
         JSON.stringify({ ok: false, error_code: failWith.code, description: failWith.description }),
@@ -110,7 +111,7 @@ export function fakeTelegramFetch() {
       );
     }
     const result =
-      method === 'sendMessage'
+      method === 'sendMessage' || method === 'sendPhoto'
         ? { message_id: ++messageId }
         : method === 'getFile'
           ? { file_id: body.file_id, file_size: 19210, file_path: 'voice/file_1.oga' }
@@ -121,7 +122,7 @@ export function fakeTelegramFetch() {
   return {
     fetchImpl: fetchImpl as typeof fetch,
     calls,
-    sent: () => calls.filter((call) => call.method === 'sendMessage'),
+    sent: () => calls.filter((call) => call.method === 'sendMessage' || call.method === 'sendPhoto'),
     failSendWith(code: number, description: string) {
       failWith = { code, description };
     },

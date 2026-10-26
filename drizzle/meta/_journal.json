@@ -106,6 +106,13 @@
       "when": 1791517510981,
       "tag": "0014_content_bundle",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792992364406,
+      "tag": "0015_content_images",
+      "breakpoints": true
     }
   ]
 }

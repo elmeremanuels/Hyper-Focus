@@ -75,6 +75,8 @@ export const conversationMode = pgEnum('conversation_mode', [
   'intake',
   'onboarding',
   'post_edit',
+  // Content module (step C4): the next message or photo is about a post's image
+  'post_image',
 ]);
 
 /** Kinds of work a workplace link can open (step 1.10). */
@@ -103,4 +105,4 @@ export const contentPostStatus = pgEnum('content_post_status', [
   'skipped',
 ]);
 /** Where a post's image comes from (step C3). */
-export const contentMediaSource = pgEnum('content_media_source', ['drive', 'meme', 'generated', 'none']);
+export const contentMediaSource = pgEnum('content_media_source', ['drive', 'meme', 'generated', 'none', 'pexels', 'ai', 'upload', 'edit', 'textcard']);

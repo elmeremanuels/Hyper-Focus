@@ -45,6 +45,7 @@ export const TEXTS = {
   voice: 'Spraakberichten lees ik nu niet. Wil je het typen?',
   voiceTooLong: 'Dat spraakbericht is langer dan 5 minuten. Stuur je het in kortere stukken?',
   voiceFailed: 'Dat spraakbericht kon ik niet verstaan. Probeer het nog eens of typ het.',
+  photoFailed: 'Die foto kon ik niet ophalen. Is hij kleiner dan 8 MB? Probeer het nog eens.',
   unsupported: 'Dit soort bericht lees ik nog niet. Stuur tekst of tik op een knop.',
 } as const;
 
@@ -207,6 +208,17 @@ export function createTelegramProcessor(deps: TelegramProcessorDeps) {
         inbound = { kind: 'text', userId: user.id, text, source: 'voice' };
         break;
       }
+      case 'photo': {
+        // Kept in memory only; stored on disk only when it becomes a post's image (step C4).
+        try {
+          const image = await deps.client.downloadFile(content.fileId, 8 * 1024 * 1024);
+          inbound = { kind: 'photo', userId: user.id, image, caption: content.caption, source: 'telegram' };
+        } catch (error) {
+          log.error('Photo download failed:', error);
+          return [{ text: TEXTS.photoFailed }];
+        }
+        break;
+      }
       case 'unsupported':
         return [{ text: TEXTS.unsupported }];
     }
@@ -268,6 +280,8 @@ function bodyOf(update: TelegramUpdate): string | null {
       return `/${update.content.command}`;
     case 'button':
       return update.content.buttonId;
+    case 'photo':
+      return update.content.caption ? `[foto] ${update.content.caption}` : '[foto]';
     default:
       return null;
   }

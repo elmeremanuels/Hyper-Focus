@@ -14,6 +14,7 @@ import { localNow, localTimeOnDate } from '../lib/time.js';
 import { CONTENT_TEXTS, POST_STATUS_LABELS } from '../texts/content.nl.js';
 import type { OutboundMessage } from '../conversation/types.js';
 import type { MediaConfig } from './media.js';
+import { chosenImage } from './images/propose.js';
 
 export interface ContentDeps {
   /** ENCRYPTION_KEY: Buffer keys are stored encrypted per client. */
@@ -82,11 +83,18 @@ export function bufferForKey(deps: ContentDeps | undefined, encrypted: string | 
   return (deps.buffer ?? ((k) => new BufferClient(k)))(key);
 }
 
-const postButtons = (id: number, retry = false) => [
+const postButtons = (id: number, retry = false, hasImage = false) => [
   { id: `cp:${id}:ok`, title: retry ? CONTENT_TEXTS.retry : CONTENT_TEXTS.ok },
   { id: `cp:${id}:edit`, title: CONTENT_TEXTS.edit },
   { id: `cp:${id}:skip`, title: CONTENT_TEXTS.skip },
+  ...(hasImage ? [{ id: `ci:${id}:next`, title: CONTENT_TEXTS.otherImage }] : []),
+  { id: `ci:${id}:menu`, title: CONTENT_TEXTS.imageMenu },
 ];
+
+/** Networks that do not take a post without an image. */
+const NEEDS_IMAGE = new Set(['instagram', 'pinterest', 'tiktok', 'youtube']);
+/** Networks where Buffer can label a post as AI-made. */
+export const AI_LABEL = new Set(['instagram', 'twitter', 'tiktok', 'youtube']);
 
 async function loadPost(db: Database, userId: number, postId: number) {
   const [row] = await db
@@ -98,21 +106,22 @@ async function loadPost(db: Database, userId: number, postId: number) {
   return row;
 }
 
-/** The approval message: who, where, when, the text, and the three buttons. */
+/** The approval message: the image as a photo, who, where, when, the text, and the buttons. */
 export async function approvalMessage(ctx: ContentContext, postId: number): Promise<OutboundMessage> {
   const row = await loadPost(ctx.db, ctx.userId, postId);
   if (!row) return { text: CONTENT_TEXTS.notFound };
   const { post, channel, client } = row;
   const due = post.dueAt ?? nextSlot(channel.days, channel.postTime, ctx.timezone, ctx.now);
+  const credit = post.mediaUrl ? await chosenImage(ctx, post.id) : undefined;
   const lines = [
     CONTENT_TEXTS.header(client.name, channel.name, channel.service),
     due ? CONTENT_TEXTS.when(describeSlot(ctx.timezone, due)) : CONTENT_TEXTS.queue,
     ...(post.reason ? [post.reason] : []),
-    ...(post.mediaUrl ? [CONTENT_TEXTS.image(post.mediaUrl)] : []),
+    ...(post.mediaUrl ? [CONTENT_TEXTS.imageLine(credit?.credit ?? null, credit?.creditUrl ?? null)] : [CONTENT_TEXTS.noImage]),
     '',
     post.text,
   ];
-  return { text: lines.join('\n'), buttons: postButtons(post.id, post.status === 'failed') };
+  return { text: lines.join('\n'), buttons: postButtons(post.id, post.status === 'failed', Boolean(post.mediaUrl)), ...(post.mediaUrl && { photo: post.mediaUrl }) };
 }
 
 /** New posts for a client, one per channel (or only the given one), each waiting for approval. */
@@ -160,11 +169,16 @@ export async function approvePost(ctx: ContentContext, postId: number): Promise<
     await ctx.db.update(contentPosts).set({ status: 'skipped', error: 'Niet op tijd goedgekeurd' }).where(where);
     return { text: CONTENT_TEXTS.tooLate };
   }
+  // Instagram and co. refuse a post without an image (step C4).
+  if (NEEDS_IMAGE.has(channel.service) && !post.mediaUrl) {
+    return { text: CONTENT_TEXTS.needsImage(channel.name), buttons: [{ id: `ci:${post.id}:menu`, title: CONTENT_TEXTS.imageMenu }] };
+  }
   const soon = post.dueAt && post.dueAt.getTime() < ctx.now.getTime() + LAST_MINUTE_MS;
   const dueAt = soon ? new Date(ctx.now.getTime() + LAST_MINUTE_MS) : post.dueAt;
   await ctx.db.update(contentPosts).set({ status: 'approved', approvedAt: ctx.now, dueAt, error: null }).where(where);
   try {
-    const created = await buffer.createPost({ channelId: channel.bufferChannelId, service: channel.service, text: post.text, dueAt, imageUrl: post.mediaUrl });
+    const aiGenerated = post.mediaSource === 'ai' || post.mediaSource === 'edit';
+    const created = await buffer.createPost({ channelId: channel.bufferChannelId, service: channel.service, text: post.text, dueAt, imageUrl: post.mediaUrl, aiGenerated });
     const planned = created.dueAt ? new Date(created.dueAt) : dueAt;
     await ctx.db.update(contentPosts).set({ status: 'scheduled', bufferPostId: created.id, dueAt: planned }).where(where);
     return { text: planned ? CONTENT_TEXTS.scheduled(describeSlot(ctx.timezone, planned), channel.name) : CONTENT_TEXTS.scheduledQueue(channel.name) };

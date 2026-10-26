@@ -131,7 +131,7 @@ describe('Telegram processor', () => {
   it('answers voice and unsupported messages', async () => {
     const { telegram, process } = setup();
     await process(fixture('telegram', 'voice'));
-    await process(fixture('telegram', 'photo'));
+    await process(fixture('telegram', 'sticker'));
     expect(telegram.sent().map((call) => call.body.text)).toEqual([TEXTS.voice, TEXTS.unsupported]);
   });
 
