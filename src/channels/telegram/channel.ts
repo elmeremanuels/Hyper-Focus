@@ -4,6 +4,9 @@ import { ChannelUnavailableError, type Channel, type ChannelUser, type SendConte
 import { TelegramApiError, type TelegramClient } from './client.js';
 import { splitText, toInlineKeyboard } from './keyboard.js';
 
+/** Telegram's limit for a photo caption. */
+const CAPTION_MAX = 1024;
+
 /** Sends messages through the Telegram bot and stores every outgoing message. */
 export class TelegramChannel implements Channel {
   readonly name = 'telegram' as const;
@@ -20,10 +23,24 @@ export class TelegramChannel implements Channel {
     }
 
     const keyboard = toInlineKeyboard(message);
-    const parts = splitText(message.text);
     const type = keyboard ? 'button' : 'text';
 
     try {
+      // A photo first (step C4): with the text as caption when it fits, else the text after it.
+      let text = message.text;
+      if (message.photo) {
+        const fits = text.length <= CAPTION_MAX;
+        try {
+          const { messageId } = await this.client.sendPhoto(chatId, message.photo, fits ? text : undefined, fits ? keyboard : undefined, { silent: Boolean(context.silent) });
+          await this.store.recordOutbound({ userId: user.id, channel: 'telegram', externalId: `m:${chatId}:${messageId}`, type, body: fits ? text : `[foto] ${message.photo}`, deliveryStatus: 'sent' });
+          if (fits) return;
+        } catch (error) {
+          // Telegram could not fetch the image: the link goes in the text instead.
+          if (!(error instanceof TelegramApiError) || error.chatUnreachable) throw error;
+          text = `${text}\n\nBeeld: ${message.photo}`;
+        }
+      }
+      const parts = splitText(text);
       for (const [index, part] of parts.entries()) {
         // Buttons go under the last part.
         const markup = index === parts.length - 1 ? keyboard : undefined;

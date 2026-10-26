@@ -1,5 +1,6 @@
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import sharp from 'sharp';
 import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -19,14 +20,15 @@ import { adminUrl, useTestDatabase } from './helpers/testdb.js';
 const ENCRYPTION_KEY = 'test-encryption-key-for-content';
 const FOLDER = 'https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQ?usp=sharing';
 const MONDAY_17 = new Date('2026-10-12T15:00:00Z');
-const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
+// A real 1600×1200 photo, so sharp can cut it to the network's format.
+const JPEG = await sharp({ create: { width: 1600, height: 1200, channels: 3, background: '#88aacc' } }).jpeg().toBuffer();
 
 /** A fake Drive API: two photos and a PDF in the folder, every download a tiny JPEG. */
 function fakeDrive() {
   const requests: string[] = [];
   const fetchImpl = (async (url: string) => {
     requests.push(String(url));
-    if (String(url).includes('alt=media')) return new Response(JPEG, { headers: { 'content-type': 'image/jpeg' } });
+    if (String(url).includes('alt=media')) return new Response(new Uint8Array(JPEG), { headers: { 'content-type': 'image/jpeg' } });
     return Response.json({
       files: [
         { id: 'photoBeach01', name: 'strand-ademsessie.jpg', description: 'Groep op het strand', mimeType: 'image/jpeg', size: '2000' },
@@ -94,15 +96,17 @@ describe.skipIf(!adminUrl)('content images, status and cleanup (integration)', {
     expect(extra).toMatchObject({ mediaSource: 'meme', mediaUrl: 'https://api.memegen.link/images/drake/Mailen_op_maandag/Ademen_op_maandag~q.jpg' });
 
     const file = ig!.mediaUrl!.split('/media/')[1]!;
-    expect(readFileSync(join(dir, file))).toEqual(JPEG);
+    // Cut to Instagram's 4:5 portrait.
+    expect(await sharp(readFileSync(join(dir, file))).metadata()).toMatchObject({ format: 'jpeg', width: 1080, height: 1350 });
     const approval = await approvalMessage({ db: db(), userId: t.userId, timezone: 'Europe/Amsterdam', now: MONDAY_17 }, ig!.id);
-    expect(approval.text).toContain(`Beeld: ${ig!.mediaUrl}`);
+    expect(approval.text).toContain('Beeld: Foto uit je map');
+    expect(approval.photo).toBe(ig!.mediaUrl);
 
     const s = await startServer(createApp({ mediaDir: dir }));
     try {
       const res = await fetch(`${s.baseUrl}/media/${file}`);
       expect(res.status).toBe(200);
-      expect(Buffer.from(await res.arrayBuffer())).toEqual(JPEG);
+      expect(Buffer.from(await res.arrayBuffer())).toEqual(readFileSync(join(dir, file)));
       expect((await fetch(`${s.baseUrl}/media/bestaat-niet.jpg`)).status).toBe(404);
       expect((await fetch(`${s.baseUrl}/media/..%2F..%2Fetc%2Fpasswd`)).status).toBe(403);
     } finally {
@@ -118,7 +122,10 @@ describe.skipIf(!adminUrl)('content images, status and cleanup (integration)', {
     ]);
     await plan(claude, new Date('2026-10-13T15:00:00Z'));
     expect(claude.callWithTools.mock.calls[0]?.[0].system).toContain('(geen memes)');
-    expect((await posts()).at(-1)).toMatchObject({ mediaSource: 'none', mediaUrl: null });
+    // No meme; the client's own sources step in instead (step C4).
+    const last = (await posts()).at(-1);
+    expect(last?.mediaSource).not.toBe('meme');
+    expect(last?.mediaUrl ?? '').not.toContain('memegen');
   });
 
   it('marks posts as sent, and reports a failure with Buffer’s reason', async () => {

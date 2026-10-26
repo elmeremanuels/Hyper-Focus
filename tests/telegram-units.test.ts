@@ -92,7 +92,9 @@ describe('parseUpdate', () => {
       fileId: 'AwACAgQAAxkBAAIB',
       durationSeconds: 12,
     });
-    expect(parseUpdate(fixture('telegram', 'photo'))?.content).toEqual({ kind: 'unsupported' });
+    // A photo is the image of a post (step C4); a sticker stays unsupported.
+    expect(parseUpdate(fixture('telegram', 'photo'))?.content).toEqual({ kind: 'photo', fileId: 'x', caption: undefined });
+    expect(parseUpdate(fixture('telegram', 'sticker'))?.content).toEqual({ kind: 'unsupported' });
   });
 
   it('ignores group chats and malformed updates', () => {

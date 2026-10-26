@@ -17,6 +17,8 @@ export interface BufferPostInput {
   /** UTC; without it the post goes into the channel's own Buffer queue. */
   dueAt?: Date | null | undefined;
   imageUrl?: string | null | undefined;
+  /** An AI-made or AI-edited image: Buffer labels the post where the network supports it. */
+  aiGenerated?: boolean | undefined;
 }
 
 export interface BufferPost {
@@ -55,9 +57,10 @@ const CREATE_POST = `mutation CreatePost($input: CreatePostInput!) {
 }`;
 
 // Some networks need their post type spelled out; the rest take the defaults.
-function metadataFor(service: string): Record<string, unknown> | undefined {
-  if (service === 'instagram') return { instagram: { type: 'post', shouldShareToFeed: true } };
+function metadataFor(service: string, aiGenerated = false): Record<string, unknown> | undefined {
+  if (service === 'instagram') return { instagram: { type: 'post', shouldShareToFeed: true, ...(aiGenerated && { isAiGenerated: true }) } };
   if (service === 'facebook') return { facebook: { type: 'post' } };
+  if (aiGenerated && (service === 'twitter' || service === 'tiktok' || service === 'youtube')) return { [service]: { isAiGenerated: true } };
   return undefined;
 }
 
@@ -92,7 +95,7 @@ export class BufferClient implements BufferApi {
   }
 
   async createPost(input: BufferPostInput): Promise<BufferPost> {
-    const metadata = metadataFor(input.service);
+    const metadata = metadataFor(input.service, input.aiGenerated);
     const variables = {
       input: {
         channelId: input.channelId,

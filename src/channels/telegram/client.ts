@@ -90,6 +90,24 @@ export class TelegramClient {
     return Buffer.from(await response.arrayBuffer());
   }
 
+  /** A photo by URL (Telegram fetches it), with a caption of at most 1024 characters. */
+  async sendPhoto(
+    chatId: number,
+    url: string,
+    caption: string | undefined,
+    replyMarkup?: InlineKeyboardMarkup,
+    options: { silent?: boolean } = {},
+  ): Promise<{ messageId: number }> {
+    const result = await this.call<{ message_id: number }>('sendPhoto', {
+      chat_id: chatId,
+      photo: url,
+      ...(caption && { caption }),
+      ...(options.silent && { disable_notification: true }),
+      ...(replyMarkup && { reply_markup: replyMarkup }),
+    });
+    return { messageId: result.message_id };
+  }
+
   /** Sends a file, for example an .ics file the user taps to add to their calendar. */
   async sendDocument(
     chatId: number,

@@ -87,6 +87,14 @@ export const clients = pgTable(
     /** A public Google Drive folder with photos (step C3). */
     photoFolderUrl: text('photo_folder_url'),
     memesAllowed: boolean('memes_allowed').notNull().default(true),
+    /** Image sources in the order they are proposed (step C4): drive, pexels, meme, textcard, ai. */
+    imageSources: text('image_sources').array().notNull().default(sql`ARRAY['drive','pexels','textcard']::text[]`),
+    /** How images should look, for AI and Pexels ("rustig, natuurlijk licht"). */
+    imageStyle: text('image_style'),
+    /** House style for text cards: background and text colour as #rrggbb. */
+    brandColors: text('brand_colors').array().notNull().default(sql`ARRAY[]::text[]`),
+    /** The client's logo, stored under MEDIA_DIR. */
+    logoUrl: text('logo_url'),
     ...timestamps,
   },
   (table) => [index('clients_user_idx').on(table.userId)],

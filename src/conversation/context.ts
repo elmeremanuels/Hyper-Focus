@@ -1,7 +1,7 @@
 // Context for Claude, at most about 3,000 tokens (BOUWPLAN.md, 10.3).
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
-import { messages } from '../db/schema/index.js';
+import { clientChannels, clients, contentPosts, messages } from '../db/schema/index.js';
 import { listActiveClients } from '../core/clients.js';
 import { getProfile } from '../core/profile.js';
 import { listActiveProjects } from '../core/projects.js';
@@ -42,6 +42,8 @@ export interface ContextData {
   session: { taskId: number; stepId: number; stepTitle: string } | null;
   /** Oldest first. */
   recentMessages: Array<{ direction: 'in' | 'out'; body: string }>;
+  /** Social posts waiting for approval (step C4), so image wishes find their post. */
+  pendingPosts?: Array<{ id: number; client: string; channel: string; text: string }>;
 }
 
 export const MAX_CONTEXT_CHARS = 12_000; // roughly 3,000 tokens
@@ -103,11 +105,24 @@ export async function loadContext(db: Database, userId: number, now: Date): Prom
       status: suggestion.status,
     })),
     session: await sessionInfo(db, userId, state),
+    pendingPosts: await pendingPosts(db, userId),
     recentMessages: messageRows
       .reverse()
       .map((message) => ({ direction: message.direction, body: message.transcript ?? message.body ?? '' }))
       .filter((message) => message.body.length > 0),
   };
+}
+
+async function pendingPosts(db: Database, userId: number): Promise<NonNullable<ContextData['pendingPosts']>> {
+  const rows = await db
+    .select({ id: contentPosts.id, client: clients.name, channel: clientChannels.service, text: contentPosts.text })
+    .from(contentPosts)
+    .innerJoin(clients, eq(clients.id, contentPosts.clientId))
+    .innerJoin(clientChannels, eq(clientChannels.id, contentPosts.channelId))
+    .where(and(eq(contentPosts.userId, userId), inArray(contentPosts.status, ['pending_approval', 'failed'])))
+    .orderBy(desc(contentPosts.updatedAt))
+    .limit(5);
+  return rows;
 }
 
 async function sessionInfo(
@@ -145,6 +160,9 @@ export function renderContext(data: ContextData): string {
     `Klanten (contactpersoon): ${data.clients.join(', ') || '(geen)'}`,
     ...(data.session
       ? ['', `Lopende sessie: taak #${data.session.taskId}, stap #${data.session.stepId} "${data.session.stepTitle}".`]
+      : []),
+    ...(data.pendingPosts?.length
+      ? ['', 'Posts die op akkoord wachten (nieuwste eerst):', ...data.pendingPosts.map((p) => `- post ${p.id} · ${p.client} · ${p.channel}: ${truncate(p.text.replace(/\n/g, ' '), 80)}`)]
       : []),
     ...(data.suggestions.length
       ? ['', 'Open suggesties:', ...data.suggestions.map((s) => `- #${s.id} ${s.title} (${s.status})`)]

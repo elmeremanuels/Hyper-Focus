@@ -17,6 +17,7 @@ import type { OutboundMessage } from '../conversation/types.js';
 import { listFolderImages, parseFolderId, type DriveImage } from '../integrations/drive/folder.js';
 import { driveIdFromUrl, MEME_TEMPLATES, memeUrl, storeDrivePhoto, type MediaConfig } from './media.js';
 import { approvalMessage, describeSlot, LEAD_MINUTES, scheduleReminders } from './posts.js';
+import { autoPropose, recordChosen } from './images/propose.js';
 
 export const CONTENT_BUNDLE_TIME = '17:00';
 const WEEK_MS = 7 * 24 * 3_600_000;
@@ -151,11 +152,11 @@ async function photosFor(media: MediaConfig | undefined, folderUrl: string | nul
 }
 
 /** The image URL for Claude's choice; a failed download means a post without image. */
-async function resolveImage(media: MediaConfig | undefined, choice: ImageChoice, photos: DriveImage[], memesAllowed: boolean): Promise<Pick<typeof contentPosts.$inferInsert, 'mediaUrl' | 'mediaSource'>> {
+async function resolveImage(media: MediaConfig | undefined, choice: ImageChoice, photos: DriveImage[], memesAllowed: boolean, service: string): Promise<Pick<typeof contentPosts.$inferInsert, 'mediaUrl' | 'mediaSource'>> {
   const photo = choice.photo ? photos[choice.photo - 1] : undefined;
   if (photo && media) {
     try {
-      return { mediaUrl: await storeDrivePhoto(media, photo.id), mediaSource: 'drive' };
+      return { mediaUrl: await storeDrivePhoto(media, photo.id, service), mediaSource: 'drive' };
     } catch (error) {
       console.error(`Drive photo ${photo.id} failed:`, error);
     }
@@ -236,7 +237,7 @@ export async function planBundle(ctx: BundleContext): Promise<number[]> {
     for (const post of parsed.data.posts) {
       const slot = slots[post.moment - 1];
       if (!slot || values.some((v) => v.channelId === slot.channel.id && v.dueAt?.getTime() === slot.dueAt.getTime())) continue;
-      const media = await resolveImage(ctx.media, post, photos, client.memesAllowed);
+      const media = await resolveImage(ctx.media, post, photos, client.memesAllowed, slot.channel.service);
       values.push({ userId, clientId: client.id, channelId: slot.channel.id, text: post.text.trim(), dueAt: slot.dueAt, status: 'pending_approval', ...media });
     }
     const extra = parsed.data.extra;
@@ -245,12 +246,21 @@ export async function planBundle(ctx: BundleContext): Promise<number[]> {
       // The extra post goes out tomorrow at the channel's own time.
       const at = localTimeOnDate(timezone, dates[0], extraChannel.postTime);
       const dueAt = values.some((v) => v.channelId === extraChannel.id && v.dueAt?.getTime() === at.getTime()) ? new Date(at.getTime() + 3 * 3_600_000) : at;
-      const media = await resolveImage(ctx.media, extra, photos, client.memesAllowed);
+      const media = await resolveImage(ctx.media, extra, photos, client.memesAllowed, extraChannel.service);
       values.push({ userId, clientId: client.id, channelId: extraChannel.id, text: extra.text.trim(), dueAt, reason: CONTENT_TEXTS.extraReason(extra.reason.trim()), status: 'pending_approval', ...media });
     }
     if (values.length === 0) continue;
-    const inserted = await db.insert(contentPosts).values(values).returning({ id: contentPosts.id, dueAt: contentPosts.dueAt });
+    const inserted = await db
+      .insert(contentPosts)
+      .values(values)
+      .returning({ id: contentPosts.id, dueAt: contentPosts.dueAt, mediaUrl: contentPosts.mediaUrl, mediaSource: contentPosts.mediaSource });
     await scheduleReminders(db, userId, inserted, now);
+    // Every post gets an image (step C4): the planner's own pick is recorded, else the client's sources.
+    const imageCtx = { db, userId, timezone, now, claude: ctx.claude, content: { media: ctx.media } };
+    for (const post of inserted) {
+      if (post.mediaUrl) await recordChosen(imageCtx, post.id, post.mediaUrl, post.mediaSource === 'meme' ? 'meme' : 'drive', post.mediaSource === 'meme' ? 'Meme via memegen.link' : 'Foto uit je map', driveIdFromUrl(post.mediaUrl));
+      else if (ctx.media) await autoPropose(imageCtx, post.id);
+    }
     created.push(...inserted.map((r) => r.id));
   }
   return created;

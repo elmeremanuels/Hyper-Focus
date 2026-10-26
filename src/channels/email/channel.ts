@@ -35,7 +35,9 @@ export class EmailChannel implements Channel {
         : undefined;
 
     const subject = context.subject ?? DEFAULT_SUBJECT;
-    const { text, html } = renderMessageMail(message, linkFor);
+    // A photo goes along as a link (step C4).
+    const withPhoto = message.photo ? { ...message, text: `${message.text}\n\nBeeld: ${message.photo}` } : message;
+    const { text, html } = renderMessageMail(withPhoto, linkFor);
     const { messageId } = await this.sender.send({
       to: user.email,
       subject,

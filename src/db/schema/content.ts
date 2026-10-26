@@ -1,5 +1,5 @@
 // Content module (step C1): Buffer channels per client and the posts that go to them.
-import { index, integer, pgTable, smallint, text, time, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, smallint, text, time, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { id, timestamps, userId } from './common.js';
 import { contentMediaSource, contentPostStatus } from './enums.js';
@@ -52,4 +52,32 @@ export const contentPosts = pgTable(
     ...timestamps,
   },
   (table) => [index('content_posts_user_status_idx').on(table.userId, table.status)],
+);
+
+/** Image proposals for a post (step C4): every source tried, one of them chosen. */
+export const contentPostImages = pgTable(
+  'content_post_images',
+  {
+    id: id(),
+    userId: userId(),
+    postId: integer('post_id')
+      .notNull()
+      .references(() => contentPosts.id, { onDelete: 'cascade' }),
+    source: contentMediaSource('source').notNull(),
+    /** Our own copy under /media, once chosen or made; external for memes. */
+    url: text('url'),
+    /** Where it came from before it was copied, e.g. the Pexels file. */
+    sourceUrl: text('source_url'),
+    /** The search term, AI prompt or instruction that produced it. */
+    prompt: text('prompt'),
+    /** "Foto: Naam via Pexels", shown with the proposal. */
+    credit: text('credit'),
+    creditUrl: text('credit_url'),
+    costCents: integer('cost_cents').notNull().default(0),
+    chosen: boolean('chosen').notNull().default(false),
+    /** Already shown to the user; "Ander voorstel" skips it. */
+    shown: boolean('shown').notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [index('content_post_images_post_idx').on(table.postId)],
 );

@@ -31,7 +31,11 @@ export function buildServices(env: Env, db: Database) {
   const alert = buildAlerter(env, telegramClient, sender);
   // Content module (step C1): Buffer keys per client, encrypted with ENCRYPTION_KEY.
   // Photos (step C3) are served from APP_BASE_URL/media.
-  const media = env.APP_BASE_URL ? { dir: resolve(env.MEDIA_DIR ?? 'media'), baseUrl: env.APP_BASE_URL, googleApiKey: env.GOOGLE_API_KEY } : undefined;
+  // Stock photos and AI images (step C4): each only with its key; AI also needs the model name.
+  const openai = env.OPENAI_API_KEY && env.OPENAI_IMAGE_MODEL ? { apiKey: env.OPENAI_API_KEY, model: env.OPENAI_IMAGE_MODEL, costCents: env.OPENAI_IMAGE_COST_CENTS } : undefined;
+  const media = env.APP_BASE_URL
+    ? { dir: resolve(env.MEDIA_DIR ?? 'media'), baseUrl: env.APP_BASE_URL, googleApiKey: env.GOOGLE_API_KEY, pexelsApiKey: env.PEXELS_API_KEY, openai }
+    : undefined;
   const content = { encryptionKey: env.ENCRYPTION_KEY, media };
   const router = createAssistantRouter({ db, claude, calendar, appBaseUrl: env.APP_BASE_URL, dashboardBaseUrl: env.DASHBOARD_BASE_URL, alert, content });
   const isQuiet = (userId: number) => isFocusQuiet(db, userId, new Date());

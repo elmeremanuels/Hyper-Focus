@@ -12,11 +12,14 @@ import { todayRoutes } from './today.js';
 export type { DashboardRoutesConfig };
 
 /** Every path of the dashboard API; /api/battery and /api/focus-log check their own sign-in. */
-const GUARDED = ['/api/today', '/api/tasks', '/api/window', '/api/projects', '/api/clients', '/api/parking', '/api/ideas', '/api/settings', '/api/export', '/api/account', '/api/assistant'];
+const GUARDED = ['/api/logo', '/api/today', '/api/tasks', '/api/window', '/api/projects', '/api/clients', '/api/parking', '/api/ideas', '/api/settings', '/api/export', '/api/account', '/api/assistant'];
 
 export function createDashboardRoutes(config: DashboardRoutesConfig): Router {
   const router = Router();
-  router.use(GUARDED, requireSession(config), jsonOnly, express.json({ limit: '16kb' }));
+  // The logo upload parses its own (larger) body; every other path stays at 16 kB.
+  router.use(GUARDED, requireSession(config), jsonOnly);
+  const json = express.json({ limit: '16kb' });
+  router.use(GUARDED, (req, res, next) => (req.originalUrl.startsWith('/api/logo/') && req.method === 'PUT' ? next() : json(req, res, next)));
   router.use(todayRoutes(config));
   router.use(projectRoutes(config));
   router.use(contentRoutes(config));
