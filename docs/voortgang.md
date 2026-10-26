@@ -1268,6 +1268,57 @@ Focusvenster, ritme en beloning (1.12):
   - Screenshots van mobiel en desktop met de vraag op de kaart.
   - `npm test`: 467 groen. `typecheck`, `lint` en `build` slagen ook.
 
+## Stap C4 — Contentmodule: beeld uit zes bronnen
+
+- **Status:** klaar in de PR
+- **Datum:** 2026-10-26
+- **Aanleiding:** de bot legde een beeldwens vast als notitie bij taak #28, omdat beeld alleen in de middagbundel bestond en niet te zien of te wisselen was.
+- **Besluiten:**
+  - AI-beelden via OpenAI (`OPENAI_IMAGE_MODEL`), alleen op verzoek, of automatisch als de klant AI in de bronnen zet;
+  - een budget van €10 per maand, instelbaar;
+  - Pexels als stockbron;
+  - het dashboardoverzicht (C4e) komt later.
+- **Gebouwd:**
+  - **Datamodel** (migratie `0015_content_images`):
+    - nieuwe tabel `content_post_images` met alle voorstellen, waarvan één gekozen;
+    - bij `clients`: `image_sources`, `image_style`, `brand_colors`, `logo_url`;
+    - `user_settings.ai_image_budget_cents`;
+    - nieuwe bronwaarden en de gespreksmodus `post_image`.
+  - `src/content/images/propose.ts`:
+    - voorstellen per bron (Drive, Pexels, meme, tekstkaart, AI), elk met een korte opdracht aan Claude;
+    - *Ander beeld*, automatisch voorstellen in de volgorde van de klant;
+    - eigen foto, met of zonder AI-bewerking (het logo gaat mee als de opdracht het noemt);
+    - het budget.
+  - `src/content/images/textcard.ts`: een tekstkaart via SVG en `sharp`.
+  - **Media:** alles als JPEG en bijgesneden per kanaal; een logo als PNG. Opruimen en verwijderen nemen voorstellen en logo mee.
+  - **Telegram:**
+    - `sendPhoto` met bijschrift (lange tekst eronder; als Telegram het beeld niet kan ophalen, komt de link in de tekst);
+    - foto's ontvangen (ook als bestand);
+    - knoppen *Ander beeld* en *Beeld…* met een menu;
+    - modus `post_image` voor *Eigen foto* en *Beschrijf zelf*.
+  - **Router:** de tool `post_image` en de wachtende posts in de context, met een promptregel dat een beeldwens nooit een taak of notitie wordt.
+  - **Goedkeuren:** Instagram, Pinterest, TikTok en YouTube vragen eerst om een beeld; AI-beelden krijgen in Buffer het label `isAiGenerated`.
+  - **Dashboard:** op de klantkaart de bronnen in volgorde (met wat beschikbaar is), de beeldstijl, twee kleuren en het logo (`/api/logo/:id`, eigen limiet van 4 MB). In Instellingen het AI-budget.
+  - **Env:** `PEXELS_API_KEY`, `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_COST_CENTS`. **Nieuwe dependency:** `sharp`.
+- **Controle:**
+  - `tests/content-images.integration.test.ts`, met nep-Pexels en nep-OpenAI:
+    - menu;
+    - Pexels, bijgesneden naar 1080×1350, met fotograaf en paginering;
+    - tekstkaart in de huisstijl;
+    - AI-beeld met budget en melding bij 80%;
+    - eigen foto en bewerking met logo;
+    - AI-label naar Buffer;
+    - beeldwens via `post_image`, zonder taak of idee;
+    - zonder beeld bij Instagram;
+    - een foto met "post voor …".
+  - `tests/telegram-photo.test.ts`: bijschrift, lange tekst, terugval naar een link.
+  - `tests/content-settings.integration.test.ts`: bronnen, stijl, kleuren, logo en budget.
+  - De C1- tot en met C3-tests zijn bijgewerkt: de beeldregel in het bericht, en Instagram met beeld.
+  - `npm test`: 483 groen. `typecheck`, `lint` en `build` slagen ook. Screenshots van het dashboard zonder fouten.
+- **Open punten:**
+  - De live-check met echte sleutels (lijst in `docs/content.md`).
+  - De echte prijs per AI-beeld nalopen en `OPENAI_IMAGE_COST_CENTS` daarop zetten.
+
 ## Volgende stap
 
 Contentmodule C1–C3 live zetten en de live-checks in `docs/content.md` doorlopen. Voor Cowork: P0.1 en P0.2 deployen (eerst een verse back-up) en daarna `docs/ops.md`.

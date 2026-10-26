@@ -55,6 +55,15 @@ export async function storeImage(config: MediaConfig, prefix: string, bytes: Buf
   return new URL(`/media/${file}`, config.baseUrl).toString();
 }
 
+/** A client's logo: PNG with transparency, at most 1024 px. */
+export async function storeLogo(config: MediaConfig, bytes: Buffer): Promise<string> {
+  const out = await sharp(bytes, { failOn: 'error' }).resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+  const file = `l-${randomBytes(12).toString('hex')}.png`;
+  await mkdir(config.dir, { recursive: true });
+  await writeFile(join(config.dir, file), out);
+  return new URL(`/media/${file}`, config.baseUrl).toString();
+}
+
 /** The bytes of one of our images, e.g. a photo to edit with AI. */
 export async function readStored(config: MediaConfig, url: string): Promise<Buffer | undefined> {
   const file = url.split('/media/')[1];

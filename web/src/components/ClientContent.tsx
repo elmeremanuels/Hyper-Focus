@@ -185,6 +185,7 @@ function Socials({ clientId, content, onChange }: { clientId: number; content: C
             </>
           )}
           <MediaSettings clientId={clientId} content={content} onChange={onChange} />
+          <ImageSettings clientId={clientId} content={content} onChange={onChange} />
         </>
       )}
       {(error || failed) && <p className="text-sm font-semibold">{error ?? T.error}</p>}
@@ -294,6 +295,143 @@ function MediaSettings({ clientId, content, onChange }: { clientId: number; cont
         {t.memes}
       </label>
       {failed && <p className="text-sm font-semibold">{T.error}</p>}
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={busy}>
+          {T.save}
+        </Button>
+        {saved && (
+          <span role="status" className="text-sm text-muted">
+            {T.settings.saved}
+          </span>
+        )}
+      </div>
+    </form>
+  );
+}
+
+const ALL_SOURCES = ['drive', 'pexels', 'meme', 'textcard', 'ai'] as const;
+
+/** Image preferences (step C4): which sources in which order, the style, colours and logo. */
+function ImageSettings({ clientId, content, onChange }: { clientId: number; content: ClientContent; onChange: Reload }) {
+  // Chosen sources first, in their order; the rest after them, switched off.
+  const [order, setOrder] = useState<string[]>(() => [...content.imageSources, ...ALL_SOURCES.filter((s) => !content.imageSources.includes(s))]);
+  const [enabled, setEnabled] = useState(() => new Set(content.imageSources));
+  const [style, setStyle] = useState(content.imageStyle ?? '');
+  const [bg, setBg] = useState(content.brandColors[0] ?? '#1f3a34');
+  const [fg, setFg] = useState(content.brandColors[1] ?? '#f6f1e7');
+  const [saved, setSaved] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const { busy, failed, run } = useSubmit(() => setSaved(true));
+
+  const move = (i: number, by: number) => {
+    const next = [...order];
+    const [item] = next.splice(i, 1);
+    if (item) next.splice(i + by, 0, item);
+    setOrder(next);
+    setSaved(false);
+  };
+  const toggle = (source: string) => {
+    const next = new Set(enabled);
+    if (next.has(source)) next.delete(source);
+    else next.add(source);
+    setEnabled(next);
+    setSaved(false);
+  };
+  const onSubmit = run(async () => {
+    await patch(`/api/clients/${clientId}/content`, {
+      imageSources: order.filter((s) => enabled.has(s)),
+      imageStyle: style.trim() || null,
+      brandColors: [bg, fg],
+    });
+    await onChange();
+  });
+  const upload = (file: File | undefined) => {
+    if (!file) return;
+    setLogoError(null);
+    const reader = new FileReader();
+    reader.onload = () =>
+      void run(async () => {
+        try {
+          await put(`/api/logo/${clientId}`, { data: String(reader.result) });
+          await onChange();
+        } catch (e) {
+          setLogoError(e instanceof Error ? e.message : T.error);
+        }
+      })();
+    reader.readAsDataURL(file);
+  };
+  const removeLogo = () =>
+    void run(async () => {
+      await del(`/api/logo/${clientId}`);
+      await onChange();
+    })();
+
+  return (
+    <form className="grid gap-3 border-t-2 border-ink/10 pt-3" onSubmit={onSubmit}>
+      <h3 className="font-semibold">{t.images}</h3>
+      <p className="text-sm text-muted">{t.imagesIntro}</p>
+      <fieldset className="grid gap-1">
+        <legend className="mb-1 text-sm font-semibold">{t.imageSourcesLabel}</legend>
+        {order.map((source, i) => {
+          const available = content.sourcesAvailable.includes(source);
+          return (
+            <div key={source} className="flex items-center justify-between gap-2 rounded-lg border-2 border-ink/15 px-2 py-1">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={enabled.has(source)} onChange={() => toggle(source)} className="size-5 accent-accent" />
+                <span className={available ? '' : 'text-muted'}>
+                  {t.sourceNames[source] ?? source}
+                  {!available && ` (${t.sourceUnavailable})`}
+                </span>
+              </label>
+              <span className="flex shrink-0">
+                <button type="button" aria-label={`${t.up}: ${t.sourceNames[source]}`} disabled={i === 0} onClick={() => move(i, -1)} className="rounded p-1 disabled:opacity-30">
+                  ↑
+                </button>
+                <button type="button" aria-label={`${t.down}: ${t.sourceNames[source]}`} disabled={i === order.length - 1} onClick={() => move(i, 1)} className="rounded p-1 disabled:opacity-30">
+                  ↓
+                </button>
+              </span>
+            </div>
+          );
+        })}
+      </fieldset>
+      <Field label={t.imageStyle}>
+        <Textarea rows={2} maxLength={500} placeholder={t.imageStylePlaceholder} value={style} onChange={(e) => setStyle(e.target.value)} />
+      </Field>
+      <fieldset className="grid gap-2">
+        <legend className="mb-1 text-sm font-semibold">{t.brandColors}</legend>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="color" value={bg} onChange={(e) => setBg(e.target.value)} className="h-9 w-12 rounded border-2 border-ink" />
+            {t.colorBackground}
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="color" value={fg} onChange={(e) => setFg(e.target.value)} className="h-9 w-12 rounded border-2 border-ink" />
+            {t.colorText}
+          </label>
+          <span aria-hidden="true" className="rounded-lg border-2 border-ink px-3 py-1 text-sm font-bold" style={{ background: bg, color: fg }}>
+            Aa
+          </span>
+        </div>
+      </fieldset>
+      <div className="grid gap-2">
+        <span className="text-sm font-semibold">{t.logo}</span>
+        {content.logoUrl && <img src={content.logoUrl} alt={t.logo} className="h-16 w-16 rounded border-2 border-ink/20 bg-white object-contain p-1" />}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="cursor-pointer rounded-xl border-2 border-ink bg-card px-4 py-2 text-sm font-semibold">
+            {t.logoUpload}
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} />
+          </label>
+          {content.logoUrl && (
+            <Button variant="quiet" disabled={busy} onClick={removeLogo}>
+              {t.logoRemove}
+            </Button>
+          )}
+        </div>
+        <p className="text-sm text-muted">{t.logoHelp}</p>
+        {logoError && <p className="text-sm font-semibold">{logoError}</p>}
+      </div>
+      {failed && !logoError && <p className="text-sm font-semibold">{T.error}</p>}
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={busy}>
           {T.save}

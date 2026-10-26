@@ -26,7 +26,7 @@ export function Settings() {
         <WorkWeekCard week={s.workWeek} onSaved={reload} />
         <DayCard day={s.day} quiet={s.quiet} onSaved={reload} />
         <RewardsCard enabled={s.rewardsEnabled} onSaved={reload} />
-        <ContentCard enabled={s.contentEnabled} onSaved={reload} />
+        <ContentCard enabled={s.contentEnabled} budgetCents={s.aiImageBudgetCents} onSaved={reload} />
         <CalendarCard calendar={s.calendar} onSaved={reload} />
         <ToolsCard tools={s.tools} onSaved={reload} />
         <ProfileCard profile={s.profile} onSaved={reload} />
@@ -224,8 +224,9 @@ function RewardsCard({ enabled, onSaved }: { enabled: boolean; onSaved: Reload }
   );
 }
 
-function ContentCard({ enabled, onSaved }: { enabled: boolean; onSaved: Reload }) {
+function ContentCard({ enabled, budgetCents, onSaved }: { enabled: boolean; budgetCents: number; onSaved: Reload }) {
   const { busy, failed, run } = useSubmit();
+  const [budget, setBudget] = useState(String(budgetCents / 100));
   const set = (value: boolean) =>
     void run(async () => {
       await patch('/api/settings', { contentEnabled: value });
@@ -243,6 +244,25 @@ function ContentCard({ enabled, onSaved }: { enabled: boolean; onSaved: Reload }
         selected={[enabled ? 'on' : 'off']}
         onToggle={(v) => !busy && set(v === 'on')}
       />
+      {enabled && (
+        <form
+          className="mt-4 grid gap-2"
+          onSubmit={run(async () => {
+            await patch('/api/settings', { aiImageBudgetCents: Math.round(Number(budget.replace(',', '.')) * 100) });
+            await onSaved();
+          })}
+        >
+          <Field label={t.aiBudget}>
+            <Input type="number" min="0" step="1" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} />
+          </Field>
+          <p className="text-sm text-muted">{t.aiBudgetHelp}</p>
+          <div>
+            <Button type="submit" disabled={busy}>
+              {T.save}
+            </Button>
+          </div>
+        </form>
+      )}
       {failed && <p className="mt-2 text-sm font-semibold">{T.error}</p>}
     </Card>
   );
