@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createAssistantRouter } from '../src/conversation/assistant.js';
 import { expireWaitingPosts } from '../src/content/planner.js';
-import { approvePost } from '../src/content/posts.js';
+import { approvePost, withdrawScheduledPosts } from '../src/content/posts.js';
 import { createDbMessageStore } from '../src/core/messages.js';
 import { createDbUserStore } from '../src/core/users.js';
 import { clientChannels, clients, contentPosts, projects, scheduledNudges, tasks, users, userSettings } from '../src/db/schema/index.js';
@@ -159,5 +159,12 @@ describe.skipIf(!adminUrl)('content bundle (integration)', { timeout: 30_000 }, 
     expect(claude.callWithTools.mock.calls[0]?.[0].system).toContain('(geen: alleen een extra post als er iets te delen valt)');
     expect(result.skipped).toBe(1);
     expect(telegram.sent()).toHaveLength(0);
+  });
+
+  it('withdraws posts waiting in Buffer before the client is deleted', async () => {
+    const scheduled = (await posts()).filter((p) => p.status === 'scheduled');
+    expect(scheduled.length).toBeGreaterThan(0);
+    expect(await withdrawScheduledPosts(db(), deps, t.userId, clientId)).toBe(0);
+    expect(buffer.deleted.sort()).toEqual(scheduled.map((p) => p.bufferPostId).sort());
   });
 });

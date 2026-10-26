@@ -1,7 +1,8 @@
 // Projecten & klanten (step 2a.4): lists, add and edit, and moving tasks between projects.
 import { useState, type ReactNode } from 'react';
 import { ClientContentSection } from '../components/ClientContent';
-import { ESTIMATES, patch, post, type Client, type Project, type Projects as ProjectsData, type ProjectTask } from '../api';
+import { ConfirmDelete, TrashButton } from '../components/DeleteButton';
+import { del, ESTIMATES, patch, post, type Client, type Project, type Projects as ProjectsData, type ProjectTask } from '../api';
 import { Button } from '../components/Button';
 import { Badge, Field, FormActions, Input, Select, Textarea } from '../components/Form';
 import { Card } from '../components/Shell';
@@ -119,6 +120,7 @@ const shortDate = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateStrin
 function ProjectCard({ project, projects, clients, onChange }: { project: Project; projects: Project[]; clients: Client[]; onChange: () => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const meta = [project.client, countTasks(project.tasks.length), project.deadline ? `${t.deadline} ${shortDate(project.deadline)}` : null].filter(Boolean).join(' · ');
   return (
     <section className={`mb-4 break-inside-avoid rounded-xl border-2 border-ink p-4 shadow-hard ${project.isWeeklyFocus ? 'bg-accent-soft' : 'bg-card'} ${project.status === 'parked' ? 'opacity-70' : ''}`}>
@@ -133,11 +135,25 @@ function ProjectCard({ project, projects, clients, onChange }: { project: Projec
           <p className="text-sm text-muted tabular">{meta}</p>
         </div>
         {!editing && (
-          <Button variant="quiet" onClick={() => setEditing(true)}>
-            {t.edit}
-          </Button>
+          <div className="flex shrink-0 items-center">
+            <Button variant="quiet" onClick={() => setEditing(true)}>
+              {t.edit}
+            </Button>
+            {!project.loose && <TrashButton label={t.deleteProject} onClick={() => setDeleting(true)} />}
+          </div>
         )}
       </div>
+      {deleting && (
+        <ConfirmDelete
+          label={t.deleteProject}
+          question={t.deleteProjectQuestion(project.tasks.length)}
+          onCancel={() => setDeleting(false)}
+          onDelete={async () => {
+            await del(`/api/projects/${project.id}`);
+            await onChange();
+          }}
+        />
+      )}
 
       {editing && <ProjectForm project={project} clients={clients} onDone={() => setEditing(false)} onSaved={onChange} />}
 
@@ -356,6 +372,7 @@ function NewClient({ onSaved }: { onSaved: () => Promise<void> }) {
 
 function ClientCard({ client, onChange }: { client: Client; onChange: () => Promise<void> }) {
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [name, setName] = useState(client.name);
   const [contact, setContact] = useState(client.contactName ?? '');
   const [notes, setNotes] = useState(client.notes ?? '');
@@ -378,11 +395,25 @@ function ClientCard({ client, onChange }: { client: Client; onChange: () => Prom
           <p className="text-sm text-muted">{meta}</p>
         </div>
         {!editing && (
-          <Button variant="quiet" onClick={() => setEditing(true)}>
-            {t.edit}
-          </Button>
+          <div className="flex shrink-0 items-center">
+            <Button variant="quiet" onClick={() => setEditing(true)}>
+              {t.edit}
+            </Button>
+            <TrashButton label={t.deleteClient} onClick={() => setDeleting(true)} />
+          </div>
         )}
       </div>
+      {deleting && (
+        <ConfirmDelete
+          label={t.deleteClient}
+          question={t.deleteClientQuestion(client.projects, Boolean(client.content?.socialsEnabled))}
+          onCancel={() => setDeleting(false)}
+          onDelete={async () => {
+            await del(`/api/clients/${client.id}`);
+            await onChange();
+          }}
+        />
+      )}
       {!editing && client.notes && <p className="mt-2 whitespace-pre-line text-sm">{client.notes}</p>}
       {client.content && <ClientContentSection client={client} content={client.content} onChange={onChange} />}
       {editing && (

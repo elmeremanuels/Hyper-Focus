@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { createTask, ESTIMATES, getTask, setTaskStatus } from '../../core/tasks.js';
 import { clients, LOOSE_TASKS_PROJECT_TITLE, projects, tasks } from '../../db/schema/index.js';
 import { getLooseTasksProject } from '../../core/projects.js';
-import { contentEnabled } from '../../content/posts.js';
+import { deleteClientMedia } from '../../content/media.js';
+import { contentEnabled, withdrawScheduledPosts } from '../../content/posts.js';
 import { handle, userContext, type DashboardRoutesConfig } from './common.js';
 import { clientContent } from './content.js';
 
@@ -125,6 +126,23 @@ export function projectRoutes(config: DashboardRoutesConfig): Router {
     }),
   );
 
+  // The tasks of the project go with it (the dashboard asks first and names how many).
+  router.delete(
+    '/api/projects/:id',
+    handle(async (req, res) => {
+      const { db, userId } = await userContext(config, res);
+      const project = await ownProject(userId, Number(req.params.id));
+      if (!project) return void res.status(404).json(notFound('Project'));
+      if (project.title === LOOSE_TASKS_PROJECT_TITLE) return void res.status(400).json({ error: 'Losse taken blijft zoals het is' });
+      const removed = await db
+        .delete(tasks)
+        .where(and(eq(tasks.userId, userId), eq(tasks.projectId, project.id)))
+        .returning({ id: tasks.id });
+      await db.delete(projects).where(and(eq(projects.userId, userId), eq(projects.id, project.id)));
+      res.json({ ok: true, tasks: removed.length });
+    }),
+  );
+
   router.post(
     '/api/projects/:id/tasks',
     handle(async (req, res) => {
@@ -192,6 +210,20 @@ export function projectRoutes(config: DashboardRoutesConfig): Router {
       const patch = clientPatch.parse(req.body);
       if (Object.keys(patch).length) await db.update(clients).set(patch).where(eq(clients.id, client.id));
       res.json({ ok: true });
+    }),
+  );
+
+  // Projects stay, without client; channels and posts go along, also those waiting in Buffer.
+  router.delete(
+    '/api/clients/:id',
+    handle(async (req, res) => {
+      const { db, userId } = await userContext(config, res);
+      const client = await ownClient(userId, Number(req.params.id));
+      if (!client) return void res.status(404).json(notFound('Klant'));
+      const notWithdrawn = await withdrawScheduledPosts(db, config.content, userId, client.id);
+      if (config.content?.media) await deleteClientMedia(db, userId, client.id, config.content.media.dir);
+      await db.delete(clients).where(and(eq(clients.userId, userId), eq(clients.id, client.id)));
+      res.json({ ok: true, notWithdrawn });
     }),
   );
 
