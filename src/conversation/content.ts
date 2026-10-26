@@ -1,6 +1,6 @@
 // The content module in the conversation (steps C1–C4): "post voor Studio Rust: …", the approval
 // buttons, the answer to "Aanpassen", and the image: menu, own photo, own words.
-import { and, desc, eq, gte, inArray } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { findClientByName } from '../core/clients.js';
 import { recordEvent } from '../core/events.js';
@@ -146,11 +146,13 @@ export async function handlePhoto(
   if (!(await contentEnabled(ctx.db, ctx.userId))) return [{ text: 'Foto’s gebruik ik alleen als beeld bij een post. Zet de contentmodule aan in Instellingen.' }];
   const caption = message.caption?.trim();
   if (caption && /^(post|zet)\b[^:]{0,80}:/i.test(caption)) {
+    // The posts this caption creates: everything newer than the newest post before it.
+    const [before] = await ctx.db.select({ id: contentPosts.id }).from(contentPosts).where(eq(contentPosts.userId, ctx.userId)).orderBy(desc(contentPosts.id)).limit(1);
     const replies = await converse(caption);
     const fresh = await ctx.db
       .select({ id: contentPosts.id })
       .from(contentPosts)
-      .where(and(eq(contentPosts.userId, ctx.userId), eq(contentPosts.status, 'pending_approval'), gte(contentPosts.createdAt, new Date(ctx.now.getTime() - 2 * 60_000))));
+      .where(and(eq(contentPosts.userId, ctx.userId), eq(contentPosts.status, 'pending_approval'), gt(contentPosts.id, before?.id ?? 0)));
     if (fresh.length === 0) return [...replies, { text: CONTENT_TEXTS.photoUnused }];
     const out: OutboundMessage[] = [];
     for (const { id } of fresh) out.push(...(await afterImage(ctx, id, await attachPhoto(ctx, id, message.image))));
