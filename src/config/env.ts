@@ -104,6 +104,11 @@ export const envSchema = z.object({
   // Content module (step C3): a read-only key for public Drive folders, and where photos are stored.
   GOOGLE_API_KEY: optionalString,
   MEDIA_DIR: optionalString,
+  // Step C4: stock photos and AI images. Without a model AI images are off.
+  PEXELS_API_KEY: optionalString,
+  OPENAI_IMAGE_MODEL: optionalString,
+  /** Estimated cost of one AI image in euro cents, for the monthly budget. */
+  OPENAI_IMAGE_COST_CENTS: z.coerce.number().int().min(1).max(500).default(10),
 
   // Phase 3
   MOLLIE_API_KEY: optionalString,

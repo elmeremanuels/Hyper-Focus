@@ -115,7 +115,7 @@ export async function simulateDays(options: SimulationOptions): Promise<Simulati
           const message = await action.message({ db, userId: options.userId, now });
           if (!message) continue;
           const silent = await isFocusQuiet(db, options.userId, now);
-          result.sent.push({ at: now, channel: 'telegram', text: message.kind === 'text' ? message.text : message.title, buttons: [], user: true });
+          result.sent.push({ at: now, channel: 'telegram', text: message.kind === 'text' ? message.text : message.kind === 'button' ? message.title : '[foto]', buttons: [], user: true });
           for (const reply of await router(message)) {
             result.sent.push({
               at: now,

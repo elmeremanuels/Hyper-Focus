@@ -6,6 +6,8 @@ export type TelegramContent =
   | { kind: 'command'; command: string; argument: string }
   | { kind: 'button'; buttonId: string; callbackQueryId: string; title: string }
   | { kind: 'voice'; fileId: string; durationSeconds: number }
+  /** A photo, or an image sent as a file (step C4). */
+  | { kind: 'photo'; fileId: string; caption: string | undefined }
   | { kind: 'unsupported' };
 
 export interface TelegramUpdate {
@@ -30,6 +32,9 @@ const message = z.looseObject({
   date: z.number(),
   text: z.string().optional(),
   voice: z.looseObject({ file_id: z.string(), duration: z.number() }).optional(),
+  photo: z.array(z.looseObject({ file_id: z.string(), width: z.number(), height: z.number() })).optional(),
+  document: z.looseObject({ file_id: z.string(), mime_type: z.string().optional() }).optional(),
+  caption: z.string().optional(),
   reply_markup: z.looseObject({ inline_keyboard: z.array(z.array(inlineButton)) }).optional(),
 });
 
@@ -85,6 +90,10 @@ function toContent(msg: z.infer<typeof message>): TelegramContent {
   if (msg.voice) {
     return { kind: 'voice', fileId: msg.voice.file_id, durationSeconds: msg.voice.duration };
   }
+  // The largest size Telegram offers; an image sent "as file" counts too.
+  const photo = msg.photo?.reduce((a, b) => (b.width * b.height > a.width * a.height ? b : a));
+  if (photo) return { kind: 'photo', fileId: photo.file_id, caption: msg.caption };
+  if (msg.document?.mime_type?.startsWith('image/')) return { kind: 'photo', fileId: msg.document.file_id, caption: msg.caption };
   if (msg.text !== undefined) {
     const command = /^\/([a-z_]+)(?:@\w+)?(?:\s+(.*))?$/is.exec(msg.text.trim());
     if (command) {

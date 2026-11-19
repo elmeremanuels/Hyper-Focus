@@ -103,21 +103,26 @@ describe.skipIf(!adminUrl)('content module (integration)', () => {
     const replies = await router(claude)({ kind: 'text', userId: t.userId, text: 'post voor Studio Rust: Adem in. Adem uit. Nieuwe sessies vanaf dinsdag.' });
     expect(replies).toHaveLength(2);
     expect(replies[0]?.text).toBe(
-      'Post voor Studio Rust · studiorust (Instagram)\nGepland: dinsdag 13 okt 10:00\n\nAdem in. Adem uit. Nieuwe sessies vanaf dinsdag.',
+      'Post voor Studio Rust · studiorust (Instagram)\nGepland: dinsdag 13 okt 10:00\nBeeld: geen. Tik op Beeld… om er een te kiezen.\n\nAdem in. Adem uit. Nieuwe sessies vanaf dinsdag.',
     );
     expect(replies[1]?.text).toContain('Gepland: volgende vrije plek in Buffer');
     const [ig] = await posts();
-    expect(replies[0]?.buttons?.map((b) => b.id)).toEqual([`cp:${ig!.id}:ok`, `cp:${ig!.id}:edit`, `cp:${ig!.id}:skip`]);
+    expect(replies[0]?.buttons?.map((b) => b.id)).toEqual([`cp:${ig!.id}:ok`, `cp:${ig!.id}:edit`, `cp:${ig!.id}:skip`, `ci:${ig!.id}:menu`]);
     expect(ig).toMatchObject({ status: 'pending_approval', dueAt: new Date('2026-10-13T08:00:00Z') });
     expect(buffer.posts).toHaveLength(0);
   });
 
   it('schedules in Buffer only after "Goed", and only once', async () => {
     const [ig] = await posts();
+    // Instagram needs an image first (step C4).
+    const blocked = await router()({ kind: 'button', userId: t.userId, buttonId: `cp:${ig!.id}:ok`, title: '' });
+    expect(blocked[0]).toEqual({ text: 'studiorust plaatst geen post zonder beeld. Kies eerst een beeld.', buttons: [{ id: `ci:${ig!.id}:menu`, title: 'Beeld…' }] });
+    const meme = 'https://api.memegen.link/images/fine/a/b.jpg';
+    await db().update(contentPosts).set({ mediaUrl: meme, mediaSource: 'meme' }).where(eq(contentPosts.id, ig!.id));
     const replies = await router()({ kind: 'button', userId: t.userId, buttonId: `cp:${ig!.id}:ok`, title: '' });
     expect(replies[0]?.text).toBe('Ingepland: dinsdag 13 okt 10:00 op studiorust.');
     expect(buffer.posts).toEqual([
-      { key: GOOD_KEY, channelId: 'ch_ig', service: 'instagram', text: 'Adem in. Adem uit. Nieuwe sessies vanaf dinsdag.', dueAt: new Date('2026-10-13T08:00:00Z'), imageUrl: null },
+      { key: GOOD_KEY, channelId: 'ch_ig', service: 'instagram', text: 'Adem in. Adem uit. Nieuwe sessies vanaf dinsdag.', dueAt: new Date('2026-10-13T08:00:00Z'), imageUrl: 'https://api.memegen.link/images/fine/a/b.jpg', aiGenerated: false },
     ]);
     expect((await posts())[0]).toMatchObject({ status: 'scheduled', bufferPostId: 'buf_1', approvedAt: NOW });
     const again = await router()({ kind: 'button', userId: t.userId, buttonId: `cp:${ig!.id}:ok`, title: '' });

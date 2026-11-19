@@ -1,9 +1,11 @@
 // Content module on the client card (step C1): free profile fields, the socials switch, the
 // Buffer key per client and up to three channels with their rhythm.
 import { and, asc, eq, inArray } from 'drizzle-orm';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod';
 import { bufferForKey, contentEnabled, MAX_CHANNELS } from '../../content/posts.js';
+import { availableSources, IMAGE_SOURCES } from '../../content/images/propose.js';
+import { removeFile, storeLogo } from '../../content/media.js';
 import { clientChannels, clients } from '../../db/schema/index.js';
 import { BufferClient, BufferError } from '../../integrations/buffer/client.js';
 import { encryptToken } from '../../lib/crypto.js';
@@ -23,8 +25,13 @@ const contentPatch = z
     socialsEnabled: z.boolean(),
     photoFolderUrl: httpsUrl.nullable(),
     memesAllowed: z.boolean(),
+    // Image preferences (step C4).
+    imageSources: z.array(z.enum(IMAGE_SOURCES)).max(IMAGE_SOURCES.length).refine((list) => new Set(list).size === list.length, 'uniek'),
+    imageStyle: z.string().trim().max(500).nullable(),
+    brandColors: z.array(z.string().regex(/^#[0-9a-f]{6}$/i)).max(2),
   })
   .partial();
+const logoInput = z.object({ data: z.string().min(10).max(4_000_000) });
 const keyInput = z.object({ apiKey: z.string().trim().min(10).max(500) });
 const channelsInput = z.object({
   channels: z
@@ -157,14 +164,66 @@ export function contentRoutes(config: DashboardRoutesConfig): Router {
     }),
   );
 
+  // The logo is base64 in JSON, so it has its own path and size limit (step C4).
+  router.put(
+    '/api/logo/:id',
+    express.json({ limit: '4mb' }),
+    handle(async (req, res) => {
+      const { db, userId } = await userContext(config, res);
+      if (!(await contentEnabled(db, userId))) return void res.status(409).json(off);
+      const media = content?.media;
+      if (!media) return void res.status(409).json({ error: 'Beelden staan niet aan op de server' });
+      const client = await ownClient(userId, Number(req.params.id));
+      if (!client) return void res.status(404).json({ error: 'Klant niet gevonden' });
+      const { data } = logoInput.parse(req.body);
+      const bytes = Buffer.from(data.replace(/^data:image\/[\w+.-]+;base64,/, ''), 'base64');
+      if (bytes.length > 3 * 1024 * 1024) return void res.status(400).json({ error: 'Het logo is groter dan 3 MB' });
+      let url: string;
+      try {
+        // A PNG keeps transparency, so the logo sits well on a text card.
+        url = await storeLogo(media, bytes);
+      } catch {
+        return void res.status(400).json({ error: 'Dit bestand is geen afbeelding' });
+      }
+      const [old] = await db.select({ url: clients.logoUrl }).from(clients).where(eq(clients.id, client.id));
+      await db.update(clients).set({ logoUrl: url }).where(eq(clients.id, client.id));
+      if (old?.url) await removeFile(media.dir, old.url);
+      res.json({ logoUrl: url });
+    }),
+  );
+
+  router.delete(
+    '/api/logo/:id',
+    handle(async (req, res) => {
+      const { db, userId } = await userContext(config, res);
+      const client = await ownClient(userId, Number(req.params.id));
+      if (!client) return void res.status(404).json({ error: 'Klant niet gevonden' });
+      const [old] = await db.select({ url: clients.logoUrl }).from(clients).where(eq(clients.id, client.id));
+      await db.update(clients).set({ logoUrl: null }).where(eq(clients.id, client.id));
+      if (old?.url && content?.media) await removeFile(content.media.dir, old.url);
+      res.json({ ok: true });
+    }),
+  );
+
   return router;
 }
 
 /** The content part of a client in /api/projects. */
-export async function clientContent(config: Pick<DashboardRoutesConfig, 'db'>, userId: number, clientIds: number[]) {
+export async function clientContent(config: Pick<DashboardRoutesConfig, 'db' | 'content'>, userId: number, clientIds: number[]) {
   if (clientIds.length === 0) return new Map<number, ClientContent>();
   const rows = await config.db
-    .select({ id: clients.id, profile: clients.profile, socialsEnabled: clients.socialsEnabled, key: clients.bufferApiKeyEnc, photoFolderUrl: clients.photoFolderUrl, memesAllowed: clients.memesAllowed })
+    .select({
+      id: clients.id,
+      profile: clients.profile,
+      socialsEnabled: clients.socialsEnabled,
+      key: clients.bufferApiKeyEnc,
+      photoFolderUrl: clients.photoFolderUrl,
+      memesAllowed: clients.memesAllowed,
+      imageSources: clients.imageSources,
+      imageStyle: clients.imageStyle,
+      brandColors: clients.brandColors,
+      logoUrl: clients.logoUrl,
+    })
     .from(clients)
     .where(and(eq(clients.userId, userId), inArray(clients.id, clientIds)));
   const channels = await config.db
@@ -181,6 +240,12 @@ export async function clientContent(config: Pick<DashboardRoutesConfig, 'db'>, u
         bufferConnected: r.key !== null,
         photoFolderUrl: r.photoFolderUrl,
         memesAllowed: r.memesAllowed,
+        imageSources: r.imageSources,
+        imageStyle: r.imageStyle,
+        brandColors: r.brandColors,
+        logoUrl: r.logoUrl,
+        // Which sources work on this server and for this card (keys, folder, memes).
+        sourcesAvailable: availableSources(config.content?.media, { folder: r.photoFolderUrl, memes: r.memesAllowed }),
         channels: channels
           .filter((c) => c.clientId === r.id)
           .map((c) => ({ bufferChannelId: c.bufferChannelId, name: c.name, service: c.service, days: c.days, time: c.postTime.slice(0, 5) })),
@@ -195,5 +260,10 @@ export interface ClientContent {
   bufferConnected: boolean;
   photoFolderUrl: string | null;
   memesAllowed: boolean;
+  imageSources: string[];
+  imageStyle: string | null;
+  brandColors: string[];
+  logoUrl: string | null;
+  sourcesAvailable: string[];
   channels: Array<{ bufferChannelId: string; name: string; service: string; days: number[]; time: string }>;
 }

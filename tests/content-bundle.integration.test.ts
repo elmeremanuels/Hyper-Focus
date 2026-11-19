@@ -82,7 +82,7 @@ describe.skipIf(!adminUrl)('content bundle (integration)', { timeout: 30_000 }, 
           {
             name: 'plan_posts',
             input: {
-              posts: [{ moment: 1, text: 'Dinsdag: even stilstaan bij je adem.' }],
+              posts: [{ moment: 1, text: 'Dinsdag: even stilstaan bij je adem.', meme: { template: 'fine', top: 'Maandag', bottom: 'Adem' } }],
               extra: { channel: 2, text: 'Onze nieuwe website staat live.', reason: 'Je zette de nieuwe website live.' },
             },
           },
@@ -96,7 +96,9 @@ describe.skipIf(!adminUrl)('content bundle (integration)', { timeout: 30_000 }, 
     expect(sent[0]?.text).toBe('2 posts klaar voor één klant. Keur ze per stuk goed, of alles in één keer.');
     expect(JSON.stringify(sent[0]?.reply_markup)).toContain('cpb:all');
     expect(String(sent[1]?.text)).toContain('Rust (LinkedIn)\nGepland: dinsdag 13 okt 08:30\nExtra post: Je zette de nieuwe website live.');
-    expect(String(sent[2]?.text)).toContain('studiorust (Instagram)\nGepland: dinsdag 13 okt 10:00\n\nDinsdag: even stilstaan bij je adem.');
+    expect(String(sent[2]?.text)).toContain('studiorust (Instagram)\nGepland: dinsdag 13 okt 10:00\nBeeld: Meme via memegen.link\n\nDinsdag: even stilstaan bij je adem.');
+    // The image itself goes as a Telegram photo (step C4).
+    expect(sent[2]?.photo).toBe('https://api.memegen.link/images/fine/Maandag/Adem.jpg');
 
     // Claude saw the week, the client card and the moments.
     const call = claude.callWithTools.mock.calls[0]?.[0];

@@ -39,6 +39,7 @@ const settingsPatch = z
     workStart: time,
     workEnd: time,
     contentEnabled: z.boolean(),
+    aiImageBudgetCents: z.number().int().min(0).max(100_000),
   })
   .partial();
 
@@ -87,6 +88,7 @@ export function settingsRoutes(config: DashboardRoutesConfig): Router {
         quiet: { start: hhmm(s.quietStart), end: hhmm(s.quietEnd) },
         rewardsEnabled: s.rewardsEnabled,
         contentEnabled: s.contentEnabled,
+        aiImageBudgetCents: s.aiImageBudgetCents,
         calendar: {
           available: Boolean(config.calendar && connectUrl(config.calendar, userId, new Date())),
           connections: connections.map((c) => ({ provider: c.provider, status: c.status, lastSyncedAt: c.lastSyncedAt })),

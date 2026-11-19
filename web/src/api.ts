@@ -108,6 +108,12 @@ export interface ClientContent {
   bufferConnected: boolean;
   photoFolderUrl: string | null;
   memesAllowed: boolean;
+  /** Image preferences (step C4). */
+  imageSources: string[];
+  imageStyle: string | null;
+  brandColors: string[];
+  logoUrl: string | null;
+  sourcesAvailable: string[];
   channels: ClientChannel[];
 }
 
@@ -142,6 +148,7 @@ export interface Settings {
   quiet: { start: string; end: string };
   rewardsEnabled: boolean;
   contentEnabled: boolean;
+  aiImageBudgetCents: number;
   calendar: { available: boolean; connections: Array<{ provider: string; status: string; lastSyncedAt: string | null }>; meetingHeadsUp: boolean; meetingFollowup: boolean };
   tools: Array<{ workType: string; label: string; current: { key: string; label: string; url: string } | null; options: Array<{ key: string; label: string; needsLink: boolean }> }>;
 }

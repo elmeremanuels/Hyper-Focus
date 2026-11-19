@@ -1,0 +1,27 @@
+{
+  "update_id": 500007,
+  "message": {
+    "message_id": 14,
+    "from": {
+      "id": 111222333,
+      "is_bot": false,
+      "first_name": "Sam",
+      "language_code": "nl"
+    },
+    "chat": {
+      "id": 111222333,
+      "first_name": "Sam",
+      "type": "private"
+    },
+    "date": 1791280800,
+    "sticker": {
+      "file_id": "s",
+      "file_unique_id": "t",
+      "width": 512,
+      "height": 512,
+      "is_animated": false,
+      "is_video": false,
+      "type": "regular"
+    }
+  }
+}

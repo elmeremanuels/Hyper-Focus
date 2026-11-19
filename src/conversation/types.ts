@@ -24,7 +24,9 @@ export type InboundMessage =
       /** Tried again from the queue after the AI was out (verbeterplan P0.2): failures throw. */
       queued?: boolean;
     }
-  | { kind: 'button'; userId: number; buttonId: string; title: string; source?: InboundSource };
+  | { kind: 'button'; userId: number; buttonId: string; title: string; source?: InboundSource }
+  /** A photo sent in Telegram (step C4): for a post's image; the caption is an instruction. */
+  | { kind: 'photo'; userId: number; image: Buffer; caption?: string | undefined; source?: InboundSource };
 
 export interface OutboundMessage {
   text: string;
@@ -36,6 +38,8 @@ export interface OutboundMessage {
   rows?: Button[][];
   /** Files sent with the message, such as an .ics file to put a session in a calendar. */
   attachments?: Attachment[];
+  /** A public image URL shown with the message (step C4): Telegram sends it as a photo. */
+  photo?: string;
 }
 
 export interface Attachment {

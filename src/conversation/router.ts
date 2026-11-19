@@ -65,6 +65,7 @@ export function createRouter(deps: RouterDeps): Router {
       return [{ text: 'Die knop ken ik nog niet.', buttons: [HELP] }];
     }
 
+    if (message.kind === 'photo') return [{ text: 'Foto’s gebruik ik alleen als beeld bij een post.' }];
     const text = message.text.trim();
     if (TODAY_WORDS.test(text)) return [await showToday(message.userId)];
     if (HELP_WORDS.test(text)) return [help];

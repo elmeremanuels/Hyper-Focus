@@ -75,6 +75,8 @@ export const userSettings = pgTable(
     workEnd: time('work_end').notNull().default('17:00'),
     /** Content module on or off (step C1). Off hides everything about social posts. */
     contentEnabled: boolean('content_enabled').notNull().default(false),
+    /** Monthly cap for AI images in euro cents (step C4). */
+    aiImageBudgetCents: integer('ai_image_budget_cents').notNull().default(1000),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

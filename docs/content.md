@@ -79,3 +79,57 @@ Posts voor social media per klant. Buffer zet ze live, goedkeuren gaat in Telegr
 - [ ] Een uur na het moment staat de post op *verstuurd* (zichtbaar in de database of de export).
 - [ ] De maandag erna is de foto van die post weg uit `~/hyperfocus/media`.
 
+## Wat C4 doet: beeld
+
+Elke post krijgt een beeldvoorstel. In Telegram zie je het beeld zelf, met de tekst eronder.
+
+**Bronnen.** De volgorde stel je per klant in op de klantkaart, onder *Beeld*:
+
+| Bron | Wat | Nodig |
+|---|---|---|
+| Fotomap | Claude kiest uit je Drive-map op naam en beschrijving | `GOOGLE_API_KEY` + fotomap op de klantkaart |
+| Stockfoto's | Claude maakt een zoekterm; Pexels geeft 3 foto's, met de naam van de fotograaf | `PEXELS_API_KEY` |
+| Meme | Sjabloon met tekst via memegen.link | Memes aan op de klantkaart |
+| Tekstkaart | Eén zin uit de post in de kleuren van de klant, met het logo | niets |
+| AI-beeld | Een nieuw beeld op basis van de post en de beeldstijl | `OPENAI_API_KEY` + `OPENAI_IMAGE_MODEL` |
+| Eigen foto | Stuur een foto naar de bot | niets |
+| Eigen foto + AI | Foto met tekst erbij ("logo rechtsonder", "maak hem lichter") | als AI-beeld |
+
+Elk beeld wordt bijgesneden voor het kanaal: Instagram en Threads staand (4:5), LinkedIn, Facebook en X liggend.
+
+**In Telegram:**
+- **Knoppen:** *Goed* · *Aanpassen* · *Overslaan* · *Ander beeld* · *Beeld…*.
+- ***Ander beeld*** toont het volgende voorstel uit dezelfde bron. Bij Pexels komen de drie foto's uit één zoekopdracht; daarna volgt de volgende pagina.
+- ***Beeld…*** opent het menu met de bronnen die voor deze klant werken, plus *Eigen foto*, *Beschrijf zelf* en *Zonder beeld*.
+- **Typ of spreek je wensen in**, bijvoorbeeld "meme over maandag", "pexels: strand bij zonsondergang" of "AI: rustige ochtend met koffie". Die gaan naar de post die op akkoord wacht. Ze worden nooit een taak of notitie.
+- **Een foto naar de bot** wordt het beeld van de nieuwste wachtende post, of van de post waarbij je *Eigen foto* koos. Met "post voor X: …" als bijschrift maak je meteen een nieuwe post met die foto.
+- **Instagram, Pinterest, TikTok en YouTube** nemen geen post zonder beeld. *Goed* vraagt dan eerst om een beeld.
+
+**Kosten en regels:**
+- AI-beelden tellen mee voor een maandbudget, standaard €10. Je stelt het in onder Instellingen → Contentmodule.
+  - Bij 80% krijg je een melding. Daarna maakt de app geen AI-beelden meer tot de volgende maand.
+  - De kosten per beeld staan in `OPENAI_IMAGE_COST_CENTS` (standaard 10 cent). Dat is een schatting: controleer de echte prijs bij OpenAI.
+- AI-beelden worden in Buffer gelabeld als AI-gemaakt waar het netwerk dat kent (Instagram, X, TikTok, YouTube).
+- Alle beelden staan onder `/media`. Na de week van de post worden ze verwijderd, ook voorstellen die niet gekozen zijn. Bij het verwijderen van een klant of account gaan ze mee, inclusief het logo.
+
+## Op de VPS (Cowork, C4)
+
+1. `npm ci --include=dev` installeert `sharp` (beeldbewerking). De binaries voor Linux komen mee; er hoeft niets extra op de server.
+2. `npm run db:migrate`: migratie `0015_content_images`.
+3. In `.env`:
+   - `PEXELS_API_KEY=…`: gratis, aan te maken op https://www.pexels.com/api/ met Elmers account. Elmer plakt de sleutel zelf.
+   - `OPENAI_IMAGE_MODEL=…`: de modelnaam van OpenAI voor beelden, bijvoorbeeld de nieuwste GPT Image. Kies hem op https://platform.openai.com/docs/models. Zonder deze regel staan AI-beelden uit. `OPENAI_API_KEY` staat er al voor spraak.
+   - `OPENAI_IMAGE_COST_CENTS=…`: optioneel, standaard 10.
+4. `pm2 restart hyperfocus hyperfocus-worker --update-env`.
+
+## Live controleren (C4)
+
+- [ ] In Telegram: "post voor <klant>: test". De post komt als foto met tekst, met *Ander beeld* en *Beeld…*.
+- [ ] *Beeld…* → *Stockfoto (Pexels)* geeft een staande foto bij Instagram, met "Foto: … via Pexels".
+- [ ] "maak er een meme van over maandag" geeft een meme bij die post, en geen notitie bij een taak.
+- [ ] Een foto sturen met "logo rechtsonder" geeft je foto met het logo (alleen als AI aan staat).
+- [ ] *Zonder beeld* bij Instagram, daarna *Goed*: de bot vraagt eerst om een beeld.
+
+## Volgende stap
+
+- C4e: een overzicht *Posts* in het dashboard, met de komende posts, beeld wisselen, uploaden en goedkeuren.

@@ -18,3 +18,5 @@ Ideeën en extra's die buiten de huidige bouwstap vallen.
 - Dashboard: een weekoverzicht met het focuslog van de week en de opbrengst (nu alleen vandaag en de weekmail). Handig voor de demo.
 - Contentmodule: AI-gegenereerde beelden als laatste bron na de Drive-map en memegen (keuze Elmer, C3).
 - Contentmodule: OAuth van Buffer zodra Buffer dat voor apps van derden opent; dan hoeft niemand een API-sleutel te plakken.
+- Contentmodule C4e: overzicht *Posts* in het dashboard (komende posts, beeld wisselen, uploaden, goedkeuren).
+- Contentmodule: Unsplash als tweede stockbron naast Pexels.

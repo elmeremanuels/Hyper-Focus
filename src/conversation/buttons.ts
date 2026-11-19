@@ -36,6 +36,7 @@ export type ParsedButton =
   | { kind: 'tools'; action: 'start' | 'missing' | 'pick' | 'skip' | 'other' | 'paste' | 'keep' | 'edit' | 'del'; workType?: string; toolKey?: string }
   | { kind: 'post'; postId: number; action: 'ok' | 'edit' | 'skip' }
   | { kind: 'posts'; action: 'all' }
+  | { kind: 'image'; postId: number; action: 'menu' | 'next' | 'drive' | 'pexels' | 'meme' | 'textcard' | 'ai' | 'upload' | 'describe' | 'none' }
   | { kind: 'help' };
 
 /** Parses the button ids from BOUWPLAN.md 9.4. */
@@ -94,6 +95,8 @@ export function parseButtonId(id: string): ParsedButton | undefined {
   match = /^cp:(\d+):(ok|edit|skip)$/.exec(id);
   if (match) return { kind: 'post', postId: Number(match[1]), action: match[2] as never };
   if (id === 'cpb:all') return { kind: 'posts', action: 'all' };
+  match = /^ci:(\d+):(menu|next|drive|pexels|meme|textcard|ai|upload|describe|none)$/.exec(id);
+  if (match) return { kind: 'image', postId: Number(match[1]), action: match[2] as never };
   if (id === 'help') return { kind: 'help' };
   return undefined;
 }
@@ -202,6 +205,7 @@ export async function handleButton(
     case 'dashboard':
     case 'post':
     case 'posts':
+    case 'image':
     case 'plan':
       return [UNKNOWN];
   }

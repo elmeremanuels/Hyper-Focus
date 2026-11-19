@@ -5,7 +5,7 @@ import type { ClaudeClient } from '../ai/claude.js';
 import { scheduledNudges } from '../db/schema/index.js';
 import type { Alert } from '../ops/alerts.js';
 import type { ContentDeps } from '../content/posts.js';
-import { CONTENT_TOOLS, contentButtons, postEditModeHandler } from './content.js';
+import { CONTENT_TOOLS, contentButtons, handlePhoto, postEditModeHandler, postImageModeHandler } from './content.js';
 import { creditProblem } from '../ops/checks.js';
 import { fillPrompt, loadPrompt } from '../ai/prompts.js';
 import { getProfile, type UserProfile } from '../core/profile.js';
@@ -139,6 +139,7 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
       }),
     onboarding: (message, state, ctx) => onboardingModeHandler(message.text, state.data, ctx),
     post_edit: postEditModeHandler,
+    post_image: postImageModeHandler,
     ...deps.modeHandlers,
   };
   const anthropicTools = toAnthropicTools(tools);
@@ -160,6 +161,10 @@ export function createAssistantRouter(deps: AssistantDeps): Router {
 
     if (message.kind === 'button') {
       return handleButton(message.buttonId, ctx, buttonExtensions);
+    }
+    // A photo is always about a post's image (step C4); its caption may itself start a post.
+    if (message.kind === 'photo') {
+      return handlePhoto(message, ctx, async (text) => (deps.claude ? converse(deps.claude, profile, text, 'telegram', ctx) : [{ text: TEXTS.noAi }]));
     }
 
     if (looksLikeCrisis(message.text)) {
